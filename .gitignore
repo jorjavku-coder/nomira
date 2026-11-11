@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+.next/
+next-env.d.ts
+tsconfig.tsbuildinfo
+backend/almacen/
+almacen/
+capturas/
+# Nunca versionar comprobantes reales ni exportaciones
+*.xlsx
+datos/reales/
+Comprobantes*.pdf

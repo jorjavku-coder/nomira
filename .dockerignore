@@ -1,0 +1,6 @@
+**/__pycache__
+**/.pytest_cache
+backend/almacen
+backend/.env
+frontend
+.git

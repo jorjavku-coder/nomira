@@ -1,0 +1,53 @@
+# Quincena Clara — ejecución local. Copie .env.example a .env y cambie los secretos.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-quincena}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-quincena}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ENTORNO: ${ENTORNO:-produccion}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-quincena}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-quincena}
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-quincena}:${POSTGRES_PASSWORD}@db:5432/quincena_test
+      JWT_SECRETO: ${JWT_SECRETO:?Defina JWT_SECRETO en .env}
+      JWT_MINUTOS: ${JWT_MINUTOS:-480}
+      PERMITIR_REGISTRO: ${PERMITIR_REGISTRO:-true}
+      MAX_MB_ARCHIVO: ${MAX_MB_ARCHIVO:-40}
+      ZONA_HORARIA: ${ZONA_HORARIA:-America/Mexico_City}
+      IA_HABILITADA: ${IA_HABILITADA:-false}
+      IA_MODELO: ${IA_MODELO:-claude-opus-5-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      STORAGE_DIR: /datos/almacen
+    volumes:
+      - almacen:/datos/almacen   # comprobantes originales: privados, nunca servidos de forma estática
+    depends_on:
+      db:
+        condition: service_healthy
+    # Sin puertos publicados: solo el frontend alcanza la API dentro de la red de Compose.
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "${PUERTO_WEB:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  almacen:

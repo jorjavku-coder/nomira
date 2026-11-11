@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-slate-50 text-slate-800 antialiased; }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primario { @apply btn bg-marino text-white hover:bg-marino-700; }
+  .btn-turquesa { @apply btn bg-turquesa text-white hover:bg-turquesa-700; }
+  .btn-sec { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100; }
+  .btn-peligro { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }
+  .campo { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:border-turquesa focus:outline-none focus:ring-2 focus:ring-turquesa/30; }
+  .etiqueta { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .tarjeta { @apply rounded-lg border border-slate-200 bg-white shadow-sm; }
+  .tabla { @apply w-full text-sm; }
+  .tabla th { @apply border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .tabla td { @apply border-b border-slate-100 px-3 py-2 align-top; }
+  .num { @apply text-right font-mono tabular-nums; }
+}
