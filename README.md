@@ -99,9 +99,12 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
 1. **Catálogos** → crear catálogo → «Leer catálogo desde PDF (OCR)». Se crea un **borrador**; las
    entradas dudosas aparecen marcadas. Un administrador las revisa contra el documento fuente y
    **activa** la versión. (La demo trae ya activa una transcripción de referencia.)
-2. **Expedientes** → nuevo expediente: trabajador, identificador laboral opcional, periodo, quincenas
-   esperadas y versión de catálogo.
-3. **Documentos** → subir uno o varios PDF. Cada página se clasifica como recibo o informativa.
+2. **Expedientes** → nuevo expediente. Suba ahí mismo los PDF de recibos: Nomira los lee (sin
+   guardarlos todavía) y propone nombre, clave de servidor y periodo; usted revisa y confirma. Al
+   crear, los PDF se cargan y procesan solos. También puede capturar todo a mano.
+   `datos/ejemplos/recibos_sinteticos.pdf` es un archivo ficticio para probarlo.
+3. **Documentos** → subir más PDF cuando haga falta. Cada página se clasifica como recibo o
+   informativa. Si los recibos cubren más quincenas que el periodo del expediente, se ofrece ampliarlo.
 4. **Revisión** → lista de quincenas; conceptos incluidos, excluidos (con motivo) y pendientes; visor
    del comprobante original con la fila resaltada; corregir o confirmar lecturas; decidir duplicados.
 5. **Validar** → solo sin pendientes. Congela resultado y versión de catálogo.
