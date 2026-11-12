@@ -7,7 +7,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile.demo
     plan: free
-    healthCheckPath: /login
+    healthCheckPath: /api/salud  # pasa por Next y comprueba API y base de datos
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -29,6 +29,10 @@ services:
         value: "false"
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Render pone Cloudflare delante; este encabezado lo fija Cloudflare y no se puede falsificar
+      # (X-Forwarded-For sí: Render no lo limpia).
+      - key: IP_CLIENTE_ENCABEZADO
+        value: True-Client-IP
 
 databases:
   - name: nomira-db

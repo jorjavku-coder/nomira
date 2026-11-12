@@ -31,6 +31,8 @@ class Usuario(Base):
     hash_contrasena: Mapped[str] = mapped_column(String(200))
     rol: Mapped[str] = mapped_column(String(20))  # administrador | analista | consulta
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Sube al cambiar la contraseña o desactivar al usuario: invalida los tokens ya emitidos.
+    sesion_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
 

@@ -7,7 +7,7 @@ import tempfile
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models as m
 from ..db import get_db
@@ -15,7 +15,7 @@ from ..deps import auditar, obtener, puede_editar, usuario_actual
 from ..services import exportar, prelectura
 from ..services.calculo import periodo_alineado, quincenas_esperadas
 from ..services.procesamiento import invalidar_validacion, recalcular_estado
-from ..services.resultados import calcular_expediente, resultado_completo, trazabilidad
+from ..services.resultados import calcular_expediente, calcular_varios, resultado_completo, trazabilidad
 from .documentos import PRIVADO, expediente_editable, leer_pdf_subido
 
 router = APIRouter(prefix="/api", tags=["expedientes y revisión"])
@@ -98,7 +98,7 @@ def _periodo(ini: date, fin: date):
         raise HTTPException(422, "El periodo debe iniciar el día 1 o 16 y terminar el día 15 o fin de mes.")
 
 
-def _exp(db: Session, e: m.Expediente, con_resumen=True) -> dict:
+def _exp(db: Session, e: m.Expediente, con_resumen=True, res: dict | None = None) -> dict:
     v = e.catalogo_version
     d = {"id": e.id, "trabajador_nombre": e.trabajador_nombre, "identificador_laboral": e.identificador_laboral,
          "periodo_inicio": e.periodo_inicio.isoformat(), "periodo_fin": e.periodo_fin.isoformat(),
@@ -108,7 +108,7 @@ def _exp(db: Session, e: m.Expediente, con_resumen=True) -> dict:
          "actualizado_en": e.actualizado_en.isoformat(),
          "validado_en": e.validado_en.isoformat() if e.validado_en else None}
     if con_resumen:
-        res = calcular_expediente(db, e)
+        res = res if res is not None else calcular_expediente(db, e)
         d["resumen"] = res["resumen"]
         d["total_expediente"] = res["total_expediente"]
         d["provisional"] = res["provisional"]
@@ -139,9 +139,14 @@ def _registrar(db, u, exp, r, f, entidad, campo, antes, despues, motivo):
 
 @router.get("/expedientes")
 def listar(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    version = selectinload(m.Expediente.catalogo_version)
     exps = db.scalars(select(m.Expediente).where(m.Expediente.organizacion_id == u.organizacion_id)
-                      .order_by(m.Expediente.actualizado_en.desc()))
-    return [_exp(db, e) for e in exps]
+                      .order_by(m.Expediente.actualizado_en.desc())
+                      .options(selectinload(m.Expediente.documentos),
+                               version.selectinload(m.CatalogoVersion.catalogo),
+                               version.selectinload(m.CatalogoVersion.entradas))).all()
+    resultados = calcular_varios(db, exps)  # consultas fijas, no una tanda por expediente
+    return [_exp(db, e, res=resultados[e.id]) for e in exps]
 
 
 @router.post("/expedientes", status_code=201)
@@ -191,8 +196,9 @@ def prelectura_pdf(request: Request, archivos: list[UploadFile] = File(...), u: 
 
 
 @router.get("/expedientes/{eid}")
-def ver(eid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    return _exp(db, obtener(db, m.Expediente, eid, u))
+def ver(eid: int, resumen: bool = True, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """`?resumen=false` omite el cálculo (la pantalla de detalle ya lo pide a /resultado)."""
+    return _exp(db, obtener(db, m.Expediente, eid, u), con_resumen=resumen)
 
 
 @router.patch("/expedientes/{eid}")

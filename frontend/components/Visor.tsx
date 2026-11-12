@@ -32,16 +32,22 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
     setPer({ periodo_inicio: r.periodo_inicio || "", periodo_fin: r.periodo_fin || "", plaza: r.plaza || "" });
   }, []);
   useEffect(() => {
+    // Si el usuario cambia de recibo antes de que llegue la respuesta, la anterior se descarta:
+    // sin esto, la imagen de un recibo podía quedar sobre los datos de otro.
+    let vigente = true;
     let url = "";
+    setImg(null);
     api.get(`/recibos/${reciboId}`).then(async (r) => {
+      if (!vigente) return;
       aplicar(r);
       const { blob } = await api.blob(`/documentos/${r.documento_id}/paginas/${r.pagina}/imagen?dpi=${DPI}`);
+      if (!vigente) return;
       url = URL.createObjectURL(blob);
       const i = new Image();
-      i.onload = () => setImg({ url, anchoPt: (i.naturalWidth * 72) / DPI, altoPt: (i.naturalHeight * 72) / DPI });
+      i.onload = () => { if (vigente) setImg({ url, anchoPt: (i.naturalWidth * 72) / DPI, altoPt: (i.naturalHeight * 72) / DPI }); };
       i.src = url;
-    }).catch((e) => setError(e.message));
-    return () => { if (url) URL.revokeObjectURL(url); };
+    }).catch((e) => { if (vigente) setError(e.message); });
+    return () => { vigente = false; if (url) URL.revokeObjectURL(url); };
   }, [reciboId, aplicar]);
 
   const fila = recibo?.filas.find((x: any) => x.id === sel);

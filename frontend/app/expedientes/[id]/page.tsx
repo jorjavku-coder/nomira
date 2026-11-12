@@ -29,7 +29,7 @@ export default function Expediente() {
 
   const cargar = useCallback(async () => {
     try {
-      const [e, r, d] = await Promise.all([api.get(`/expedientes/${id}`), api.get(`/expedientes/${id}/resultado`), api.get(`/expedientes/${id}/documentos`)]);
+      const [e, r, d] = await Promise.all([api.get(`/expedientes/${id}?resumen=false`), api.get(`/expedientes/${id}/resultado`), api.get(`/expedientes/${id}/documentos`)]);
       setExp(e); setRes(r); setDocs(d);
       setQSel((q) => q ?? r.quincenas.find((x: any) => x.provisional)?.quincena ?? r.quincenas[0]?.quincena ?? null);
     } catch (e: any) { setError(e.message); }

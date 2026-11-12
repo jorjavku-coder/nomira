@@ -19,6 +19,10 @@ class Ajustes(BaseSettings):
     cors_origenes: str = "http://localhost:3000"
     permitir_registro: bool = True
     zona_horaria: str = "America/Mexico_City"
+    # Encabezado con la IP real del cliente, SOLO si lo pone un proxy de confianza que impide
+    # falsificarlo (p. ej. «True-Client-IP» en Render, que lo fija Cloudflare). Vacío = IP de la conexión.
+    # No use X-Forwarded-For: Next.js lo reenvía tal como lo manda el navegador.
+    ip_cliente_encabezado: str = ""
 
     # Lectura
     clave_regex: str = r"^\d{4}$"

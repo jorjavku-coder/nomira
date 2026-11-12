@@ -1,5 +1,4 @@
 import re
-import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -9,12 +8,13 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
-from ..deps import auditar, solo_admin, usuario_actual
-from ..security import ROLES, crear_token, hash_contrasena, verificar_contrasena
+from ..deps import auditar, ip_cliente, solo_admin, usuario_actual
+from ..freno import FrenoAcceso
+from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-_intentos: dict[str, list[float]] = {}  # freno simple en memoria contra fuerza bruta
+_intentos = FrenoAcceso()  # freno en memoria contra fuerza bruta (vea app/freno.py)
 
 
 class Credenciales(BaseModel):
@@ -58,22 +58,26 @@ def _email(e: str) -> str:
 @router.post("/auth/login")
 def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
     email = c.email.strip().lower()
-    llave = f"{request.client.host if request.client else '-'}|{email}"
-    ahora = time.time()
-    recientes = [t for t in _intentos.get(llave, []) if ahora - t < 300]
-    if len(recientes) >= 8:
+    ip = ip_cliente(request) or "-"
+    if _intentos.bloqueado(ip, email):
         raise HTTPException(429, "Demasiados intentos. Espere unos minutos.")
     u = db.scalar(select(m.Usuario).where(m.Usuario.email == email))
-    if not u or not u.activo or not verificar_contrasena(c.contrasena, u.hash_contrasena):
-        _intentos[llave] = recientes + [ahora]
+    if u and u.activo:
+        valida = verificar_contrasena(c.contrasena, u.hash_contrasena)
+    else:
+        gastar_tiempo_de_verificacion(c.contrasena)  # mismo tiempo exista o no el correo
+        valida = False
+    if not valida:
+        _intentos.fallo(ip, email)
         auditar(db, None, "login_fallido", request=request, organizacion_id=u.organizacion_id if u else None)
         db.commit()
         raise HTTPException(401, "Correo o contraseña incorrectos.")
-    _intentos.pop(llave, None)
+    _intentos.exito(ip, email)
     auditar(db, u, "login", request=request)
     db.commit()
     org = db.get(m.Organizacion, u.organizacion_id)
-    return {"token": crear_token(u.id, u.organizacion_id), "usuario": _u(u), "organizacion": org.nombre}
+    return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
+            "organizacion": org.nombre}
 
 
 @router.post("/auth/registro", status_code=201)
@@ -93,7 +97,7 @@ def registro(r: Registro, request: Request, db: Session = Depends(get_db)):
     db.flush()
     auditar(db, u, "organizacion_creada", "organizacion", org.id, request=request)
     db.commit()
-    return {"token": crear_token(u.id, org.id), "usuario": _u(u), "organizacion": org.nombre}
+    return {"token": crear_token(u.id, org.id, u.sesion_version), "usuario": _u(u), "organizacion": org.nombre}
 
 
 @router.get("/auth/yo")
@@ -150,8 +154,11 @@ def cambiar(uid: int, d: UsuarioCambio, request: Request, u: m.Usuario = Depends
     if d.activo is not None and d.activo != x.activo:
         cambios["activo"] = d.activo
         x.activo = d.activo
+        if not d.activo:
+            x.sesion_version += 1  # al reactivarlo no reviven sus sesiones anteriores
     if d.contrasena:
         x.hash_contrasena = hash_contrasena(d.contrasena)
+        x.sesion_version += 1  # cierra todas sus sesiones abiertas
         cambios["contrasena"] = "cambiada"
     auditar(db, u, "usuario_modificado", "usuario", x.id, cambios, request)
     db.commit()

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pymupdf
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -39,6 +40,16 @@ def leer_pdf_subido(archivo: UploadFile) -> bytes:
     except Exception:
         raise HTTPException(422, "El archivo no es un PDF legible.")
     return datos
+
+
+def archivo_disponible(doc: m.Documento) -> Path:
+    """Ruta del PDF original. En alojamientos con disco temporal (p. ej. la demo en Render) el
+    archivo puede haberse perdido aunque el registro siga en la base: se informa con claridad."""
+    ruta = Path(doc.ruta)
+    if not ruta.is_file():
+        raise HTTPException(410, "El archivo original ya no está disponible en el servidor. "
+                                 "Elimine el documento y vuelva a cargarlo.")
+    return ruta
 
 
 def expediente_editable(db: Session, eid: int, u: m.Usuario) -> m.Expediente:
@@ -154,9 +165,11 @@ def eliminar(did: int, request: Request, u: m.Usuario = Depends(puede_editar), d
 @router.get("/documentos/{did}/archivo")
 def descargar(did: int, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     doc = obtener(db, m.Documento, did, u)
+    ruta = archivo_disponible(doc)
     auditar(db, u, "documento_descargado", "documento", doc.id, request=request)
     db.commit()
-    return Response(Path(doc.ruta).read_bytes(), media_type="application/pdf", headers={
+    # FileResponse lo envía por partes: no carga el PDF completo en memoria.
+    return FileResponse(ruta, media_type="application/pdf", headers={
         **PRIVADO, "Content-Disposition": f'attachment; filename="documento-{doc.id}.pdf"'})
 
 
@@ -164,7 +177,7 @@ def descargar(did: int, request: Request, u: m.Usuario = Depends(usuario_actual)
 def imagen_pagina(did: int, numero: int, dpi: int = 110, u: m.Usuario = Depends(usuario_actual),
                   db: Session = Depends(get_db)):
     doc = obtener(db, m.Documento, did, u)
-    with pymupdf.open(doc.ruta) as pdf:
+    with pymupdf.open(archivo_disponible(doc)) as pdf:
         if not 1 <= numero <= pdf.page_count:
             raise HTTPException(404, "Página inexistente.")
         pagina = pdf[numero - 1]
