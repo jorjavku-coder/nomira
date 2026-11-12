@@ -105,6 +105,15 @@ export default function Expediente() {
       </div>
 
       <div className="space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
+      {editable && res.periodo_detectado && (res.periodo_detectado.inicio < exp.periodo_inicio || res.periodo_detectado.fin > exp.periodo_fin) && (
+        <div className="mt-2"><Aviso tipo="alerta">
+          Los recibos cargados cubren del <b>{fecha(res.periodo_detectado.inicio)}</b> al <b>{fecha(res.periodo_detectado.fin)}</b>, más de lo que abarca el periodo del expediente. Los que quedan fuera no se suman.{" "}
+          <button className="font-semibold underline" onClick={() => accion(() => api.patch(`/expedientes/${id}`, {
+            periodo_inicio: res.periodo_detectado.inicio < exp.periodo_inicio ? res.periodo_detectado.inicio : exp.periodo_inicio,
+            periodo_fin: res.periodo_detectado.fin > exp.periodo_fin ? res.periodo_detectado.fin : exp.periodo_fin,
+            quincenas_esperadas: null }), "Periodo ampliado a los recibos detectados.")}>Ampliar el periodo para incluirlos</button>
+        </Aviso></div>
+      )}
       {exp.estado === "procesando" && <Aviso tipo="info">Procesando documentos… esta página se actualiza sola.</Aviso>}
 
       <div className="mb-4 mt-4 flex gap-1 border-b border-crema-300" role="tablist">

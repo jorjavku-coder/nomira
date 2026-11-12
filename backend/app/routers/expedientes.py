@@ -1,7 +1,10 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+import os
+import tempfile
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,11 +12,11 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..db import get_db
 from ..deps import auditar, obtener, puede_editar, usuario_actual
-from ..services import exportar
+from ..services import exportar, prelectura
 from ..services.calculo import periodo_alineado, quincenas_esperadas
 from ..services.procesamiento import invalidar_validacion, recalcular_estado
 from ..services.resultados import calcular_expediente, resultado_completo, trazabilidad
-from .documentos import PRIVADO, expediente_editable
+from .documentos import PRIVADO, expediente_editable, leer_pdf_subido
 
 router = APIRouter(prefix="/api", tags=["expedientes y revisión"])
 
@@ -157,6 +160,36 @@ def crear(d: ExpedienteNuevo, request: Request, u: m.Usuario = Depends(puede_edi
     return _exp(db, e)
 
 
+@router.post("/expedientes/prelectura")
+def prelectura_pdf(request: Request, archivos: list[UploadFile] = File(...), u: m.Usuario = Depends(puede_editar),
+                   db: Session = Depends(get_db)):
+    """Lee los PDF sin guardarlos y propone trabajador, identificador y periodo para un expediente nuevo."""
+    if len(archivos) > 20:
+        raise HTTPException(413, "Máximo 20 archivos para la lectura previa.")
+    rutas = []
+    try:
+        for a in archivos:
+            datos = leer_pdf_subido(a)
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(datos)
+            rutas.append((os.path.basename(a.filename or "documento.pdf")[:300], tmp.name))
+        try:
+            res = prelectura.analizar(rutas)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        except Exception as e:
+            raise HTTPException(422, f"No se pudieron leer los archivos ({type(e).__name__}).")
+    finally:
+        for _, ruta in rutas:
+            try:
+                os.unlink(ruta)
+            except OSError:
+                pass
+    auditar(db, u, "prelectura_pdf", detalle={"archivos": len(rutas), "recibos": res["total_recibos"]}, request=request)
+    db.commit()
+    return res
+
+
 @router.get("/expedientes/{eid}")
 def ver(eid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     return _exp(db, obtener(db, m.Expediente, eid, u))
@@ -181,7 +214,11 @@ def cambiar(eid: int, d: ExpedienteCambio, request: Request, u: m.Usuario = Depe
     if (ini, fin) != (e.periodo_inicio, e.periodo_fin):
         _periodo(ini, fin)
         cambios["periodo"] = [f"{e.periodo_inicio}/{e.periodo_fin}", f"{ini}/{fin}"]
+        # Si «quincenas esperadas» seguía al periodo anterior, sigue al nuevo; si se fijó a mano, se respeta.
+        seguia = e.quincenas_esperadas == len(quincenas_esperadas(e.periodo_inicio, e.periodo_fin))
         e.periodo_inicio, e.periodo_fin = ini, fin
+        if seguia and not datos.get("quincenas_esperadas"):
+            e.quincenas_esperadas = len(quincenas_esperadas(ini, fin))
     for campo in ("trabajador_nombre", "identificador_laboral", "quincenas_esperadas"):
         if campo in datos and datos[campo] != getattr(e, campo):
             if campo != "identificador_laboral" and datos[campo] is None:

@@ -44,6 +44,13 @@ def calcular_expediente(db: Session, exp: m.Expediente) -> dict:
         exp.quincenas_esperadas, exp.decision_plazas, ajustes().clave_regex, ajustes().ocr_confianza_minima)
     res = calcular(params, rc, catalogo)
 
+    # Periodo que cubren los recibos de este trabajador (para proponer ampliar el expediente).
+    from .calculo import mismo_trabajador
+    from .prelectura import rango_quincenal
+    rango = rango_quincenal([(r.periodo_inicio, r.periodo_fin) for r in rc
+                             if r.decision != "excluir" and mismo_trabajador(params, r)])
+    res["periodo_detectado"] = {"inicio": rango[0].isoformat(), "fin": rango[1].isoformat()} if rango else None
+
     def bloquea(tipo, mensaje, **ref):
         res["alertas"].append({"tipo": tipo, "mensaje": mensaje, "bloqueante": True, **ref})
 

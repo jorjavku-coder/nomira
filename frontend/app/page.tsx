@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { api, fecha, mxn } from "@/lib/api";
@@ -19,6 +19,10 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
   const [versiones, setVersiones] = useState<any[]>([]);
   const [f, setF] = useState({ trabajador_nombre: "", identificador_laboral: "", periodo_inicio: "", periodo_fin: "", quincenas_esperadas: "", catalogo_version_id: "" });
   const [error, setError] = useState("");
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [lectura, setLectura] = useState<any>(null);
+  const [estado, setEstado] = useState<"" | "leyendo" | "creando" | "subiendo">("");
+  const entrada = useRef<HTMLInputElement>(null);
   useEffect(() => {
     api.get("/catalogos").then((cats: any[]) => {
       const activas = cats.flatMap((c) => c.versiones.filter((v: any) => v.estado === "activo"));
@@ -28,23 +32,100 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
   }, []);
   const calculadas = quincenasEntre(f.periodo_inicio, f.periodo_fin);
   const cambiar = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+
+  const aplicar = (t: any) => setF((x) => ({
+    ...x, trabajador_nombre: t.nombre || x.trabajador_nombre, identificador_laboral: t.identificador_laboral || "",
+    periodo_inicio: t.periodo_inicio || x.periodo_inicio, periodo_fin: t.periodo_fin || x.periodo_fin, quincenas_esperadas: "",
+  }));
+
+  async function leer(lista: FileList | null) {
+    const nuevos = Array.from(lista || []).filter((a) => a.name.toLowerCase().endsWith(".pdf"));
+    if (!nuevos.length) return;
+    const todos = [...archivos, ...nuevos.filter((n) => !archivos.some((a) => a.name === n.name && a.size === n.size))];
+    setError(""); setEstado("leyendo");
+    try {
+      const fd = new FormData();
+      todos.forEach((a) => fd.append("archivos", a));
+      const r = await api.subir("/expedientes/prelectura", fd);
+      setArchivos(todos); setLectura(r);
+      if (r.sugerencia) aplicar(r.sugerencia);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setEstado("");
+      if (entrada.current) entrada.current.value = "";
+    }
+  }
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(""); setEstado("creando");
+    let id: number | null = null;
     try {
       const r = await api.post("/expedientes", {
         ...f, identificador_laboral: f.identificador_laboral || null,
         quincenas_esperadas: f.quincenas_esperadas ? Number(f.quincenas_esperadas) : null,
         catalogo_version_id: Number(f.catalogo_version_id),
       });
+      id = r.id;
+      if (archivos.length) {
+        setEstado("subiendo");
+        const fd = new FormData();
+        archivos.forEach((a) => fd.append("archivos", a));
+        await api.subir(`/expedientes/${id}/documentos`, fd);
+      }
       onCreado(r.id);
     } catch (err: any) {
-      setError(err.message);
+      if (id !== null) onCreado(id); // el expediente existe; los archivos pueden subirse desde «Documentos»
+      else { setError(err.message); setEstado(""); }
     }
   }
+  const s = lectura?.sugerencia;
+  const ocupado = estado !== "";
   return (
-    <Modal titulo="Nuevo expediente" onCerrar={onCerrar}>
+    <Modal titulo="Nuevo expediente" onCerrar={onCerrar} ancho="max-w-xl">
       <form onSubmit={enviar} className="space-y-3">
+        <div className={`rounded-2xl border-2 border-dashed p-4 text-center transition ${estado === "leyendo" ? "border-turquesa bg-turquesa-50" : "border-crema-300 bg-crema/60 hover:border-turquesa"}`}
+          onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (!ocupado) leer(e.dataTransfer.files); }}>
+          <input ref={entrada} type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={(e) => leer(e.target.files)} />
+          <p className="font-marca text-sm font-bold text-marino">Suba los comprobantes y llenamos los datos por usted</p>
+          <p className="mt-0.5 text-xs text-slate-500">Leemos nombre, clave de servidor y periodos de los recibos. Usted revisa y confirma.</p>
+          <button type="button" className="btn-turquesa mt-3" disabled={ocupado} onClick={() => entrada.current?.click()}>
+            {estado === "leyendo" ? "Leyendo recibos…" : archivos.length ? "Agregar más PDF" : "Elegir PDF de recibos"}
+          </button>
+          {archivos.length > 0 && (
+            <ul className="mt-3 space-y-1 text-left text-xs">
+              {archivos.map((a, i) => {
+                const info = lectura?.archivos?.find((x: any) => x.nombre === a.name);
+                return (
+                  <li key={a.name + a.size} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5">
+                    <span className="truncate"><b>{a.name}</b>{info && <span className="text-slate-500"> · {info.paginas} págs. · {info.recibos} recibos{info.ocr > 0 && ` · ${info.ocr} con OCR`}{info.sin_clasificar > 0 && ` · ${info.sin_clasificar} sin clasificar`}</span>}</span>
+                    <button type="button" className="shrink-0 text-red-700 hover:underline" disabled={ocupado} aria-label={`Quitar ${a.name}`}
+                      onClick={() => { const resto = archivos.filter((_, j) => j !== i); setArchivos(resto); if (!resto.length) setLectura(null); }}>Quitar</button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        {lectura && (
+          <div className="space-y-2">
+            {s ? (
+              <Aviso tipo="ok">
+                Detectamos <b>{s.recibos}</b> recibo(s) de <b>{s.nombre || "trabajador sin nombre legible"}</b>
+                {s.periodo_inicio && <>, del <b>{fecha(s.periodo_inicio)}</b> al <b>{fecha(s.periodo_fin)}</b> ({s.quincenas_con_recibo} de {s.quincenas_en_periodo} quincenas)</>}.
+                {s.plazas.length > 1 && <> Hay {s.plazas.length} plazas.</>} Revise los datos antes de crear.
+              </Aviso>
+            ) : <Aviso tipo="alerta">No pudimos proponer datos a partir de estos archivos. Captúrelos a mano.</Aviso>}
+            {lectura.avisos.map((a: string, i: number) => <Aviso key={i} tipo="alerta">{a}</Aviso>)}
+            {lectura.trabajadores.filter((t: any) => t.identificado).length > 1 && (
+              <label className="block"><span className="etiqueta">Trabajador de este expediente</span>
+                <select className="campo" onChange={(e) => aplicar(lectura.trabajadores[Number(e.target.value)])}>
+                  {lectura.trabajadores.map((t: any, i: number) => t.identificado && <option key={i} value={i}>{t.nombre || t.identificador_laboral} — {t.recibos} recibo(s)</option>)}
+                </select></label>
+            )}
+          </div>
+        )}
         <label className="block"><span className="etiqueta">Nombre del trabajador</span>
           <input className="campo" required minLength={2} value={f.trabajador_nombre} onChange={cambiar("trabajador_nombre")} /></label>
         <label className="block"><span className="etiqueta">Identificador laboral (opcional)</span>
@@ -57,7 +138,8 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
             <input className="campo" type="date" required value={f.periodo_fin} onChange={cambiar("periodo_fin")} /></label>
         </div>
         <p className="text-xs text-slate-500">Debe iniciar el día 1 o 16 y terminar el día 15 o fin de mes.
-          {calculadas !== null && <> El periodo contiene <b>{calculadas}</b> quincenas.</>}</p>
+          {calculadas !== null && <> El periodo contiene <b>{calculadas}</b> quincenas.</>}
+          {s?.periodo_inicio && <> Amplíelo si el análisis debe cubrir quincenas de las que aún no tiene recibo.</>}</p>
         <label className="block"><span className="etiqueta">Quincenas esperadas</span>
           <input className="campo" type="number" min={1} max={600} value={f.quincenas_esperadas} onChange={cambiar("quincenas_esperadas")}
             placeholder={calculadas !== null ? `${calculadas} (según el periodo)` : "p. ej. 72"} /></label>
@@ -68,8 +150,9 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
           </select>
           {versiones.length === 0 && <span className="mt-1 block text-xs text-amber-700">No hay catálogos validados. Un administrador debe activar uno en «Catálogos».</span>}</label>
         <Aviso>{error}</Aviso>
-        <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primario">Crear expediente</button></div>
+        <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar} disabled={estado === "creando" || estado === "subiendo"}>Cancelar</button>
+          <button className="btn-primario" disabled={ocupado}>
+            {estado === "creando" ? "Creando…" : estado === "subiendo" ? "Subiendo comprobantes…" : archivos.length ? `Crear y procesar ${archivos.length} PDF` : "Crear expediente"}</button></div>
       </form>
     </Modal>
   );

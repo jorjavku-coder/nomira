@@ -364,3 +364,50 @@ def test_exportacion_con_plazas_separadas_no_las_suma(org):
     assert "TOTAL DEL EXPEDIENTE (MXN)" not in resumen and Decimal(str(resumen["Plaza 990000000000002"])) == Decimal("3100.00")
     org.c.patch(f"/api/expedientes/{eid}", headers=org.h, json={"decision_plazas": "consolidar"})
     assert org.resultado(eid)["total_expediente"] == "13910.00"
+
+
+def test_prelectura_propone_datos_sin_guardar_nada(org, org2, db):
+    pdf = crear_pdf([recibo(ENE2, BASE, num="2"), recibo("01-15 de Marzo de 2025", BASE, num="5"),
+                     recibo(FEB1, BASE, num="3"), recibo(ENE2, BASE, num="9", nombre="OTRA PERSONA FICTICIA",
+                                                         clave_servidor="900000999")])
+    r = org.c.post("/api/expedientes/prelectura", headers=org.h, files=[("archivos", ("r.pdf", pdf, "application/pdf"))])
+    assert r.status_code == 200, r.text
+    d = r.json()
+    s = d["sugerencia"]
+    assert (s["nombre"], s["identificador_laboral"]) == ("EJEMPLO SINTETICO MARIA FERNANDA", "900000001")
+    assert (s["periodo_inicio"], s["periodo_fin"], s["recibos"]) == ("2025-01-16", "2025-03-15", 3)
+    assert s["quincenas_en_periodo"] == 4 and [q["quincena"] for q in s["quincenas_sin_recibo"]] == ["2025-02-Q2"]
+    assert d["archivos"][0] == {"nombre": "r.pdf", "paginas": 8, "recibos": 4, "informativas": 4, "sin_clasificar": 0, "ocr": 0}
+    assert len(d["trabajadores"]) == 2 and any("2 trabajadores" in a for a in d["avisos"])
+    assert db.query(m.Documento).count() == 0 and db.query(m.Recibo).count() == 0  # nada persistido
+    # El detalle de auditoría no lleva datos personales
+    a = db.query(m.Auditoria).filter_by(accion="prelectura_pdf").one()
+    assert a.detalle == {"archivos": 1, "recibos": 4}
+    # Sin recibos: no inventa datos
+    vacio = org.c.post("/api/expedientes/prelectura", headers=org.h,
+                       files=[("archivos", ("v.pdf", PDF_INFO, "application/pdf"))]).json()
+    assert vacio["sugerencia"] is None and vacio["total_recibos"] == 0
+    # Roles y validación de archivo
+    consulta = org.usuario("consulta", "con2@org1.test")
+    assert org.c.post("/api/expedientes/prelectura", headers=consulta, files=[("archivos", ("r.pdf", pdf, "application/pdf"))]).status_code == 403
+    assert org.c.post("/api/expedientes/prelectura", headers=org.h, files=[("archivos", ("x.pdf", b"no pdf", "application/pdf"))]).status_code == 415
+    # El expediente creado con la propuesta suma exactamente los recibos del trabajador propuesto
+    eid = org.expediente(ini=s["periodo_inicio"], fin=s["periodo_fin"], nombre=s["nombre"], identificador_laboral=s["identificador_laboral"])
+    org.subir(eid, pdf)
+    res = org.resultado(eid)
+    assert res["total_expediente"] == "32430.00" and res["periodo_detectado"] == {"inicio": "2025-01-16", "fin": "2025-03-15"}
+
+
+def _pdf_informativo():
+    import io as _io
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from app.sinteticos import _dibujar_informativa
+    b = _io.BytesIO()
+    c = canvas.Canvas(b, pagesize=letter)
+    _dibujar_informativa(c)
+    c.save()
+    return b.getvalue()
+
+
+PDF_INFO = _pdf_informativo()
