@@ -67,6 +67,33 @@ def periodo(anio: int, mes: int, mitad: int) -> str:
     return f"{dias} de {MESES[mes - 1]} de {anio}"
 
 
+def pdfs_demo() -> dict[str, bytes]:
+    """Los tres PDF sintéticos de la demo (bytes reproducibles salvo, quizá, el escaneado)."""
+    limpio = [recibo(periodo(2025, mes, q), BASE + ([("0108", "CARRERA MAGISTERIAL", "700.00"),
+                                                    ("0109", "DESARROLLO PROFESIONAL", "1000.00")] if q == 2 else []),
+                     num=f"{1000 + mes * 2 + q:07d}") for mes in (7, 8, 9) for q in (1, 2)]
+    incidencias = [
+        recibo(periodo(2025, 1, 1), CASO_ACEPTACION, num="2000001"),
+        recibo(periodo(2025, 1, 2), BASE + [("1104", "RETR COMPENSACION", "350.00")], num="2000002"),
+        # febrero Q1: solo claves fuera de catálogo => quincena en $0.00 (no es faltante)
+        recibo(periodo(2025, 2, 1), [("0136", "FORTALECIMIENTO AL SALARIO DOC", "1591.85"),
+                                     ("0302", "PRIMA POR AÑOS DE SERVICIO DE", "459.00")], num="2000003"),
+        # febrero Q2: fila sin importe y un importe negativo
+        recibo(periodo(2025, 2, 2), BASE + [("0512", "DESPENSA", None), ("0607", "BONO DE PRODUCTIVIDAD", "-120.00")],
+               num="2000004", total_percepciones="11173.75"),
+        recibo(periodo(2025, 3, 1), BASE, num="2000005"),
+        recibo(periodo(2025, 3, 1), BASE, num="2000005"),  # duplicado exacto
+        recibo(periodo(2025, 3, 2), BASE, num="2000006"),
+        recibo(periodo(2025, 3, 2), [("0609", "DESPENSA EXTRAORDINARIA", "1200.00")], num="2000007"),  # complementario
+        # abril Q1: FALTANTE (no hay recibo). abril Q2: recibo de otra persona ficticia
+        recibo(periodo(2025, 4, 2), BASE, num="2000008", nombre="OTRA PERSONA FICTICIA", clave_servidor="900000999"),
+    ]
+    plaza2 = [recibo(periodo(2025, 1, 1), [("0102", "SUELDO BASE", "3100.00")], num="3000001", plaza="990000000000002")]
+    return {"sintetico_jul-sep_2025.pdf": crear_pdf(limpio),
+            "sintetico_con_incidencias.pdf": crear_pdf(incidencias),
+            "sintetico_escaneado_segunda_plaza.pdf": crear_pdf(plaza2, informativas=False, escaneado=True)}
+
+
 def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincena-2025") -> dict:
     """Crea una organización de demostración con usuarios, catálogo y dos expedientes sintéticos."""
     if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
@@ -84,44 +111,20 @@ def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincen
     db.flush()
     v = crear_catalogo_referencia(db, org.id, admin.id)
 
-    def expediente(nombre, ini, fin, n):
-        e = m.Expediente(organizacion_id=org.id, trabajador_nombre=nombre, identificador_laboral="900000001",
-                         periodo_inicio=ini, periodo_fin=fin, quincenas_esperadas=n, catalogo_version_id=v.id,
-                         creado_por_id=admin.id)
+    def expediente(ini, fin, n):
+        e = m.Expediente(organizacion_id=org.id, trabajador_nombre="EJEMPLO SINTETICO MARIA FERNANDA",
+                         identificador_laboral="900000001", periodo_inicio=ini, periodo_fin=fin,
+                         quincenas_esperadas=n, catalogo_version_id=v.id, creado_por_id=admin.id)
         db.add(e)
         db.commit()
         return e
 
-    nombre = "EJEMPLO SINTETICO MARIA FERNANDA"
-    # 1) Expediente limpio: 6 quincenas completas, listo para validar.
-    limpio = expediente(nombre, date(2025, 7, 1), date(2025, 9, 30), 6)
-    recs = [recibo(periodo(2025, mes, q), BASE + ([("0108", "CARRERA MAGISTERIAL", "700.00"),
-                                                   ("0109", "DESARROLLO PROFESIONAL", "1000.00")] if q == 2 else []),
-                   num=f"{1000 + mes * 2 + q:07d}") for mes in (7, 8, 9) for q in (1, 2)]
-    guardar_documento(db, limpio, "sintetico_jul-sep_2025.pdf", crear_pdf(recs), admin.id)
-
-    # 2) Expediente con incidencias para practicar la revisión.
-    inc = expediente(nombre, date(2025, 1, 1), date(2025, 4, 30), 8)
-    recs = [
-        recibo(periodo(2025, 1, 1), CASO_ACEPTACION, num="2000001"),
-        recibo(periodo(2025, 1, 2), BASE + [("1104", "RETR COMPENSACION", "350.00")], num="2000002"),
-        # febrero Q1: solo claves fuera de catálogo => quincena en $0.00 (no es faltante)
-        recibo(periodo(2025, 2, 1), [("0136", "FORTALECIMIENTO AL SALARIO DOC", "1591.85"),
-                                     ("0302", "PRIMA POR AÑOS DE SERVICIO DE", "459.00")], num="2000003"),
-        # febrero Q2: fila sin importe y un importe negativo
-        recibo(periodo(2025, 2, 2), BASE + [("0512", "DESPENSA", None), ("0607", "BONO DE PRODUCTIVIDAD", "-120.00")],
-               num="2000004", total_percepciones="11173.75"),
-        recibo(periodo(2025, 3, 1), BASE, num="2000005"),
-        recibo(periodo(2025, 3, 1), BASE, num="2000005"),  # duplicado exacto
-        recibo(periodo(2025, 3, 2), BASE, num="2000006"),
-        recibo(periodo(2025, 3, 2), [("0609", "DESPENSA EXTRAORDINARIA", "1200.00")], num="2000007"),  # complementario
-        # abril Q1: FALTANTE (no hay recibo). abril Q2: recibo de otra persona ficticia
-        recibo(periodo(2025, 4, 2), BASE, num="2000008", nombre="OTRA PERSONA FICTICIA", clave_servidor="900000999"),
-    ]
-    guardar_documento(db, inc, "sintetico_con_incidencias.pdf", crear_pdf(recs), admin.id)
-    guardar_documento(db, inc, "sintetico_escaneado_segunda_plaza.pdf", crear_pdf(
-        [recibo(periodo(2025, 1, 1), [("0102", "SUELDO BASE", "3100.00")], num="3000001", plaza="990000000000002")],
-        informativas=False, escaneado=True), admin.id)
+    pdfs = pdfs_demo()
+    limpio = expediente(date(2025, 7, 1), date(2025, 9, 30), 6)  # listo para validar
+    guardar_documento(db, limpio, "sintetico_jul-sep_2025.pdf", pdfs["sintetico_jul-sep_2025.pdf"], admin.id)
+    inc = expediente(date(2025, 1, 1), date(2025, 4, 30), 8)  # con incidencias para practicar la revisión
+    for nombre in ("sintetico_con_incidencias.pdf", "sintetico_escaneado_segunda_plaza.pdf"):
+        guardar_documento(db, inc, nombre, pdfs[nombre], admin.id)
     db.add(m.Auditoria(organizacion_id=org.id, usuario_id=admin.id, usuario_email=admin.email, accion="demo_sembrada"))
     db.commit()
     return {"creado": True, "email": email, "contrasena": contrasena}
@@ -129,14 +132,8 @@ def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincen
 
 def restaurar_archivos(db: Session) -> dict:
     """Para alojamientos con disco temporal: tras un reinicio los PDF desaparecen. Los de la demo
-    (sintéticos y reproducibles) se regeneran; los demás documentos se marcan en error, sin inventar nada."""
-    demo = {}
-    if True:
-        recs = [recibo(periodo(2025, mes, q), BASE + ([("0108", "CARRERA MAGISTERIAL", "700.00"),
-                                                      ("0109", "DESARROLLO PROFESIONAL", "1000.00")] if q == 2 else []),
-                       num=f"{1000 + mes * 2 + q:07d}") for mes in (7, 8, 9) for q in (1, 2)]
-        datos = crear_pdf(recs)
-        demo[hashlib.sha256(datos).hexdigest()] = datos
+    (sintéticos) se regeneran si su huella coincide; los demás se marcan en error, sin inventar nada."""
+    demo = {hashlib.sha256(datos).hexdigest(): datos for datos in pdfs_demo().values()}
     restaurados = perdidos = 0
     for d in db.scalars(select(m.Documento)):
         if Path(d.ruta).exists():

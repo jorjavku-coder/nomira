@@ -123,7 +123,7 @@ def crear_pdf(recibos: list[dict], *, informativas: bool = True, escaneado: bool
         pix = pag.get_pixmap(dpi=200)
         nueva = salida.new_page(width=pag.rect.width, height=pag.rect.height)
         nueva.insert_image(nueva.rect, stream=pix.tobytes("png"))
-    return salida.tobytes()
+    return salida.tobytes(no_new_id=True, deflate=True)  # sin identificador aleatorio: bytes reproducibles
 
 
 # Réplica sintética del caso de aceptación (mismas claves e importes; persona ficticia).
