@@ -28,7 +28,7 @@ export default function Usuarios() {
   return (
     <Shell>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-marino">Usuarios</h1>
+        <h1 className="text-3xl font-extrabold text-marino">Usuarios</h1>
         <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo usuario</button>
       </div>
       <Aviso>{error}</Aviso>

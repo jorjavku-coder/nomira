@@ -1,4 +1,6 @@
-# Quincena Clara
+# Nomira
+
+*Cada prestación, en claro.* (Nombre provisional anterior: Quincena Clara; la carpeta del proyecto lo conserva.)
 
 MVP de un SaaS en español para analizar comprobantes de nómina (PDF) y calcular prestaciones por
 quincena contra un catálogo autorizado, con revisión humana, trazabilidad y exportación a Excel y PDF.

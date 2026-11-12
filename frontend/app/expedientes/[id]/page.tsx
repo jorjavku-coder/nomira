@@ -67,7 +67,7 @@ export default function Expediente() {
   const varias = res.plazas.length > 1;
 
   const filaAcciones = (x: any) => (
-    <button className="btn-sec whitespace-nowrap" onClick={() => setVisor({ recibo: x.recibo_id, fila: x.fila_id })}>{editable ? "Ver original / corregir" : "Ver original"}</button>
+    <button className="btn-sec whitespace-nowrap" onClick={() => setVisor({ recibo: x.recibo_id, fila: x.fila_id })}>{editable ? "Revisar" : "Ver original"}</button>
   );
 
   return (
@@ -76,7 +76,7 @@ export default function Expediente() {
       <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-marino">Expediente #{exp.id} · {exp.trabajador_nombre}</h1>
+            <h1 className="text-3xl font-extrabold text-marino">Expediente #{exp.id} · {exp.trabajador_nombre}</h1>
             <Chip estado={exp.estado} />
             {!validado && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Resultado provisional</span>}
           </div>
@@ -94,23 +94,23 @@ export default function Expediente() {
         </div>
       </div>
 
-      <div className="my-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <div className="tarjeta p-3 md:col-span-2"><div className="etiqueta">Total del expediente {!validado && "(provisional)"}</div>
-          <div className="text-2xl font-bold text-marino">{res.consolidado ? `${mxn(res.total_expediente)} MXN` : "Por plaza (sin consolidar)"}</div>
+      <div className="my-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+        <div className="tarjeta p-5 md:col-span-2"><div className="etiqueta">Total del expediente {!validado && "(provisional)"}</div>
+          <div className="font-marca text-2xl font-extrabold text-marino">{res.consolidado ? `${mxn(res.total_expediente)} MXN` : "Por plaza (sin consolidar)"}</div>
           {varias && <div className="mt-1 text-xs text-slate-600">{res.plazas.map((p: any) => `Plaza ${p.plaza}: ${mxn(p.total)}`).join(" · ")}</div>}</div>
-        <div className="tarjeta p-3"><div className="etiqueta">Quincenas con comprobante</div><div className="text-2xl font-bold text-marino">{res.resumen.quincenas_con_recibo}<span className="text-base font-normal text-slate-500"> / {res.resumen.quincenas_esperadas}</span></div></div>
-        <div className={`tarjeta p-3 ${res.resumen.quincenas_faltantes ? "border-red-200 bg-red-50" : ""}`}><div className="etiqueta">Quincenas faltantes</div><div className="text-2xl font-bold text-marino">{res.resumen.quincenas_faltantes}</div>
+        <div className="tarjeta p-5"><div className="etiqueta">Quincenas con comprobante</div><div className="font-marca text-2xl font-extrabold text-marino">{res.resumen.quincenas_con_recibo}<span className="text-base font-normal text-slate-500"> / {res.resumen.quincenas_esperadas}</span></div></div>
+        <div className={`tarjeta p-5 ${res.resumen.quincenas_faltantes ? "border-red-200 bg-red-50" : ""}`}><div className="etiqueta">Quincenas faltantes</div><div className="font-marca text-2xl font-extrabold text-marino">{res.resumen.quincenas_faltantes}</div>
           <div className="text-xs text-slate-500">{res.resumen.quincenas_en_cero} con $0.00 autorizado</div></div>
-        <div className={`tarjeta p-3 ${bloqueantes.length ? "border-amber-300 bg-amber-50" : ""}`}><div className="etiqueta">Pendientes por resolver</div><div className="text-2xl font-bold text-marino">{validado ? 0 : bloqueantes.length}</div></div>
+        <div className={`tarjeta p-5 ${bloqueantes.length ? "border-amber-300 bg-amber-50" : ""}`}><div className="etiqueta">Pendientes por resolver</div><div className="font-marca text-2xl font-extrabold text-marino">{validado ? 0 : bloqueantes.length}</div></div>
       </div>
 
       <div className="space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
       {exp.estado === "procesando" && <Aviso tipo="info">Procesando documentos… esta página se actualiza sola.</Aviso>}
 
-      <div className="mb-4 mt-4 flex gap-1 border-b border-slate-200" role="tablist">
+      <div className="mb-4 mt-4 flex gap-1 border-b border-crema-300" role="tablist">
         {([["revision", `Revisión${!validado && bloqueantes.length ? ` (${bloqueantes.length})` : ""}`], ["documentos", `Documentos (${docs.length})`], ["resultados", "Resultados"], ["trazabilidad", `Trazabilidad (${res.trazabilidad.correcciones.length})`]] as [Pestana, string][]).map(([k, t]) => (
           <button key={k} role="tab" aria-selected={pestana === k} onClick={() => setPestana(k)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${pestana === k ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</button>
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold ${pestana === k ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</button>
         ))}
       </div>
 
@@ -121,9 +121,9 @@ export default function Expediente() {
               <h2 className="border-b border-amber-200 bg-amber-50 px-4 py-2 font-semibold text-amber-900">Pendientes que impiden validar ({bloqueantes.length})</h2>
               <ul className="divide-y divide-slate-100">
                 {bloqueantes.map((a: any, i: number) => (
-                  <li key={i} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
+                  <li key={i} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
                     <span>{a.quincena && <span className="mr-2 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{a.quincena}</span>}{a.mensaje}</span>
-                    <span className="flex gap-2">
+                    <span className="flex shrink-0 gap-2">
                       {a.recibo_id && <button className="btn-sec" onClick={() => setVisor({ recibo: a.recibo_id, fila: a.fila_id })}>{editable ? "Revisar" : "Ver original"}</button>}
                       {a.tipo === "plazas" && editable && (<>
                         <button className="btn-sec" onClick={() => accion(() => api.patch(`/expedientes/${id}`, { decision_plazas: "consolidar" }), "Plazas consolidadas.")}>Consolidar plazas</button>
@@ -141,19 +141,19 @@ export default function Expediente() {
               {a.recibo_id && <button className="ml-2 text-turquesa-700 underline" onClick={() => setVisor({ recibo: a.recibo_id })}>ver recibo</button>}</li>)}</ul></details>}
           {exp.decision_plazas && varias && editable && <p className="text-sm text-slate-600">Plazas: <b>{exp.decision_plazas === "consolidar" ? "consolidadas" : "separadas"}</b>. <button className="text-turquesa-700 underline" onClick={() => accion(() => api.patch(`/expedientes/${id}`, { decision_plazas: exp.decision_plazas === "consolidar" ? "separar" : "consolidar" }))}>Cambiar</button></p>}
 
-          <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
             <nav className="tarjeta max-h-[70vh] overflow-auto" aria-label="Quincenas">
-              <h2 className="sticky top-0 border-b border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-marino">Quincenas ({res.quincenas.length})</h2>
+              <h2 className="sticky top-0 border-b border-crema-300 bg-white px-3 py-2 text-sm font-semibold text-marino">Quincenas ({res.quincenas.length})</h2>
               {res.quincenas.length === 0 && <p className="p-3 text-sm text-slate-500">El periodo no contiene quincenas completas.</p>}
               <ul>
                 {res.quincenas.map((x: any) => (
                   <li key={x.quincena}>
                     <button onClick={() => setQSel(x.quincena)} aria-current={qSel === x.quincena}
-                      className={`flex w-full items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm ${qSel === x.quincena ? "bg-turquesa-50" : "hover:bg-slate-50"}`}>
+                      className={`flex w-full items-center justify-between gap-2 border-b border-crema-200 px-3 py-2 text-left text-sm ${qSel === x.quincena ? "bg-turquesa-50" : "hover:bg-marino-50/50"}`}>
                       <span><span className="font-semibold text-marino">{x.numero}.</span> {x.etiqueta.replace(" quincena de ", " qna. ")}
                         <span className="block text-xs text-slate-500">{fecha(x.inicio)} – {fecha(x.fin)}</span></span>
                       <span className="text-right">
-                        {x.estado === "faltante" ? <Chip estado="faltante" /> : x.estado === "pendiente" ? <Chip estado="pendiente" /> : <span className="font-mono text-sm">{mxn(x.total)}</span>}
+                        {x.estado === "faltante" ? <Chip estado="faltante" /> : x.estado === "pendiente" ? <Chip estado="pendiente" /> : <span className="text-sm font-semibold tabular-nums">{mxn(x.total)}</span>}
                         {x.provisional && x.estado !== "pendiente" && <span className="block text-[11px] font-semibold text-amber-700">con pendientes</span>}
                         {x.estado === "cero" && <span className="block text-[11px] text-slate-500">sin autorizadas</span>}
                       </span>
@@ -163,7 +163,7 @@ export default function Expediente() {
               </ul>
             </nav>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               {q && (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -173,7 +173,7 @@ export default function Expediente() {
                   {q.estado === "faltante" && <Aviso>No hay comprobante para esta quincena. Se reporta como <b>faltante</b>; no se le asigna ningún importe.</Aviso>}
                   {q.estado === "cero" && <Aviso tipo="info">Hay comprobante, pero ninguna de sus claves está autorizada: total <b>$0.00</b> (no es una quincena faltante).</Aviso>}
                   <section className="tarjeta overflow-x-auto">
-                    <h3 className="border-b border-slate-200 px-4 py-2 font-semibold text-emerald-800">Conceptos incluidos ({de(res.incluidos).length})</h3>
+                    <h3 className="border-b border-crema-300 px-4 py-2 font-semibold text-emerald-800">Conceptos incluidos ({de(res.incluidos).length})</h3>
                     <table className="tabla">
                       <thead><tr><th>Clave</th><th>Concepto en el recibo</th><th>Concepto del catálogo</th>{varias && <th>Plaza</th>}<th className="num">Importe</th><th></th></tr></thead>
                       <tbody>
@@ -198,7 +198,7 @@ export default function Expediente() {
                     </section>
                   )}
                   <section className="tarjeta overflow-x-auto">
-                    <h3 className="border-b border-slate-200 px-4 py-2 font-semibold text-slate-700">Conceptos excluidos ({de(res.excluidos).length})</h3>
+                    <h3 className="border-b border-crema-300 px-4 py-2 font-semibold text-slate-700">Conceptos excluidos ({de(res.excluidos).length})</h3>
                     <table className="tabla"><thead><tr><th>Clave</th><th>Concepto en el recibo</th><th className="num">Importe</th><th>Motivo de exclusión</th><th></th></tr></thead>
                       <tbody>{de(res.excluidos).length === 0 && <tr><td colSpan={5} className="text-slate-500">Ninguno.</td></tr>}
                         {de(res.excluidos).map((x: any) => (<tr key={x.fila_id} className="text-slate-600"><td className="font-mono font-semibold">{x.clave}</td><td>{x.concepto_original || <i className="text-slate-400">(sin concepto)</i>}</td>
@@ -208,7 +208,7 @@ export default function Expediente() {
               )}
               {(sinQuincena.pendientes.length > 0 || sinQuincena.excluidos.length > 0) && (
                 <section className="tarjeta overflow-x-auto">
-                  <h3 className="border-b border-slate-200 px-4 py-2 font-semibold text-slate-700">Filas de recibos sin quincena asignada ({sinQuincena.pendientes.length + sinQuincena.excluidos.length})</h3>
+                  <h3 className="border-b border-crema-300 px-4 py-2 font-semibold text-slate-700">Filas de recibos sin quincena asignada ({sinQuincena.pendientes.length + sinQuincena.excluidos.length})</h3>
                   <table className="tabla"><tbody>{[...sinQuincena.pendientes, ...sinQuincena.excluidos].map((x: any) => (<tr key={x.fila_id}><td className="font-mono font-semibold">{x.clave || "¿?"}</td><td>{x.concepto_original}</td><td className="num">{mxn(x.importe)}</td><td>{x.motivo}</td><td className="text-right">{filaAcciones(x)}</td></tr>))}</tbody></table>
                 </section>
               )}
@@ -257,7 +257,7 @@ export default function Expediente() {
       {pestana === "resultados" && (
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="tarjeta overflow-x-auto">
-            <h2 className="border-b border-slate-200 px-4 py-2 font-semibold text-marino">Total por quincena</h2>
+            <h2 className="border-b border-crema-300 px-4 py-2 font-semibold text-marino">Total por quincena</h2>
             <table className="tabla"><thead><tr><th>#</th><th>Quincena</th><th>Periodo</th><th>Estado</th><th className="num">Total</th></tr></thead>
               <tbody>{res.quincenas.map((x: any) => (<tr key={x.quincena}><td>{x.numero}</td><td>{x.etiqueta}</td><td className="whitespace-nowrap">{fecha(x.inicio)} – {fecha(x.fin)}</td>
                 <td><Chip estado={x.estado} />{x.provisional && x.estado !== "pendiente" && <span className="ml-1 text-xs text-amber-700">provisional</span>}</td>
@@ -266,7 +266,7 @@ export default function Expediente() {
           </section>
           <div className="space-y-4">
             <section className="tarjeta overflow-x-auto">
-              <h2 className="border-b border-slate-200 px-4 py-2 font-semibold text-marino">Total por clave de prestación</h2>
+              <h2 className="border-b border-crema-300 px-4 py-2 font-semibold text-marino">Total por clave de prestación</h2>
               <table className="tabla"><thead><tr><th>Clave</th><th>Concepto (catálogo)</th><th>Veces</th><th className="num">Total</th></tr></thead>
                 <tbody>{res.acumulado_por_clave.length === 0 && <tr><td colSpan={4} className="text-slate-500">Sin conceptos incluidos.</td></tr>}
                   {res.acumulado_por_clave.map((a: any) => (<tr key={a.clave}><td className="font-mono font-semibold">{a.clave}</td><td>{a.concepto_catalogo}</td><td>{a.apariciones}</td><td className="num">{mxn(a.total)}</td></tr>))}</tbody></table>
@@ -284,7 +284,7 @@ export default function Expediente() {
 
       {pestana === "trazabilidad" && (
         <section className="tarjeta overflow-x-auto">
-          <h2 className="border-b border-slate-200 px-4 py-2 font-semibold text-marino">Correcciones y decisiones registradas</h2>
+          <h2 className="border-b border-crema-300 px-4 py-2 font-semibold text-marino">Correcciones y decisiones registradas</h2>
           <table className="tabla"><thead><tr><th>Fecha</th><th>Usuario</th><th>Elemento</th><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th><th>Motivo</th></tr></thead>
             <tbody>{res.trazabilidad.correcciones.length === 0 && <tr><td colSpan={7} className="py-6 text-center text-slate-500">Sin correcciones.</td></tr>}
               {res.trazabilidad.correcciones.map((c: any) => (<tr key={c.id}><td className="whitespace-nowrap">{fechaHora(c.fecha)}</td><td>{c.usuario}</td>
@@ -309,7 +309,7 @@ function DialogoValidar({ res, id, onCerrar, onValidado }: { res: any; id: strin
       <div className="space-y-3 text-sm">
         <p>Al validar, el resultado y la versión del catálogo quedan congelados. Cualquier cambio posterior exige reabrir el expediente y queda en la bitácora.</p>
         <p className="text-lg font-bold text-marino">{res.consolidado ? `Total: ${mxn(res.total_expediente)} MXN` : res.plazas.map((p: any) => `Plaza ${p.plaza}: ${mxn(p.total)}`).join(" · ")}</p>
-        {n > 0 && <label className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3"><input type="checkbox" className="mt-1" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} />
+        {n > 0 && <label className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3"><input type="checkbox" className="mt-1" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} />
           <span>Reconozco que faltan comprobantes de <b>{n}</b> quincena(s) y que no se les asigna ningún importe: {res.faltantes.slice(0, 6).map((f: any) => f.etiqueta).join("; ")}{n > 6 && "…"}</span></label>}
         <label className="block"><span className="etiqueta">Notas de validación (opcional)</span><textarea className="campo" rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
         <Aviso>{error}</Aviso>

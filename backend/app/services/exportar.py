@@ -17,8 +17,8 @@ from reportlab.lib.units import cm
 from ..config import ajustes
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-AZUL = "12305A"
-TURQUESA = "14B8A6"
+AZUL = "123048"
+TURQUESA = "01B2A6"
 FMT_MXN = '"$"#,##0.00'
 ESTADOS_Q = {"con_prestaciones": "Con prestaciones", "cero": "Sin prestaciones autorizadas ($0.00)",
              "faltante": "FALTANTE (sin comprobante)", "pendiente": "Pendiente de revisión"}
@@ -80,7 +80,7 @@ def generar_excel(res: dict) -> bytes:
     ws.column_dimensions["A"].width = 34
     ws.column_dimensions["B"].width = 70
     filas = [
-        ("Quincena Clara — Resumen del expediente", None),
+        ("Nomira — Resumen del expediente", None),
         ("Estado de validación", _estado(res)),
         ("Expediente", exp["id"]),
         ("Trabajador", exp["trabajador_nombre"]),
@@ -151,7 +151,7 @@ def generar_excel(res: dict) -> bytes:
                 ws.append(base + rel + ["", texto, None, _d(total)])
                 for c in ws[ws.max_row]:
                     c.font = negrita
-                    c.fill = PatternFill("solid", fgColor="E6FAF7")
+                    c.fill = PatternFill("solid", fgColor="E5F8F6")
     for row in ws.iter_rows(min_row=2):
         row[1].number_format = row[2].number_format = "DD/MM/YYYY"
         row[ci - 1].number_format = row[ci].number_format = FMT_MXN
@@ -239,7 +239,7 @@ def generar_pdf(res: dict) -> bytes:
             canvas.translate(-letter[0] / 2, -letter[1] / 2)
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.grey)
-        canvas.drawString(2 * cm, 1.2 * cm, f"Quincena Clara · Expediente {exp['id']} · {_estado(res)}")
+        canvas.drawString(2 * cm, 1.2 * cm, f"Nomira · Expediente {exp['id']} · {_estado(res)}")
         canvas.drawRightString(letter[0] - 2 * cm, 1.2 * cm, f"Página {doc.page}")
         canvas.restoreState()
 
@@ -254,12 +254,12 @@ def generar_pdf(res: dict) -> bytes:
             estilo.append(("ALIGN", (c, 0), (c, -1), "RIGHT"))
         for i in total_rows:
             estilo += [("FONTNAME", (0, i), (-1, i), "Helvetica-Bold"),
-                       ("BACKGROUND", (0, i), (-1, i), colors.HexColor("#E6FAF7"))]
+                       ("BACKGROUND", (0, i), (-1, i), colors.HexColor("#E5F8F6"))]
         t.setStyle(TableStyle(estilo))
         return t
 
     P = lambda s, st=chico: Paragraph(str(s).replace("&", "&amp;").replace("<", "&lt;"), st)  # noqa: E731
-    el = [Paragraph("Quincena Clara — Cálculo de prestaciones", h1),
+    el = [Paragraph("Nomira — Cálculo de prestaciones", h1),
           Paragraph(f"<b>Estado de validación:</b> {_estado(res)}", n), Spacer(1, 6)]
     datos = [["Expediente", str(exp["id"])], ["Trabajador", P(exp["trabajador_nombre"])],
              ["Identificador laboral", exp["identificador_laboral"] or "—"],

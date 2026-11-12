@@ -22,7 +22,7 @@ export default function Catalogos() {
   }
   return (
     <Shell>
-      <h1 className="mb-1 text-2xl font-bold text-marino">Catálogos de prestaciones</h1>
+      <h1 className="mb-1 text-3xl font-extrabold text-marino">Catálogos de prestaciones</h1>
       <p className="mb-4 max-w-3xl text-sm text-slate-600">
         Solo se suman las percepciones cuya clave coincide exactamente con una clave activa del catálogo. Cada cambio crea una
         versión nueva: los expedientes conservan la versión con la que se calcularon.
@@ -39,7 +39,7 @@ export default function Catalogos() {
       {cats?.length === 0 && <div className="tarjeta p-8 text-center text-slate-500">No hay catálogos todavía.</div>}
       {cats?.map((c) => (
         <section key={c.id} className="tarjeta mb-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-crema-300 px-4 py-3">
             <h2 className="font-semibold text-marino">{c.nombre}</h2>
             {admin && (
               <div className="flex flex-wrap gap-2">

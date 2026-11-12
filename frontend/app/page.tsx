@@ -92,15 +92,15 @@ export default function Expedientes() {
   ];
   return (
     <Shell>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-marino">Expedientes</h1>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-3xl font-extrabold text-marino">Expedientes</h1><p className="mt-1 text-sm text-slate-500">Sus expedientes y lo que falta por revisar en cada uno.</p></div>
         {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo expediente</button>}
       </div>
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {tarjetas.map((c) => (
-          <div key={c.t} className={`tarjeta p-4 ${c.alerta ? "border-amber-300 bg-amber-50" : ""}`}>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{c.t}</div>
-            <div className="mt-1 text-2xl font-bold text-marino">{c.v}</div>
+          <div key={c.t} className={`tarjeta p-5 ${c.alerta ? "border-amber-300 bg-amber-50" : ""}`}>
+            <div className="etiqueta">{c.t}</div>
+            <div className="font-marca text-3xl font-extrabold text-marino">{c.v}</div>
           </div>
         ))}
       </div>
@@ -112,7 +112,7 @@ export default function Expedientes() {
             {lista === null && <tr><td colSpan={7} className="text-slate-500">Cargando…</td></tr>}
             {lista?.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-500">Aún no hay expedientes.{editor && " Cree el primero con «Nuevo expediente»."}</td></tr>}
             {lista?.map((e) => (
-              <tr key={e.id} className="hover:bg-slate-50">
+              <tr key={e.id} className="hover:bg-marino-50/50">
                 <td><Link className="font-semibold text-marino underline-offset-2 hover:underline" href={`/expedientes/${e.id}`}>#{e.id}</Link></td>
                 <td><Link href={`/expedientes/${e.id}`} className="hover:underline">{e.trabajador_nombre}</Link>
                   <div className="text-xs text-slate-500">{e.catalogo.nombre} · v{e.catalogo.version}</div></td>

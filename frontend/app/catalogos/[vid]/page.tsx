@@ -54,7 +54,7 @@ export default function Version() {
     <Shell>
       <Link href="/catalogos" className="text-sm text-turquesa-700 hover:underline">← Catálogos</Link>
       <div className="mb-3 mt-1 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-marino">{v.catalogo} — versión {v.numero}</h1>
+        <h1 className="text-3xl font-extrabold text-marino">{v.catalogo} — versión {v.numero}</h1>
         <Chip estado={v.estado} />
       </div>
       {v.estado === "borrador" ? (

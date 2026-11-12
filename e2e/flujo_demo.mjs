@@ -15,10 +15,13 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, dev
 const errores = [];
 page.on("console", (m) => m.type() === "error" && errores.push(m.text()));
 page.on("pageerror", (e) => errores.push(String(e)));
-const foto = (n) => page.screenshot({ path: `${dir}/${n}.png`, fullPage: true });
+const foto = async (n) => { await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(150); return page.screenshot({ path: `${dir}/${n}.png`, fullPage: true }); };
+const _fotoAnterior = (n) => page.screenshot({ path: `${dir}/${n}.png`, fullPage: true });
 
 await page.goto(base + "/");
 await page.waitForURL("**/login");
+await page.waitForTimeout(500);
+await foto("00-login");
 await page.getByLabel("Correo electrónico").fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
@@ -55,7 +58,7 @@ await page.getByText("Fila seleccionada: 0607").waitFor();
 await page.getByLabel("Motivo (obligatorio)").first().fill("Descuento confirmado en el original");
 await page.getByRole("button", { name: "Confirmar lectura tal cual" }).click();
 await page.getByText("Lectura confirmada.").waitFor();
-await page.getByRole("button", { name: "Cerrar" }).click();
+await page.getByRole("button", { name: "Cerrar", exact: true }).click();
 
 // Resolver alertas de recibo: duplicado -> excluir, complementario -> incluir, otro trabajador -> excluir
 async function decidir(texto, boton) {
@@ -64,7 +67,7 @@ async function decidir(texto, boton) {
   await page.getByRole("dialog").locator("details").getByLabel("Motivo (obligatorio)").fill("Revisado contra el original");
   await page.getByRole("button", { name: boton }).click();
   await page.getByText(/Recibo (incluido|excluido)/).waitFor();
-  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
 }
 await decidir("Posible recibo duplicado", "Excluir este recibo");
 await decidir("posible complementario", "Incluir este recibo");

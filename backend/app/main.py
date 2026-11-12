@@ -20,7 +20,7 @@ async def ciclo(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Quincena Clara", version="0.1.0", lifespan=ciclo)
+app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type"])
 for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router):

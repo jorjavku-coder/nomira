@@ -1,4 +1,4 @@
-# Quincena Clara — ejecución local. Copie .env.example a .env y cambie los secretos.
+# Nomira — ejecución local. Copie .env.example a .env y cambie los secretos.
 services:
   db:
     image: postgres:16-alpine

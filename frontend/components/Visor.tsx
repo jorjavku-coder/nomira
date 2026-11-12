@@ -69,7 +69,7 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
       <table className="tabla">
         <tbody>
           {recibo.filas.filter((x: any) => x.tipo === tipo).map((x: any) => (
-            <tr key={x.id} onClick={() => setSel(x.id)} className={`cursor-pointer ${sel === x.id ? "bg-turquesa-50" : "hover:bg-slate-50"}`}>
+            <tr key={x.id} onClick={() => setSel(x.id)} className={`cursor-pointer ${sel === x.id ? "bg-turquesa-50" : "hover:bg-marino-50/50"}`}>
               <td className="w-14 font-mono font-semibold">{x.clave || "¿?"}</td>
               <td className="text-xs">{x.concepto || <i className="text-slate-400">(sin concepto)</i>}{x.corregida && <span className="ml-1 rounded bg-marino-50 px-1 text-[10px] font-semibold text-marino">corregida</span>}</td>
               <td className="num whitespace-nowrap">{x.importe === null ? <span className="font-sans text-amber-700">ilegible</span> : mxn(x.importe)}</td>
@@ -87,7 +87,7 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
     <Modal titulo={recibo ? `Comprobante original — ${recibo.documento}, página ${recibo.pagina}` : "Comprobante original"} onCerrar={onCerrar} ancho="max-w-7xl">
       {!recibo ? <><Aviso>{error}</Aviso>{!error && <p className="text-sm text-slate-500">Cargando…</p>}</> : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="max-h-[80vh] overflow-auto rounded border border-slate-200 bg-slate-100">
+          <div className="max-h-[80vh] overflow-auto rounded border border-crema-300 bg-slate-100">
             {img ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -118,7 +118,7 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
             {tabla("deduccion", "Deducciones (nunca se suman)")}
 
             {fila && (
-              <div className="rounded-md border border-turquesa bg-turquesa-50 p-3">
+              <div className="rounded-xl border border-turquesa bg-turquesa-50 p-3">
                 <h4 className="font-semibold text-marino">Fila seleccionada: {fila.clave || "¿?"}</h4>
                 <p className="text-xs text-slate-600">Lectura original: clave «{fila.clave_leida ?? "—"}» · concepto «{fila.concepto_leido ?? "—"}» · importe «{fila.importe_leido_texto ?? "—"}»
                   {fila.confianza !== null && ` · confianza OCR ${fila.confianza}`}{fila.origen === "manual" && " · fila agregada manualmente"}</p>
@@ -144,7 +144,7 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
             )}
 
             {editable && (
-              <details className="rounded-md border border-slate-200 p-3" open={alertasRecibo.length > 0 || infoRecibo?.estado !== "incluido"}>
+              <details className="rounded-xl border border-crema-300 p-3" open={alertasRecibo.length > 0 || infoRecibo?.estado !== "incluido"}>
                 <summary className="cursor-pointer font-semibold text-marino">Acciones sobre el recibo</summary>
                 <div className="mt-3 space-y-3">
                   <label className="block"><span className="etiqueta">Motivo (obligatorio)</span>
@@ -161,7 +161,7 @@ export default function Visor({ reciboId, filaId, resultado, editable, onCerrar,
                   </div>
                   <button className="btn-sec" disabled={motivoRecibo.trim().length < 3} onClick={() => accion(() => api.post(`/recibos/${reciboId}/corregir`, {
                     motivo: motivoRecibo, periodo_inicio: per.periodo_inicio || null, periodo_fin: per.periodo_fin || null, plaza: per.plaza || null }), "Datos del recibo corregidos.")}>Corregir periodo o plaza</button>
-                  <div className="border-t border-slate-200 pt-3">
+                  <div className="border-t border-crema-300 pt-3">
                     <span className="etiqueta">Agregar una percepción que no se detectó</span>
                     <div className="grid grid-cols-[6rem_1fr_8rem_auto] gap-2">
                       <input className="campo font-mono" placeholder="Clave" value={nueva.clave} onChange={(e) => setNueva({ ...nueva, clave: e.target.value })} />
