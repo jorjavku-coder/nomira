@@ -208,7 +208,13 @@ def test_exportaciones_coinciden_con_el_resultado(org):
     r = org.c.get(f"/api/expedientes/{eid}/exportar/excel", headers=org.h)
     assert r.status_code == 200 and "PROVISIONAL" in r.headers["content-disposition"]
     wb = load_workbook(io.BytesIO(r.content))
-    assert wb.sheetnames == ["Resumen", "Desglose por quincena", "Acumulado por prestación", "Excluidos", "Alertas", "Trazabilidad"]
+    assert wb.sheetnames == ["Resumen", "Formato quincenal", "Desglose por quincena", "Acumulado por prestación",
+                             "Excluidos", "Alertas", "Trazabilidad"]
+    fq = list(wb["Formato quincenal"].iter_rows(values_only=True))
+    assert fq[0] == ("Quincena 1", None) and fq[1] == ("Del 1 de enero al 15 de enero de 2025", None)
+    assert fq[2] == ("Sueldo base", Decimal("7215.40")) or (fq[2][0], Decimal(str(fq[2][1]))) == ("Sueldo base", Decimal("7215.40"))
+    assert [Decimal(str(f[1])) for f in fq if f[0] and str(f[0]).startswith("TOTAL")] == [Decimal(q["total"]) for q in res["quincenas"] if q["estado"] != "faltante"]
+    assert sum(1 for f in fq if f[0] and "FALTANTE" in str(f[0])) == 3
     ws = wb["Desglose por quincena"]
     filas = list(ws.iter_rows(values_only=True))
     assert filas[0] == ("Quincena", "Fecha inicial", "Fecha final", "Clave", "Concepto", "Importe", "Total de la quincena")
@@ -411,3 +417,81 @@ def _pdf_informativo():
 
 
 PDF_INFO = _pdf_informativo()
+
+
+# ---------- verificación con IA (cliente simulado: no se llama a ningún servicio externo) ----------
+
+class _ClienteFalso:
+    """Imita client.messages.parse devolviendo lecturas preparadas; registra lo que se le envía."""
+    def __init__(self, lecturas):
+        self.lecturas, self.llamadas, self.messages = list(lecturas), [], self
+
+    def parse(self, **kw):
+        self.llamadas.append(kw)
+        lectura = self.lecturas.pop(0)
+        if isinstance(lectura, Exception):
+            raise lectura
+        return type("R", (), {"stop_reason": "end_turn" if lectura is not None else "refusal", "parsed_output": lectura})()
+
+
+def test_verificacion_ia_solo_compara_y_nunca_cambia_importes(org, db, monkeypatch):
+    from app.config import ajustes
+    from app.services import ia_adaptador as ia
+    from app.services.verificacion_ia import verificar_expediente
+    eid = org.expediente()
+    org.subir(eid, crear_pdf([recibo(ENE1, BASE, num="1"), recibo(ENE2, BASE, num="2"), recibo(FEB1, BASE, num="3")]))
+    assert org.c.post(f"/api/expedientes/{eid}/verificar-ia", headers=org.h).status_code == 404  # apagada por defecto
+    antes = org.resultado(eid)
+    assert antes["ia"]["habilitada"] is False and antes["ia"]["recibos"] == {"sin_verificar": 3}
+    monkeypatch.setattr(ajustes(), "ia_habilitada", True)
+    filas = lambda *xs: [ia.FilaIA(clave=c, importe=i) for c, i in xs]  # noqa: E731
+    bien = ia.LecturaIA(legible=True, percepciones=filas(("0102", "7505.00"), ("0104", "2505.00"), ("0603", "800.00")), total_percepciones="10810.00")
+    mal = ia.LecturaIA(legible=True, percepciones=filas(("0102", "7505.00"), ("0104", "2550.00"), ("0603", "800.00"), ("0512", "483.75")), total_percepciones="10810.00")
+    cliente = _ClienteFalso([bien, mal, None])
+    assert verificar_expediente(db, eid, cliente)["estado"] == "terminada"
+    # Se envía la imagen como dato y la instrucción de ignorar instrucciones incrustadas
+    k = cliente.llamadas[0]
+    assert k["messages"][0]["content"][0]["type"] == "image" and "DATOS" in k["system"] and k["output_format"] is ia.LecturaIA
+    res = org.resultado(eid)
+    assert res["ia"]["recibos"] == {"coincide": 1, "discrepancia": 1, "no_legible": 1}
+    assert [q["ia"] for q in res["quincenas"][:3]] == ["coincide", "discrepancia", "discrepancia"]
+    alertas = [a for a in res["alertas"] if a["tipo"] == "verificacion_ia"]
+    assert len(alertas) == 2 and all(a["bloqueante"] for a in alertas) and not res["puede_validarse"]
+    assert "el sistema leyó 2505.00 y la IA leyó 2550.00" in alertas[0]["mensaje"] and "0512" in alertas[0]["mensaje"]
+    # La IA no tocó nada: mismos importes, mismo total, mismas filas
+    assert res["total_expediente"] == antes["total_expediente"] == "32430.00"
+    assert [(x["clave"], x["importe"]) for x in res["incluidos"]] == [(x["clave"], x["importe"]) for x in antes["incluidos"]]
+    assert db.query(m.Fila).filter_by(corregida=True).count() == 0 and db.query(m.CatalogoEntrada).filter_by(clave="2550").count() == 0
+    # Una persona resuelve: confirma un recibo y corrige el otro (lo que deja la verificación desactualizada)
+    r2, r3 = alertas[0]["recibo_id"], alertas[1]["recibo_id"]
+    org.c.post(f"/api/recibos/{r2}/decision", headers=org.h, json={"decision": "incluir", "motivo": "Original revisado: 2,505.00 es correcto"})
+    fid = next(x["fila_id"] for x in res["incluidos"] if x["recibo_id"] == r3 and x["clave"] == "0603")
+    org.c.post(f"/api/filas/{fid}/corregir", headers=org.h, json={"concepto": "DIAS CIVICOS (revisado)", "motivo": "Sin cambio de importe"})
+    res = org.resultado(eid)
+    assert [a for a in res["alertas"] if a["tipo"] == "verificacion_ia"][0]["recibo_id"] == r3  # concepto no cambia la huella
+    org.c.post(f"/api/filas/{fid}/corregir", headers=org.h, json={"importe": "801.00", "motivo": "Prueba de caducidad"})
+    res = org.resultado(eid)
+    assert res["recibos"][str(r3)]["ia"]["estado"] == "desactualizada"
+    assert not [a for a in res["alertas"] if a["tipo"] == "verificacion_ia"]
+    # Reverificar solo reenvía lo que cambió
+    cliente2 = _ClienteFalso([ia.LecturaIA(legible=True, percepciones=filas(("0102", "7505.00"), ("0104", "2505.00"), ("0603", "801.00")))])
+    verificar_expediente(db, eid, cliente2)
+    assert len(cliente2.llamadas) == 1 and org.resultado(eid)["ia"]["recibos"] == {"coincide": 2, "discrepancia": 1}
+    # Auditoría y endpoint con IA activa
+    monkeypatch.setattr(ia, "crear_cliente", lambda: _ClienteFalso([bien] * 3))
+    assert org.c.post(f"/api/expedientes/{eid}/verificar-ia", headers=org.h).status_code == 200
+    assert "ia_verificacion_iniciada" in [a.accion for a in db.query(m.Auditoria)]
+
+
+def test_verificacion_ia_se_detiene_si_el_servicio_falla(org, db, monkeypatch):
+    from app.config import ajustes
+    from app.services.verificacion_ia import comparar, verificar_expediente
+    eid = org.expediente()
+    org.subir(eid, _pdf_trimestre())
+    monkeypatch.setattr(ajustes(), "ia_habilitada", True)
+    r = verificar_expediente(db, eid, _ClienteFalso([RuntimeError("sin credenciales")] * 3))
+    assert r["estado"] == "error" and "3 recibos seguidos" in r["error"]
+    res = org.resultado(eid)
+    assert res["ia"]["recibos"] == {"error": 3} and res["total_expediente"] == "32028.60"
+    assert not [a for a in res["alertas"] if a["tipo"] == "verificacion_ia"]  # un fallo del servicio no bloquea
+    assert comparar([("0102", Decimal("1.00"))], None) == ("no_legible", ["La IA no pudo leer el recibo con certeza."])

@@ -110,5 +110,9 @@ def recuperar_interrumpidos() -> int:
         if n:
             for exp in db.scalars(select(m.Expediente).where(m.Expediente.estado == "procesando")):
                 recalcular_estado(db, exp)
+        for exp in db.scalars(select(m.Expediente).where(m.Expediente.verificacion_ia.isnot(None))):
+            if (exp.verificacion_ia or {}).get("estado") == "en_curso":
+                exp.verificacion_ia = {**exp.verificacion_ia, "estado": "error",
+                                       "error": "Verificación interrumpida por reinicio del servicio. Vuelva a lanzarla."}
         db.commit()
         return n

@@ -26,6 +26,8 @@ ok(await page.getByLabel("Periodo: fin").inputValue() === "2026-03-15", "fin de 
 await page.screenshot({ path: `${dir}/12-nuevo-expediente-autollenado.png` });
 await page.getByRole("button", { name: /Crear y procesar 1 PDF/ }).click();
 await page.waitForURL("**/expedientes/*");
+await page.getByText("Quincena 7").waitFor();
+await page.getByRole("tab", { name: /^Revisión/ }).click();
 await page.getByText("Quincenas (7)").waitFor();
 await page.getByRole("button", { name: /^1\. 1\.ª qna\. diciembre/ }).click();
 ok(await page.getByText("$10,408.60").count() >= 1, "expediente creado y procesado: 1-15 dic = $10,408.60");

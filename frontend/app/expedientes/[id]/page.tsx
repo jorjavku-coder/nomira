@@ -3,11 +3,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
+import Desglose from "@/components/Desglose";
 import Visor from "@/components/Visor";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { api, fecha, fechaHora, mxn } from "@/lib/api";
 
-type Pestana = "revision" | "documentos" | "resultados" | "trazabilidad";
+type Pestana = "desglose" | "revision" | "documentos" | "resultados" | "trazabilidad";
 
 export default function Expediente() {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,7 @@ export default function Expediente() {
   const [docs, setDocs] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [pestana, setPestana] = useState<Pestana>("revision");
+  const [pestana, setPestana] = useState<Pestana>("desglose");
   const [qSel, setQSel] = useState<string | null>(null);
   const [visor, setVisor] = useState<{ recibo: number; fila?: number | null } | null>(null);
   const [validar, setValidar] = useState(false);
@@ -34,11 +35,12 @@ export default function Expediente() {
     } catch (e: any) { setError(e.message); }
   }, [id]);
   useEffect(() => { cargar(); }, [cargar]);
+  const iaEnCurso = res?.ia?.avance?.estado === "en_curso";
   useEffect(() => {
-    if (exp?.estado !== "procesando") return;
+    if (exp?.estado !== "procesando" && !iaEnCurso) return;
     const t = setInterval(cargar, 2000);
     return () => clearInterval(t);
-  }, [exp?.estado, cargar]);
+  }, [exp?.estado, iaEnCurso, cargar]);
 
   async function accion(fn: () => Promise<any>, mensaje = "") {
     setError(""); setOk("");
@@ -89,6 +91,10 @@ export default function Expediente() {
         <div className="flex flex-wrap gap-2">
           <button className="btn-sec" onClick={() => api.descargar(`/expedientes/${id}/exportar/excel`, `expediente-${id}.xlsx`).catch((e) => setError(e.message))}>Exportar Excel</button>
           <button className="btn-sec" onClick={() => api.descargar(`/expedientes/${id}/exportar/pdf`, `expediente-${id}.pdf`).catch((e) => setError(e.message))}>Exportar PDF</button>
+          {editable && res.ia?.habilitada && <button className="btn-sec" disabled={iaEnCurso || !docs.length}
+            title="Segunda lectura independiente de cada recibo. Envía la imagen de los recibos al servicio de IA configurado."
+            onClick={() => { if (confirm("La verificación envía la imagen de cada recibo al servicio de IA configurado para compararla con la lectura del sistema. No cambia ningún importe. ¿Continuar?")) accion(() => api.post(`/expedientes/${id}/verificar-ia`), "Verificación con IA iniciada."); }}>
+            {iaEnCurso ? `Verificando con IA… ${res.ia.avance.hechos}/${res.ia.avance.total}` : "Verificar con IA"}</button>}
           {editable && <button className="btn-turquesa" disabled={!res.puede_validarse} title={res.puede_validarse ? "" : "Resuelva los pendientes para poder validar"} onClick={() => setValidar(true)}>Validar resultado</button>}
           {editor && validado && <button className="btn-sec" onClick={() => { const m = prompt("Motivo para reabrir el expediente (la validación se revoca):"); if (m && m.trim().length >= 3) accion(() => api.post(`/expedientes/${id}/reabrir`, { motivo: m }), "Expediente reabierto."); }}>Reabrir</button>}
         </div>
@@ -114,14 +120,32 @@ export default function Expediente() {
             quincenas_esperadas: null }), "Periodo ampliado a los recibos detectados.")}>Ampliar el periodo para incluirlos</button>
         </Aviso></div>
       )}
+      {res.ia?.avance && !iaEnCurso && (
+        <div className="mt-2"><Aviso tipo={res.ia.avance.estado === "error" ? "alerta" : (res.ia.recibos.discrepancia || res.ia.recibos.no_legible) ? "alerta" : "ok"}>
+          <b>Verificación con IA:</b>{" "}
+          {res.ia.avance.estado === "error" ? res.ia.avance.error
+            : <>{res.ia.recibos.coincide || 0} recibo(s) coinciden con la lectura del sistema
+              {(res.ia.recibos.discrepancia || 0) + (res.ia.recibos.no_legible || 0) > 0 && <>, <b>{(res.ia.recibos.discrepancia || 0) + (res.ia.recibos.no_legible || 0)} con diferencias por revisar</b></>}
+              {res.ia.recibos.desactualizada > 0 && <>, {res.ia.recibos.desactualizada} cambiaron después y conviene verificarlos de nuevo</>}
+              {res.ia.recibos.error > 0 && <>, {res.ia.recibos.error} no pudieron consultarse</>}. La IA solo compara: no modifica importes.</>}
+        </Aviso></div>
+      )}
       {exp.estado === "procesando" && <Aviso tipo="info">Procesando documentos… esta página se actualiza sola.</Aviso>}
 
       <div className="mb-4 mt-4 flex gap-1 border-b border-crema-300" role="tablist">
-        {([["revision", `Revisión${!validado && bloqueantes.length ? ` (${bloqueantes.length})` : ""}`], ["documentos", `Documentos (${docs.length})`], ["resultados", "Resultados"], ["trazabilidad", `Trazabilidad (${res.trazabilidad.correcciones.length})`]] as [Pestana, string][]).map(([k, t]) => (
+        {([["desglose", "Desglose por quincena"], ["revision", `Revisión${!validado && bloqueantes.length ? ` (${bloqueantes.length})` : ""}`], ["documentos", `Documentos (${docs.length})`], ["resultados", "Resultados"], ["trazabilidad", `Trazabilidad (${res.trazabilidad.correcciones.length})`]] as [Pestana, string][]).map(([k, t]) => (
           <button key={k} role="tab" aria-selected={pestana === k} onClick={() => setPestana(k)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold ${pestana === k ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</button>
         ))}
       </div>
+
+      {pestana === "desglose" && (
+        <div className="space-y-4">
+          {docs.length === 0 && <Aviso tipo="info">Aún no hay comprobantes. <button className="font-semibold underline" onClick={() => setPestana("documentos")}>Suba los PDF</button> y el desglose se calcula solo.</Aviso>}
+          {!validado && bloqueantes.length > 0 && <Aviso tipo="alerta">Hay <b>{bloqueantes.length}</b> pendiente(s) que conviene resolver antes de dar por bueno el desglose. <button className="font-semibold underline" onClick={() => setPestana("revision")}>Ir a revisión</button></Aviso>}
+          <Desglose res={res} validado={validado} onAbrir={(qn) => { setQSel(qn); setPestana("revision"); window.scrollTo({ top: 0 }); }} />
+        </div>
+      )}
 
       {pestana === "revision" && (
         <div className="space-y-4">

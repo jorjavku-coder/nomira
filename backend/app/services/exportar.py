@@ -120,6 +120,31 @@ def generar_excel(res: dict) -> bytes:
         for f in res["faltantes"]:
             ws.append([f["etiqueta"], f"{fecha_mx(f['inicio'])} al {fecha_mx(f['fin'])}"])
 
+    # Formato quincenal: réplica de la hoja que se llenaba a mano (un bloque por quincena).
+    ws = wb.create_sheet("Formato quincenal")
+    ws.column_dimensions["A"].width = 62
+    ws.column_dimensions["B"].width = 18
+    for q in res["quincenas"]:
+        bloques = [(None, [c for pz in q["plazas"] for c in pz["conceptos"]], q["total"])] if res["consolidado"] or not q["plazas"] \
+            else [(pz["plaza"], pz["conceptos"], pz["total"]) for pz in q["plazas"]]
+        for plaza, conceptos, total in bloques:
+            ws.append([f"Quincena {q['numero']}" + (f" — plaza {plaza}" if plaza else ""), None])
+            ws.cell(ws.max_row, 1).font = Font(bold=True, color=AZUL, size=12)
+            ws.append([q["periodo_texto"], None])
+            for c in conceptos:
+                ws.append([c["concepto_catalogo"].capitalize(), _d(c["importe"])])
+                ws.cell(ws.max_row, 2).number_format = FMT_MXN
+            if q["estado"] in ("faltante", "pendiente"):
+                ws.append([ESTADOS_Q[q["estado"]], None])
+                ws.cell(ws.max_row, 1).font = Font(italic=True, color="B45309")
+            else:
+                ws.append(["TOTAL" + (" (provisional)" if q["provisional"] else ""), _d(total)])
+                for c in ws[ws.max_row]:
+                    c.font = Font(bold=True)
+                    c.fill = PatternFill("solid", fgColor="E5F8F6")
+                ws.cell(ws.max_row, 2).number_format = FMT_MXN
+            ws.append([None, None])
+
     # Desglose: Quincena · Fecha inicial · Fecha final · Clave · Concepto · Importe · Total de la quincena
     enc = ["Quincena", "Fecha inicial", "Fecha final", "Clave", "Concepto", "Importe", "Total de la quincena"]
     anchos = [34, 13, 13, 9, 62, 15, 20]

@@ -330,6 +330,7 @@ def calcular(p: ParametrosExpediente, recibos: list[ReciboCalc],
             faltantes.append({"quincena": cq, "etiqueta": etiqueta(q), "inicio": ini.isoformat(), "fin": fin.isoformat()})
         quincenas.append({
             "numero": n, "quincena": cq, "etiqueta": etiqueta(q), "inicio": ini.isoformat(),
+            "periodo_texto": f"Del {ini.day} de {MESES[ini.month - 1]} al {fin.day} de {MESES[fin.month - 1]} de {fin.year}",
             "fin": fin.isoformat(), "estado": estado, "provisional": cq in q_pendiente,
             "recibos": [r.id for r in con_recibo.get(q, [])], "plazas": por_plaza, "total": dinero(total)})
     if faltantes:

@@ -11,7 +11,7 @@ quincena contra un catálogo autorizado, con revisión humana, trazabilidad y ex
 - **Lectura:** PyMuPDF (texto nativo) y Tesseract en español (páginas escaneadas)
 - **Exportación:** openpyxl y ReportLab
 
-![Pantalla de revisión](docs/capturas/02-revision-pendientes.png)
+![Desglose por quincena](docs/capturas/01b-desglose-formato-excel.png)
 
 ## 1. Arranque con Docker Compose
 
@@ -105,10 +105,13 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
    `datos/ejemplos/recibos_sinteticos.pdf` es un archivo ficticio para probarlo.
 3. **Documentos** → subir más PDF cuando haga falta. Cada página se clasifica como recibo o
    informativa. Si los recibos cubren más quincenas que el periodo del expediente, se ofrece ampliarlo.
-4. **Revisión** → lista de quincenas; conceptos incluidos, excluidos (con motivo) y pendientes; visor
+4. **Desglose por quincena** → primera pantalla del expediente, con el mismo formato de la hoja de
+   cálculo que se llenaba a mano: Quincena N, periodo, prestaciones autorizadas y TOTAL. El Excel
+   exportado incluye esa misma hoja («Formato quincenal»).
+5. **Revisión** → lista de quincenas; conceptos incluidos, excluidos (con motivo) y pendientes; visor
    del comprobante original con la fila resaltada; corregir o confirmar lecturas; decidir duplicados.
-5. **Validar** → solo sin pendientes. Congela resultado y versión de catálogo.
-6. **Exportar** Excel y PDF (marcados PROVISIONAL mientras no se valide).
+6. **Validar** → solo sin pendientes. Congela resultado y versión de catálogo.
+7. **Exportar** Excel y PDF (marcados PROVISIONAL mientras no se valide).
 
 ## 5. Reglas de cálculo implementadas
 
@@ -153,14 +156,23 @@ El motor está en `backend/app/services/calculo.py` (funciones puras, sin base d
 > CURP, RFC y número de cuenta siguen presentes en la capa de texto y cualquiera puede extraerlos.
 > Si esos archivos se comparten con terceros, deben redactarse con una herramienta que elimine el texto.
 
-## 7. IA opcional
+## 7. Verificación opcional con IA
 
-Apagada por defecto (`IA_HABILITADA=false`); el flujo completo funciona sin ella y sin enviar nada
-fuera. Si se activa, expone `POST /api/filas/{id}/sugerencia-ia`, que envía el **texto de una
-página** y devuelve una relectura propuesta para una fila, validada contra un esquema. No aplica
-nada: la persona debe registrar la corrección. El modelo no decide claves autorizadas ni suma.
-Requiere `pip install -r requirements-ia.txt` y `ANTHROPIC_API_KEY`. **No está conectada a la interfaz
-y no se probó contra el servicio real** (ver limitaciones).
+Apagada por defecto (`IA_HABILITADA=false`); el cálculo completo funciona sin ella y sin enviar nada
+fuera. Al activarla (`IA_HABILITADA=true` y `ANTHROPIC_API_KEY`), el expediente muestra el botón
+**Verificar con IA**: una segunda lectura independiente de la imagen de cada recibo que se
+**compara** con la lectura del sistema.
+
+- Si coinciden, la quincena se marca «IA ✓».
+- Si difieren, aparece un pendiente que impide validar hasta que una persona revise el original y
+  corrija o confirme el recibo.
+- La IA **no modifica importes, no decide qué claves están autorizadas y no suma**. Su salida se
+  valida contra un esquema y el contenido del recibo se le entrega como datos, no como instrucciones.
+- Un recibo ya verificado no se reenvía; si su lectura cambia, la verificación caduca.
+- Privacidad: se envía la **imagen de cada recibo** (con datos personales) al proveedor de IA. Queda
+  en auditoría. Tiene costo por uso según el modelo (`IA_MODELO`).
+
+**Probado solo con un cliente simulado**; no se ha ejecutado contra el servicio real.
 
 ## 8. Qué se probó y qué no
 

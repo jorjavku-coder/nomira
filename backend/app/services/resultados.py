@@ -51,6 +51,22 @@ def calcular_expediente(db: Session, exp: m.Expediente) -> dict:
                              if r.decision != "excluir" and mismo_trabajador(params, r)])
     res["periodo_detectado"] = {"inicio": rango[0].isoformat(), "fin": rango[1].isoformat()} if rango else None
 
+    # Verificación opcional con IA: solo agrega avisos; no cambia ningún importe.
+    from .verificacion_ia import resumen as resumen_ia
+    res["ia"], ia_por_recibo, alertas_ia = resumen_ia(recibos, exp)
+    q_de = {int(k): v["quincena"] for k, v in res["recibos"].items()}
+    for k, v in res["recibos"].items():
+        v["ia"] = ia_por_recibo.get(int(k))
+    for a in alertas_ia:
+        if res["recibos"][str(a["recibo_id"])]["estado"] == "incluido":
+            res["alertas"].append({**a, "quincena": q_de.get(a["recibo_id"])})
+    for q in res["quincenas"]:
+        estados = [ia_por_recibo[r]["estado"] for r in q["recibos"] if r in ia_por_recibo]
+        q["ia"] = ("discrepancia" if any(e in ("discrepancia", "no_legible") for e in estados)
+                   else "coincide" if estados and all(e == "coincide" for e in estados) else None)
+        if q["ia"] == "discrepancia" and any(a.get("quincena") == q["quincena"] for a in res["alertas"] if a["tipo"] == "verificacion_ia"):
+            q["provisional"] = True
+
     def bloquea(tipo, mensaje, **ref):
         res["alertas"].append({"tipo": tipo, "mensaje": mensaje, "bloqueante": True, **ref})
 

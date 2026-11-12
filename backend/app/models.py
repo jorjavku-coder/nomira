@@ -99,6 +99,7 @@ class Expediente(Base):
     validado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notas_validacion: Mapped[str | None] = mapped_column(Text)
     resultado_validado: Mapped[dict | None] = mapped_column(JSON)  # instantánea congelada
+    verificacion_ia: Mapped[dict | None] = mapped_column(JSON)  # avance de la verificación con IA
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
@@ -166,6 +167,8 @@ class Recibo(Base):
     decision_motivo: Mapped[str | None] = mapped_column(Text)
     decision_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     decision_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Segunda lectura independiente con IA (opcional): solo compara, nunca modifica importes.
+    verificacion_ia: Mapped[dict | None] = mapped_column(JSON)
     documento: Mapped[Documento] = relationship(back_populates="recibos")
     filas: Mapped[list["Fila"]] = relationship(
         back_populates="recibo", cascade="all, delete-orphan", order_by="Fila.orden")

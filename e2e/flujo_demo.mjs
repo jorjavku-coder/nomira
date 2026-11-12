@@ -31,7 +31,16 @@ await foto("01-expedientes");
 ok(await page.getByText("por resolver").count() >= 1, "la lista prioriza expedientes con pendientes");
 
 // Expediente con incidencias
+// Expediente limpio: el desglose con el formato de la hoja de cálculo es la primera pantalla
+await page.getByRole("link", { name: "#1" }).click();
+await page.getByText("Quincena 6").waitFor();
+ok(await page.getByText("Del 16 de septiembre al 30 de septiembre de 2025").count() === 1, "desglose con periodo en texto");
+ok(await page.getByText("$12,510.00").count() >= 1 && await page.getByText("$10,810.00").count() >= 1, "totales por quincena del ejemplo ($10,810 y $12,510)");
+await foto("01b-desglose-formato-excel");
+await page.getByRole("link", { name: "← Expedientes" }).click();
+
 await page.getByRole("link", { name: "#2" }).click();
+await page.getByRole("tab", { name: /^Revisión/ }).click();
 await page.getByText("Pendientes que impiden validar").waitFor();
 await foto("02-revision-pendientes");
 ok(await page.getByRole("button", { name: "Validar resultado" }).isDisabled(), "no se puede validar con pendientes");

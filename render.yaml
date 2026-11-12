@@ -23,6 +23,12 @@ services:
         value: "true"
       - key: ZONA_HORARIA
         value: America/Mexico_City
+      # Verificación opcional con IA. Para activarla: IA_HABILITADA=true y su clave en ANTHROPIC_API_KEY
+      # (Render > nomira-demo > Environment). Envía imágenes de recibos al proveedor de IA.
+      - key: IA_HABILITADA
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false
 
 databases:
   - name: nomira-db
