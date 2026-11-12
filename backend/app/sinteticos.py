@@ -106,7 +106,7 @@ def _dibujar_informativa(c: canvas.Canvas):
 def crear_pdf(recibos: list[dict], *, informativas: bool = True, escaneado: bool = False) -> bytes:
     """PDF con texto nativo; con escaneado=True, cada página es solo imagen (obliga a OCR)."""
     buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=letter)
+    c = canvas.Canvas(buf, pagesize=letter, invariant=1)  # bytes reproducibles
     for r in recibos:
         _dibujar_recibo(c, r)
         c.showPage()

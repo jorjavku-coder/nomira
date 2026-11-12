@@ -1,0 +1,33 @@
+# Imagen ÚNICA (interfaz + API) para plataformas que ejecutan un solo contenedor (p. ej. Render).
+# Para uso normal prefiera docker-compose.yml, que separa los servicios.
+FROM node:22-slim AS web
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ .
+ENV API_INTERNAL_URL=http://127.0.0.1:8000 NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa libstdc++6 \
+ && apt-get clean
+COPY --from=web /usr/local/bin/node /usr/local/bin/node
+
+WORKDIR /app/backend
+COPY backend/requirements.txt .
+RUN pip install -r requirements.txt
+COPY backend/ .
+COPY datos/catalogo/ /app/datos/catalogo/
+COPY --from=web /web/.next/standalone /app/web
+COPY --from=web /web/.next/static /app/web/.next/static
+COPY --from=web /web/public /app/web/public
+COPY despliegue/iniciar_demo.sh /app/iniciar_demo.sh
+
+RUN useradd --create-home --uid 10001 qc && mkdir -p /datos/almacen && chown -R qc:qc /datos /app \
+ && chmod +x /app/iniciar_demo.sh
+USER qc
+ENV STORAGE_DIR=/datos/almacen
+EXPOSE 10000
+CMD ["/app/iniciar_demo.sh"]

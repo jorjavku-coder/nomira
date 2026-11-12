@@ -41,6 +41,15 @@ Usuarios de la demo (contraseña `Demo-Quincena-2025`; cámbiela o desactívelos
 Sin demo: en la pantalla de acceso use «Registrar una organización nueva»; después ponga
 `PERMITIR_REGISTRO=false` en `.env` y ejecute `docker compose up -d`.
 
+## 1 bis. Demo en línea con Render (sin instalar nada)
+
+`render.yaml` y `Dockerfile.demo` despliegan una demo con datos sintéticos en el plan gratuito de
+[Render](https://render.com): suba este proyecto a un repositorio de GitHub, y en Render elija
+**New → Blueprint** y seleccione el repositorio. Al terminar, Render muestra la dirección pública.
+El plan gratuito se duerme sin uso, su disco es temporal y la base caduca a los 30 días: es solo
+para demostración, no para datos reales. **Esta imagen no se pudo construir en el entorno de
+desarrollo (sin Docker); no está probada.**
+
 ## 2. Pruebas
 
 ```bash

@@ -36,6 +36,10 @@ class Ajustes(BaseSettings):
 @lru_cache
 def ajustes() -> Ajustes:
     a = Ajustes()
+    # Las plataformas de alojamiento suelen entregar «postgres://…»; se adapta al controlador usado.
+    for prefijo in ("postgres://", "postgresql://"):
+        if a.database_url.startswith(prefijo):
+            a.database_url = "postgresql+psycopg://" + a.database_url[len(prefijo):]
     if a.entorno == "produccion" and (a.jwt_secreto == SECRETO_INSEGURO or len(a.jwt_secreto) < 32):
         raise RuntimeError("JWT_SECRETO debe definirse (32+ caracteres) en producción.")
     return a

@@ -125,3 +125,29 @@ def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincen
     db.add(m.Auditoria(organizacion_id=org.id, usuario_id=admin.id, usuario_email=admin.email, accion="demo_sembrada"))
     db.commit()
     return {"creado": True, "email": email, "contrasena": contrasena}
+
+
+def restaurar_archivos(db: Session) -> dict:
+    """Para alojamientos con disco temporal: tras un reinicio los PDF desaparecen. Los de la demo
+    (sintéticos y reproducibles) se regeneran; los demás documentos se marcan en error, sin inventar nada."""
+    demo = {}
+    if True:
+        recs = [recibo(periodo(2025, mes, q), BASE + ([("0108", "CARRERA MAGISTERIAL", "700.00"),
+                                                      ("0109", "DESARROLLO PROFESIONAL", "1000.00")] if q == 2 else []),
+                       num=f"{1000 + mes * 2 + q:07d}") for mes in (7, 8, 9) for q in (1, 2)]
+        datos = crear_pdf(recs)
+        demo[hashlib.sha256(datos).hexdigest()] = datos
+    restaurados = perdidos = 0
+    for d in db.scalars(select(m.Documento)):
+        if Path(d.ruta).exists():
+            continue
+        if d.sha256 in demo:
+            Path(d.ruta).parent.mkdir(parents=True, exist_ok=True)
+            Path(d.ruta).write_bytes(demo[d.sha256])
+            restaurados += 1
+        elif d.estado != "error":
+            d.estado = "error"
+            d.error = "El archivo original ya no está disponible (almacenamiento temporal del servicio de demostración)."
+            perdidos += 1
+    db.commit()
+    return {"restaurados": restaurados, "perdidos": perdidos}
