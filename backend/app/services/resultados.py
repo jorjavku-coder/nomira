@@ -1,6 +1,8 @@
 """Puente entre la base de datos y el motor de cálculo."""
 from __future__ import annotations
 
+from collections import defaultdict
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -24,12 +26,29 @@ def _ctx(db: Session, exp: m.Expediente) -> dict:
     }
 
 
-def calcular_expediente(db: Session, exp: m.Expediente) -> dict:
-    """Resultado vigente. Si el expediente está validado devuelve la instantánea congelada."""
-    if exp.estado == "validado" and exp.resultado_validado:
+def _congelado(exp: m.Expediente) -> bool:
+    return exp.estado == "validado" and bool(exp.resultado_validado)
+
+
+def _consulta_recibos():
+    return select(m.Recibo).options(selectinload(m.Recibo.filas), selectinload(m.Recibo.documento))
+
+
+def _consulta_sin_clasificar():
+    return (select(m.Pagina.numero, m.Documento.id, m.Documento.nombre_original, m.Documento.expediente_id)
+            .join(m.Documento, m.Pagina.documento_id == m.Documento.id).where(m.Pagina.tipo == "desconocida"))
+
+
+def calcular_expediente(db: Session, exp: m.Expediente, recibos: list[m.Recibo] | None = None,
+                        sin_clasificar: list[tuple] | None = None) -> dict:
+    """Resultado vigente. Si el expediente está validado devuelve la instantánea congelada.
+    `recibos` y `sin_clasificar` pueden llegar precargados (vea calcular_varios)."""
+    if _congelado(exp):
         return exp.resultado_validado
-    recibos = db.scalars(select(m.Recibo).where(m.Recibo.expediente_id == exp.id)
-                         .options(selectinload(m.Recibo.filas), selectinload(m.Recibo.documento))).all()
+    if recibos is None:
+        recibos = db.scalars(_consulta_recibos().where(m.Recibo.expediente_id == exp.id)).all()
+    if sin_clasificar is None:
+        sin_clasificar = db.execute(_consulta_sin_clasificar().where(m.Documento.expediente_id == exp.id)).all()
     rc = [ReciboCalc(
         id=r.id, documento_id=r.documento_id, documento_nombre=r.documento.nombre_original,
         pagina=r.pagina_numero, num_recibo=r.num_recibo, trabajador_nombre=r.trabajador_nombre,
@@ -77,11 +96,7 @@ def calcular_expediente(db: Session, exp: m.Expediente) -> dict:
         elif d.estado in ("pendiente", "procesando"):
             bloquea("documento_en_proceso", f"El documento «{d.nombre_original}» sigue en proceso.",
                     documento_id=d.id)
-    sin_clasificar = db.execute(
-        select(m.Pagina.numero, m.Documento.id, m.Documento.nombre_original)
-        .join(m.Documento, m.Pagina.documento_id == m.Documento.id)
-        .where(m.Documento.expediente_id == exp.id, m.Pagina.tipo == "desconocida")).all()
-    for num, doc_id, nombre in sin_clasificar:
+    for num, doc_id, nombre, _ in sin_clasificar:
         bloquea("pagina_sin_clasificar", f"La página {num} de «{nombre}» no pudo clasificarse como recibo "
                 "ni como informativa. Revísela.", documento_id=doc_id, pagina=num)
     if exp.catalogo_version.estado == "borrador":
@@ -94,6 +109,20 @@ def calcular_expediente(db: Session, exp: m.Expediente) -> dict:
     res["estado_validacion"] = {"validado": False, "por": None, "fecha": None, "notas": None}
     res.update(_ctx(db, exp))
     return res
+
+
+def calcular_varios(db: Session, exps: list[m.Expediente]) -> dict[int, dict]:
+    """Igual que calcular_expediente para varios expedientes, con un número fijo de consultas.
+    Conviene precargar en `exps` documentos y catálogo (vea routers/expedientes.py)."""
+    ids = [e.id for e in exps if not _congelado(e)]
+    recibos: dict[int, list] = defaultdict(list)
+    sin_clasificar: dict[int, list] = defaultdict(list)
+    if ids:
+        for r in db.scalars(_consulta_recibos().where(m.Recibo.expediente_id.in_(ids))):
+            recibos[r.expediente_id].append(r)
+        for fila in db.execute(_consulta_sin_clasificar().where(m.Documento.expediente_id.in_(ids))):
+            sin_clasificar[fila[3]].append(fila)
+    return {e.id: calcular_expediente(db, e, recibos[e.id], sin_clasificar[e.id]) for e in exps}
 
 
 def trazabilidad(db: Session, exp: m.Expediente) -> dict:

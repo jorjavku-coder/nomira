@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from .config import ajustes
+from .db import engine
 from .routers import auth, catalogos, documentos, expedientes, ia
 from .services.procesamiento import recuperar_interrumpidos
 
@@ -29,4 +32,11 @@ for r in (auth.router, catalogos.router, documentos.router, expedientes.router, 
 
 @app.get("/api/salud")
 def salud():
+    """Lo usa la plataforma para saber si reiniciar el servicio: comprueba también la base."""
+    try:
+        with engine.connect() as c:
+            c.execute(text("SELECT 1"))
+    except Exception:
+        logging.getLogger("quincena").warning("Salud: la base de datos no responde.")
+        return JSONResponse({"ok": False, "base_de_datos": False}, status_code=503)
     return {"ok": True}
