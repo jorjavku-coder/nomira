@@ -2,7 +2,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import (JSON, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text,
+from sqlalchemy import (JSON, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
                         UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,12 @@ class Usuario(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     # Sube al cambiar la contraseña o desactivar al usuario: invalida los tokens ya emitidos.
     sesion_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Foto de perfil ya recortada y reducida (JPEG de 256 px, ~15 KB). En la base, no en disco:
+    # el disco de algunos alojamientos (p. ej. Render gratuito) se borra al reiniciar.
+    foto: Mapped[bytes | None] = mapped_column(LargeBinary)
+    # Baja lógica: el usuario desaparece del panel y no puede entrar, pero sus acciones pasadas
+    # (correcciones, validaciones, auditoría) conservan su referencia.
+    eliminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
 
