@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
-import { Aviso, Chip, Modal } from "@/components/ui";
+import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api, fecha, mxn } from "@/lib/api";
 
 function quincenasEntre(ini: string, fin: string): number | null {
@@ -163,8 +163,15 @@ export default function Expedientes() {
   const [lista, setLista] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState(false);
+  const [ok, setOk] = useState("");
+  const [borrar, setBorrar] = useState<any>(null);
   const cargar = useCallback(() => api.get("/expedientes").then(setLista).catch((e) => setError(e.message)), []);
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    const n = new URLSearchParams(window.location.search).get("eliminado");
+    if (n) { setOk(`Expediente #${n} eliminado.`); window.history.replaceState(null, "", "/"); }
+  }, []);
+  const puedeBorrar = (e: any) => editor && e.estado !== "procesando" && (e.estado !== "validado" || sesion?.usuario.rol === "administrador");
   const editor = sesion && sesion.usuario.rol !== "consulta";
   const conPendientes = (lista || []).filter((e) => e.estado !== "validado" && e.resumen.alertas_bloqueantes > 0);
   const tarjetas = [
@@ -187,13 +194,13 @@ export default function Expedientes() {
           </div>
         ))}
       </div>
-      <Aviso>{error}</Aviso>
+      <div className="mb-3 space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
       <div className="tarjeta overflow-x-auto">
         <table className="tabla">
-          <thead><tr><th>Expediente</th><th>Trabajador</th><th>Periodo</th><th>Estado</th><th>Pendientes</th><th>Quincenas</th><th className="num">Total autorizado</th></tr></thead>
+          <thead><tr><th>Expediente</th><th>Trabajador</th><th>Periodo</th><th>Estado</th><th>Pendientes</th><th>Quincenas</th><th className="num">Total autorizado</th>{editor && <th><span className="sr-only">Acciones</span></th>}</tr></thead>
           <tbody>
-            {lista === null && <tr><td colSpan={7} className="text-slate-500">Cargando…</td></tr>}
-            {lista?.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-500">Aún no hay expedientes.{editor && " Cree el primero con «Nuevo expediente»."}</td></tr>}
+            {lista === null && <tr><td colSpan={8} className="text-slate-500">Cargando…</td></tr>}
+            {lista?.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-slate-500">Aún no hay expedientes.{editor && " Cree el primero con «Nuevo expediente»."}</td></tr>}
             {lista?.map((e) => (
               <tr key={e.id} className="hover:bg-marino-50/50">
                 <td><Link className="font-semibold text-marino underline-offset-2 hover:underline" href={`/expedientes/${e.id}`}>#{e.id}</Link></td>
@@ -208,11 +215,25 @@ export default function Expedientes() {
                   {e.resumen.quincenas_faltantes > 0 && <span className="ml-1 text-xs text-red-700">({e.resumen.quincenas_faltantes} faltantes)</span>}</td>
                 <td className="num">{e.total_expediente === null ? "Por plaza" : mxn(e.total_expediente)}
                   {e.provisional && <div className="font-sans text-xs text-amber-700">provisional</div>}</td>
+                {editor && <td className="text-right">
+                  {puedeBorrar(e) && <button className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600" title="Eliminar expediente"
+                    aria-label={`Eliminar expediente ${e.id}`} onClick={() => setBorrar(e)}>
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
+                  </button>}</td>}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {borrar && (
+        <ConfirmarEliminar titulo="Eliminar expediente" boton="Sí, eliminar expediente" onCerrar={() => setBorrar(null)}
+          onConfirmar={async () => { await api.borrar(`/expedientes/${borrar.id}`); setOk(`Expediente #${borrar.id} eliminado.`); await cargar(); }}>
+          <p>¿Eliminar el expediente <b>#{borrar.id} · {borrar.trabajador_nombre}</b>?</p>
+          <p className="mt-2">Se borrarán sus {borrar.documentos} documento(s) PDF, las lecturas y todas las correcciones. <b>No se puede deshacer.</b></p>
+          {borrar.estado === "validado" && <p className="mt-2 font-semibold text-red-700">Este expediente ya está validado.</p>}
+        </ConfirmarEliminar>
+      )}
       {nuevo && <NuevoExpediente onCerrar={() => setNuevo(false)} onCreado={(id) => (window.location.href = `/expedientes/${id}`)} />}
     </Shell>
   );

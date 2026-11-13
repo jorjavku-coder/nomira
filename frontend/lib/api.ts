@@ -2,7 +2,9 @@
 
 const LLAVE = "qc_sesion";
 
-export type Sesion = { token: string; usuario: { id: number; nombre: string; email: string; rol: string }; organizacion: string };
+export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null };
+export type Sesion = { token: string; usuario: Usuario; organizacion: string };
+const EVENTO = "nomira-sesion";
 
 export function leerSesion(): Sesion | null {
   if (typeof window === "undefined") return null;
@@ -15,6 +17,17 @@ export function leerSesion(): Sesion | null {
 export function guardarSesion(s: Sesion | null) {
   if (s) sessionStorage.setItem(LLAVE, JSON.stringify(s));
   else sessionStorage.removeItem(LLAVE);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENTO));
+}
+/** Actualiza los datos del usuario (nombre, foto) y, si se da, el token; avisa al menú lateral. */
+export function actualizarSesion(cambios: { usuario?: Usuario; token?: string }) {
+  const s = leerSesion();
+  if (!s) return;
+  guardarSesion({ ...s, ...(cambios.token ? { token: cambios.token } : {}), usuario: { ...s.usuario, ...(cambios.usuario || {}) } });
+}
+export function alCambiarSesion(fn: () => void): () => void {
+  window.addEventListener(EVENTO, fn);
+  return () => window.removeEventListener(EVENTO, fn);
 }
 
 export class ErrorApi extends Error {

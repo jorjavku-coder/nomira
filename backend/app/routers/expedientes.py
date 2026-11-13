@@ -2,14 +2,17 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 import os
+import shutil
 import tempfile
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import models as m
+from ..config import ajustes
 from ..db import get_db
 from ..deps import auditar, obtener, puede_editar, usuario_actual
 from ..services import exportar, prelectura
@@ -235,6 +238,38 @@ def cambiar(eid: int, d: ExpedienteCambio, request: Request, u: m.Usuario = Depe
     db.commit()
     db.refresh(e)
     return _exp(db, e)
+
+
+@router.delete("/expedientes/{eid}")
+def eliminar(eid: int, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
+    """Elimina el expediente con sus documentos, lecturas y correcciones (no se puede deshacer).
+    Uno validado solo lo elimina un administrador. La auditoría conserva el registro de la baja."""
+    e = obtener(db, m.Expediente, eid, u)
+    if e.estado == "validado" and u.rol != "administrador":
+        raise HTTPException(403, "Solo un administrador puede eliminar un expediente validado.")
+    if any(d.estado in ("pendiente", "procesando") for d in e.documentos):
+        raise HTTPException(409, "Hay documentos en proceso. Espere a que terminen para eliminar el expediente.")
+    if (e.verificacion_ia or {}).get("estado") == "en_curso":
+        raise HTTPException(409, "Hay una verificación con IA en curso. Espere a que termine.")
+    auditar(db, u, "expediente_eliminado", "expediente", e.id,
+            {"documentos": len(e.documentos), "estado": e.estado}, request)
+    rutas = [d.ruta for d in e.documentos]
+    db.execute(delete(m.Correccion).where(m.Correccion.expediente_id == e.id))
+    db.execute(delete(m.Recibo).where(m.Recibo.expediente_id == e.id))  # filas: ON DELETE CASCADE
+    for d in list(e.documentos):
+        db.delete(d)  # páginas en cascada
+    db.flush()
+    db.delete(e)
+    db.commit()
+    # Los PDF se borran después de confirmar en la base: si algo falla antes, no se pierde nada.
+    for ruta in rutas:
+        try:
+            os.unlink(ruta)
+        except OSError:
+            pass
+    carpeta = Path(ajustes().storage_dir) / str(u.organizacion_id) / str(eid)
+    shutil.rmtree(carpeta, ignore_errors=True)
+    return {"ok": True}
 
 
 @router.get("/expedientes/{eid}/resultado")

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
 import Desglose from "@/components/Desglose";
 import Visor from "@/components/Visor";
-import { Aviso, Chip, Modal } from "@/components/ui";
+import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api, fecha, fechaHora, mxn } from "@/lib/api";
 
 type Pestana = "desglose" | "revision" | "documentos" | "resultados" | "trazabilidad";
@@ -23,6 +23,8 @@ export default function Expediente() {
   const [qSel, setQSel] = useState<string | null>(null);
   const [visor, setVisor] = useState<{ recibo: number; fila?: number | null } | null>(null);
   const [validar, setValidar] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [subida, setSubida] = useState<any[] | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const archivo = useRef<HTMLInputElement>(null);
@@ -96,6 +98,10 @@ export default function Expediente() {
             onClick={() => { if (confirm("La verificación envía la imagen de cada recibo al servicio de IA configurado para compararla con la lectura del sistema. No cambia ningún importe. ¿Continuar?")) accion(() => api.post(`/expedientes/${id}/verificar-ia`), "Verificación con IA iniciada."); }}>
             {iaEnCurso ? `Verificando con IA… ${res.ia.avance.hechos}/${res.ia.avance.total}` : "Verificar con IA"}</button>}
           {editable && <button className="btn-turquesa" disabled={!res.puede_validarse} title={res.puede_validarse ? "" : "Resuelva los pendientes para poder validar"} onClick={() => setValidar(true)}>Validar resultado</button>}
+          {editable && <button className="btn-sec" onClick={() => setEditando(true)}>Editar datos</button>}
+          {editor && (!validado || sesion?.usuario.rol === "administrador") &&
+            <button className="btn-peligro" disabled={exp.estado === "procesando"} title={exp.estado === "procesando" ? "Espere a que terminen los documentos" : ""}
+              onClick={() => setEliminando(true)}>Eliminar</button>}
           {editor && validado && <button className="btn-sec" onClick={() => { const m = prompt("Motivo para reabrir el expediente (la validación se revoca):"); if (m && m.trim().length >= 3) accion(() => api.post(`/expedientes/${id}/reabrir`, { motivo: m }), "Expediente reabierto."); }}>Reabrir</button>}
         </div>
       </div>
@@ -327,6 +333,16 @@ export default function Expediente() {
       )}
 
       {visor && <Visor reciboId={visor.recibo} filaId={visor.fila} resultado={res} editable={editable} onCerrar={() => setVisor(null)} onCambio={cargar} />}
+      {editando && <EditarExpediente exp={exp} onCerrar={() => setEditando(false)}
+        onGuardado={() => { setEditando(false); setOk("Datos del expediente actualizados."); cargar(); }} />}
+      {eliminando && (
+        <ConfirmarEliminar titulo="Eliminar expediente" boton="Sí, eliminar expediente" onCerrar={() => setEliminando(false)}
+          onConfirmar={async () => { await api.borrar(`/expedientes/${id}`); window.location.href = "/?eliminado=" + id; }}>
+          <p>¿Eliminar el expediente <b>#{exp.id} · {exp.trabajador_nombre}</b>?</p>
+          <p className="mt-2">Se borrarán sus {docs.length} documento(s) PDF, las lecturas y todas las correcciones. <b>No se puede deshacer.</b></p>
+          {validado && <p className="mt-2 font-semibold text-red-700">Este expediente ya está validado.</p>}
+        </ConfirmarEliminar>
+      )}
       {validar && <DialogoValidar res={res} onCerrar={() => setValidar(false)} onValidado={() => { setValidar(false); setOk("Expediente validado. El resultado quedó congelado."); cargar(); }} id={id} />}
     </Shell>
   );
@@ -349,6 +365,68 @@ function DialogoValidar({ res, id, onCerrar, onValidado }: { res: any; id: strin
         <div className="flex justify-end gap-2"><button className="btn-sec" onClick={onCerrar}>Cancelar</button>
           <button className="btn-turquesa" disabled={n > 0 && !acepta} onClick={() => api.post(`/expedientes/${id}/validar`, { acepta_faltantes: acepta, notas: notas || null }).then(onValidado).catch((e) => setError(e.message))}>Validar</button></div>
       </div>
+    </Modal>
+  );
+}
+
+function EditarExpediente({ exp, onCerrar, onGuardado }: { exp: any; onCerrar: () => void; onGuardado: () => void }) {
+  const [f, setF] = useState({
+    trabajador_nombre: exp.trabajador_nombre, identificador_laboral: exp.identificador_laboral || "",
+    periodo_inicio: exp.periodo_inicio, periodo_fin: exp.periodo_fin, quincenas_esperadas: String(exp.quincenas_esperadas),
+    catalogo_version_id: String(exp.catalogo.version_id),
+  });
+  const [versiones, setVersiones] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  useEffect(() => {
+    api.get("/catalogos").then((cats: any[]) => setVersiones(cats.flatMap((c) =>
+      c.versiones.filter((v: any) => v.estado === "activo" || v.id === exp.catalogo.version_id).map((v: any) => ({ ...v, nombre: c.nombre })))))
+      .catch((e) => setError(e.message));
+  }, [exp.catalogo.version_id]);
+  const cambiar = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const finMes = (iso: string) => { const [a, m] = iso.split("-").map(Number); return new Date(a, m, 0).getDate(); };
+  const dia = (iso: string) => Number(iso.slice(8, 10));
+  const periodoMal = !!f.periodo_inicio && !!f.periodo_fin && (![1, 16].includes(dia(f.periodo_inicio)) || ![15, finMes(f.periodo_fin)].includes(dia(f.periodo_fin)) || f.periodo_fin < f.periodo_inicio);
+  const cambiaCalculo = f.periodo_inicio !== exp.periodo_inicio || f.periodo_fin !== exp.periodo_fin || f.catalogo_version_id !== String(exp.catalogo.version_id);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    const c: any = {};
+    if (f.trabajador_nombre.trim() !== exp.trabajador_nombre) c.trabajador_nombre = f.trabajador_nombre.trim();
+    if (f.identificador_laboral.trim() !== (exp.identificador_laboral || "")) c.identificador_laboral = f.identificador_laboral.trim() || null;
+    if (f.periodo_inicio !== exp.periodo_inicio) c.periodo_inicio = f.periodo_inicio;
+    if (f.periodo_fin !== exp.periodo_fin) c.periodo_fin = f.periodo_fin;
+    if (f.quincenas_esperadas && Number(f.quincenas_esperadas) !== exp.quincenas_esperadas) c.quincenas_esperadas = Number(f.quincenas_esperadas);
+    if (f.catalogo_version_id !== String(exp.catalogo.version_id)) c.catalogo_version_id = Number(f.catalogo_version_id);
+    if (!Object.keys(c).length) return onCerrar();
+    setEnviando(true);
+    try { await api.patch(`/expedientes/${exp.id}`, c); onGuardado(); } catch (err: any) { setError(err.message); setEnviando(false); }
+  }
+  return (
+    <Modal titulo={`Editar expediente #${exp.id}`} onCerrar={onCerrar} ancho="max-w-2xl">
+      <form className="space-y-4" onSubmit={guardar}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block sm:col-span-2"><span className="etiqueta">Nombre del trabajador</span>
+            <input className="campo" required minLength={2} maxLength={200} value={f.trabajador_nombre} onChange={cambiar("trabajador_nombre")} /></label>
+          <label className="block"><span className="etiqueta">Identificador laboral (opcional)</span>
+            <input className="campo" maxLength={40} value={f.identificador_laboral} onChange={cambiar("identificador_laboral")} /></label>
+          <label className="block"><span className="etiqueta">Catálogo</span>
+            <select className="campo" value={f.catalogo_version_id} onChange={cambiar("catalogo_version_id")}>
+              {versiones.map((v) => <option key={v.id} value={v.id}>{v.nombre} · v{v.numero}{v.estado !== "activo" ? " (archivada)" : ""}</option>)}
+            </select></label>
+          <label className="block"><span className="etiqueta">Periodo: desde</span>
+            <input className="campo" type="date" required value={f.periodo_inicio} onChange={cambiar("periodo_inicio")} /></label>
+          <label className="block"><span className="etiqueta">Periodo: hasta</span>
+            <input className="campo" type="date" required value={f.periodo_fin} onChange={cambiar("periodo_fin")} /></label>
+          <label className="block"><span className="etiqueta">Quincenas esperadas</span>
+            <input className="campo" type="number" min={1} max={600} value={f.quincenas_esperadas} onChange={cambiar("quincenas_esperadas")} /></label>
+        </div>
+        {periodoMal && <Aviso tipo="alerta">El periodo debe iniciar el día 1 o 16 y terminar el día 15 o el último día del mes.</Aviso>}
+        {cambiaCalculo && !periodoMal && <Aviso tipo="info">Cambiar el periodo o el catálogo vuelve a calcular el resultado con los mismos recibos.</Aviso>}
+        <Aviso>{error}</Aviso>
+        <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>
+          <button className="btn-primario" disabled={enviando || periodoMal}>{enviando ? "Guardando…" : "Guardar cambios"}</button></div>
+      </form>
     </Modal>
   );
 }
