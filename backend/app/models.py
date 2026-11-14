@@ -89,6 +89,8 @@ class CatalogoEntrada(Base):
     requiere_revision: Mapped[bool] = mapped_column(Boolean, default=False)
     nota: Mapped[str | None] = mapped_column(String(300))
     pagina: Mapped[int | None] = mapped_column(Integer)
+    # La agregó una persona porque no venía en el documento fuente (clave faltante).
+    agregada_manual: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     version: Mapped[CatalogoVersion] = relationship(back_populates="entradas")
 
 

@@ -24,8 +24,8 @@ export default function Catalogos() {
     <Shell>
       <h1 className="mb-1 text-3xl font-extrabold text-marino">Catálogos de prestaciones</h1>
       <p className="mb-4 max-w-3xl text-sm text-slate-600">
-        Solo se suman las percepciones cuya clave coincide exactamente con una clave activa del catálogo. Cada cambio crea una
-        versión nueva: los expedientes conservan la versión con la que se calcularon.
+        Solo se suman las percepciones cuya clave coincide exactamente con una clave activa del catálogo. Si a un catálogo le faltan
+        claves, use «Agregar claves faltantes»: se crea una versión nueva y, al activarla, puede aplicarla a los expedientes en revisión.
       </p>
       <Aviso>{error}</Aviso>
       {ocupado && <Aviso tipo="info">{ocupado}</Aviso>}
@@ -50,14 +50,21 @@ export default function Catalogos() {
                     const fd = new FormData(); fd.append("archivo", a);
                     const v = await accion("Leyendo el PDF con OCR… puede tardar unos segundos.", () => api.subir(`/catalogos/${c.id}/versiones/ocr`, fd));
                     e.target.value = "";
-                    if (v?.id) window.location.href = `/catalogos/${v.id}`;
+                    if (v?.id) window.location.href = `/catalogos/${v.id}?paso=1`;
                   }} />
                 <button className="btn-turquesa" disabled={!!ocupado} onClick={() => archivos.current[c.id]?.click()}>Leer catálogo desde PDF (OCR)</button>
-                <button className="btn-sec" disabled={!!ocupado} onClick={async () => {
+                {(() => {
+                  const borrador = [...c.versiones].reverse().find((v: any) => v.estado === "borrador");
                   const activa = c.versiones.find((v: any) => v.estado === "activo");
-                  const v = await accion("Creando versión…", () => api.post(`/catalogos/${c.id}/versiones`, { copiar_de_version_id: activa?.id ?? null }));
-                  if (v?.id) window.location.href = `/catalogos/${v.id}`;
-                }}>{c.versiones.some((v: any) => v.estado === "activo") ? "Nueva versión (copia de la activa)" : "Nueva versión vacía"}</button>
+                  if (borrador) return <Link className="btn-sec" href={`/catalogos/${borrador.id}`}>Continuar borrador (versión {borrador.numero})</Link>;
+                  return (
+                    <button className="btn-sec" disabled={!!ocupado} onClick={async () => {
+                      const v = await accion("Creando versión…", () => api.post(`/catalogos/${c.id}/versiones`, activa
+                        ? { copiar_de_version_id: activa.id, notas: `Copia de la versión ${activa.numero} para agregar claves faltantes` } : {}));
+                      if (v?.id) window.location.href = `/catalogos/${v.id}?paso=2`;
+                    }}>{activa ? "Agregar claves faltantes" : "Capturar claves a mano"}</button>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -70,7 +77,7 @@ export default function Catalogos() {
                   <td><Link className="font-semibold text-marino hover:underline" href={`/catalogos/${v.id}`}>Versión {v.numero}</Link></td>
                   <td><Chip estado={v.estado} /></td>
                   <td>{{ ocr: "OCR de PDF", manual: "Manual", copia: "Copia" }[v.origen as string]}{v.archivo_nombre ? ` · ${v.archivo_nombre}` : ""}</td>
-                  <td>{v.entradas_total}</td>
+                  <td>{v.entradas_total}{v.agregadas_manual > 0 && <span className="text-xs text-turquesa-700"> ({v.agregadas_manual} a mano)</span>}</td>
                   <td>{v.por_revisar > 0 ? <span className="font-semibold text-amber-700">{v.por_revisar}</span> : "0"}</td>
                   <td>{fecha(v.creado_en)}</td><td>{fecha(v.validado_en)}</td>
                 </tr>
