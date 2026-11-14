@@ -6,6 +6,7 @@ os.environ["DATABASE_URL"] = URL
 os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="qc_test_")
 os.environ["JWT_SECRETO"] = "secreto-solo-para-pruebas-0123456789abcdef"
 os.environ["IA_HABILITADA"] = "false"
+os.environ["CORREOS_PLATAFORMA"] = "admin1@org1.test"
 
 from sqlalchemy import create_engine, text as _text  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
@@ -43,6 +44,8 @@ def _limpiar():
     with engine.begin() as c:
         c.execute(text("TRUNCATE " + ", ".join(t.name for t in Base.metadata.sorted_tables) + " RESTART IDENTITY CASCADE"))
     auth._intentos.clear()
+    from app.routers import solicitudes
+    solicitudes._envios.clear()
     yield
 
 

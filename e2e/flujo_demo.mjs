@@ -22,7 +22,7 @@ await page.goto(base + "/");
 await page.waitForURL("**/login");
 await page.waitForTimeout(500);
 await foto("00-login");
-await page.getByLabel("Correo electrónico").fill("admin@demo.local");
+await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByRole("heading", { name: "Expedientes" }).waitFor();
@@ -99,7 +99,8 @@ ok(await page.getByRole("button", { name: "Validar", exact: true }).isDisabled()
 await page.getByRole("dialog").getByRole("checkbox").check();
 await page.getByRole("button", { name: "Validar", exact: true }).click();
 await page.getByText("Expediente validado.").waitFor();
-ok(await page.getByText("Resultado provisional").count() === 0, "validado deja de ser provisional");
+await page.getByText("Resultado provisional").waitFor({ state: "hidden" });
+ok(true, "validado deja de ser provisional");
 for (const [boton, ext] of [["Exportar Excel", "xlsx"], ["Exportar PDF", "pdf"]]) {
   const [d] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: boton }).click()]);
   await d.saveAs(`${dir}/expediente-demo.${ext}`);
@@ -116,7 +117,7 @@ await page.getByRole("link", { name: "Versión 1" }).click();
 await page.getByText("Es inmutable").waitFor();
 await foto("10-catalogo-version");
 await page.getByRole("link", { name: "Usuarios" }).click();
-await page.getByText("Registro de auditoría").waitFor();
+await page.getByRole("button", { name: /registro de auditoría/ }).click();
 await page.getByText("expediente_validado").first().waitFor();
 await foto("11-usuarios-auditoria");
 

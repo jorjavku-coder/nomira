@@ -468,11 +468,12 @@ def _exportar(eid, formato, request, u, db):
     auditar(db, u, f"exportacion_{formato}", "expediente", e.id, {"validado": res["estado_validacion"]["validado"]}, request)
     db.commit()
     sufijo = "validado" if res["estado_validacion"]["validado"] else "PROVISIONAL"
+    org = db.get(m.Organizacion, u.organizacion_id)  # marca del cliente en los reportes
     if formato == "excel":
-        cuerpo, tipo, ext = (exportar.generar_excel(res),
+        cuerpo, tipo, ext = (exportar.generar_excel(res, org.logo, org.nombre),
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx")
     else:
-        cuerpo, tipo, ext = exportar.generar_pdf(res), "application/pdf", "pdf"
+        cuerpo, tipo, ext = exportar.generar_pdf(res, org.logo, org.nombre), "application/pdf", "pdf"
     return Response(cuerpo, media_type=tipo, headers={
         **PRIVADO, "Content-Disposition": f'attachment; filename="expediente-{e.id}-{sufijo}.{ext}"',
         "Access-Control-Expose-Headers": "Content-Disposition"})

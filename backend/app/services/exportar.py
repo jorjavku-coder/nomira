@@ -70,7 +70,7 @@ def _fecha(iso: str):
     return date.fromisoformat(iso)
 
 
-def generar_excel(res: dict) -> bytes:
+def generar_excel(res: dict, logo: bytes | None = None, organizacion: str | None = None) -> bytes:
     wb = Workbook()
     exp, cat, r = res["expediente"], res["catalogo"], res["resumen"]
     varias_plazas = len(res["plazas"]) > 1
@@ -81,6 +81,7 @@ def generar_excel(res: dict) -> bytes:
     ws.column_dimensions["B"].width = 70
     filas = [
         ("Nomira — Resumen del expediente", None),
+        ("Organización", organizacion or "—"),
         ("Estado de validación", _estado(res)),
         ("Expediente", exp["id"]),
         ("Trabajador", exp["trabajador_nombre"]),
@@ -113,6 +114,14 @@ def generar_excel(res: dict) -> bytes:
         for pz in res["plazas"]:
             ws.append([f"Plaza {pz['plaza']}", _d(pz["total"])])
             ws.cell(ws.max_row, 2).number_format = FMT_MXN
+    if logo:
+        from openpyxl.drawing.image import Image as ImagenXlsx
+
+        img = ImagenXlsx(io.BytesIO(logo))
+        escala = min(1.0, 90 / max(img.height, 1), 220 / max(img.width, 1))
+        img.width, img.height = int(img.width * escala), int(img.height * escala)
+        ws.column_dimensions["D"].width = 34
+        ws.add_image(img, "D1")
     if res["faltantes"]:
         ws.append([])
         ws.append(["Quincenas faltantes", None])
@@ -242,7 +251,7 @@ def generar_excel(res: dict) -> bytes:
     return buf.getvalue()
 
 
-def generar_pdf(res: dict) -> bytes:
+def generar_pdf(res: dict, logo: bytes | None = None, organizacion: str | None = None) -> bytes:
     exp, cat, r = res["expediente"], res["catalogo"], res["resumen"]
     validado = res["estado_validacion"]["validado"]
     buf = io.BytesIO()
@@ -264,6 +273,16 @@ def generar_pdf(res: dict) -> bytes:
             canvas.translate(-letter[0] / 2, -letter[1] / 2)
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.grey)
+        if logo and doc.page == 1:
+            from reportlab.lib.utils import ImageReader
+
+            try:
+                img = ImageReader(io.BytesIO(logo))
+                w, h = img.getSize()
+                f = min(4.2 * cm / w, 1.9 * cm / h)
+                canvas.drawImage(img, letter[0] - 2 * cm - w * f, letter[1] - 1.5 * cm - h * f, w * f, h * f, mask="auto")
+            except Exception:
+                pass  # un logotipo ilegible no debe impedir la exportación
         canvas.drawString(2 * cm, 1.2 * cm, f"Nomira · Expediente {exp['id']} · {_estado(res)}")
         canvas.drawRightString(letter[0] - 2 * cm, 1.2 * cm, f"Página {doc.page}")
         canvas.restoreState()
@@ -286,7 +305,7 @@ def generar_pdf(res: dict) -> bytes:
     P = lambda s, st=chico: Paragraph(str(s).replace("&", "&amp;").replace("<", "&lt;"), st)  # noqa: E731
     el = [Paragraph("Nomira — Cálculo de prestaciones", h1),
           Paragraph(f"<b>Estado de validación:</b> {_estado(res)}", n), Spacer(1, 6)]
-    datos = [["Expediente", str(exp["id"])], ["Trabajador", P(exp["trabajador_nombre"])],
+    datos = [["Organización", P(organizacion or "—")], ["Expediente", str(exp["id"])], ["Trabajador", P(exp["trabajador_nombre"])],
              ["Identificador laboral", exp["identificador_laboral"] or "—"],
              ["Periodo de análisis", f"{fecha_mx(exp['periodo_inicio'])} al {fecha_mx(exp['periodo_fin'])}"],
              ["Catálogo y versión", P(f"{cat['nombre']} — versión {cat['version']} ({cat['claves_activas']} claves activas)")],

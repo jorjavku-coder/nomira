@@ -13,7 +13,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, de
 const errores = [];
 page.on("console", (m) => m.type() === "error" && errores.push(m.text()));
 await page.goto(base + "/login");
-await page.getByLabel("Correo electrónico").fill("admin@demo.local");
+await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByRole("button", { name: "+ Nuevo expediente" }).click();

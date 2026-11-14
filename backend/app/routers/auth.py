@@ -14,6 +14,7 @@ from ..freno import FrenoAcceso
 from ..models import ahora
 from ..services import fotos
 from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
+from .solicitudes import es_plataforma
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -112,7 +113,13 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
     db.commit()
     org = db.get(m.Organizacion, u.organizacion_id)
     return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
-            "organizacion": org.nombre}
+            "organizacion": org.nombre, "es_plataforma": es_plataforma(u)}
+
+
+@router.get("/publico")
+def publico():
+    """Datos no sensibles para la página de inicio."""
+    return {"permitir_registro": ajustes().permitir_registro}
 
 
 @router.post("/auth/registro", status_code=201)
@@ -138,7 +145,8 @@ def registro(r: Registro, request: Request, db: Session = Depends(get_db)):
 @router.get("/auth/yo")
 def yo(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     return {"usuario": _u(u), "organizacion": db.get(m.Organizacion, u.organizacion_id).nombre,
-            "ia_habilitada": ajustes().ia_habilitada, "max_mb_archivo": ajustes().max_mb_archivo}
+            "ia_habilitada": ajustes().ia_habilitada, "max_mb_archivo": ajustes().max_mb_archivo,
+            "es_plataforma": es_plataforma(u), "permitir_registro": ajustes().permitir_registro}
 
 
 @router.get("/usuarios")

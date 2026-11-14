@@ -20,6 +20,9 @@ class Organizacion(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nombre: Mapped[str] = mapped_column(String(200))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    # Marca del cliente: se guarda en la base (no en disco) ya normalizada a PNG.
+    logo: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
+    logo_actualizado: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Usuario(Base):
@@ -234,3 +237,21 @@ class Auditoria(Base):
     detalle: Mapped[dict | None] = mapped_column(JSON)
     ip: Mapped[str | None] = mapped_column(String(60))
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class Solicitud(Base):
+    """Prospecto que pide informes o una suscripción desde la página de inicio (formulario público)."""
+    __tablename__ = "solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(20))  # informes | suscripcion
+    nombre: Mapped[str] = mapped_column(String(200))
+    empresa: Mapped[str | None] = mapped_column(String(200))
+    email: Mapped[str] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(40))
+    expedientes_mes: Mapped[str | None] = mapped_column(String(20))
+    mensaje: Mapped[str | None] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(20), default="nueva")  # nueva | atendida
+    nota: Mapped[str | None] = mapped_column(Text)
+    ip: Mapped[str | None] = mapped_column(String(60))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    atendida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

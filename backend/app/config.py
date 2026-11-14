@@ -23,6 +23,9 @@ class Ajustes(BaseSettings):
     # falsificarlo (p. ej. «True-Client-IP» en Render, que lo fija Cloudflare). Vacío = IP de la conexión.
     # No use X-Forwarded-For: Next.js lo reenvía tal como lo manda el navegador.
     ip_cliente_encabezado: str = ""
+    # Correos (separados por coma) de quienes operan la plataforma: ven las solicitudes de
+    # informes y suscripción. No es un rol de organización.
+    correos_plataforma: str = ""
 
     # Lectura
     clave_regex: str = r"^\d{4}$"

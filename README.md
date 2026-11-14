@@ -113,6 +113,16 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
 6. **Validar** → solo sin pendientes. Congela resultado y versión de catálogo.
 7. **Exportar** Excel y PDF (marcados PROVISIONAL mientras no se valide).
 
+## 4 bis. Funciones de SaaS
+
+- **Marca de cada cliente:** en **Mi empresa** el administrador sube el logotipo y el nombre de su
+  negocio. Aparecen en la barra lateral para todo su equipo y en los reportes de Excel y PDF. El
+  logotipo se guarda en la base de datos, recodificado a PNG (se aceptan PNG, JPG y WebP; no SVG).
+- **Informes y suscripción:** la página de inicio incluye un formulario público. Las solicitudes
+  se guardan y las ve, en **Solicitudes**, quien opera la plataforma: los usuarios cuyo correo esté
+  en `CORREOS_PLATAFORMA`. No se envía ningún correo de aviso; hay que revisar la bandeja.
+- El sistema se llama Nomira; el crédito «Desarrollado por IMA» va en el pie de página del sitio.
+
 ## 5. Reglas de cálculo implementadas
 
 | Regla | Comportamiento |

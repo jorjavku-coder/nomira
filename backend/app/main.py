@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import engine
-from .routers import auth, catalogos, documentos, expedientes, ia
+from .routers import auth, catalogos, documentos, expedientes, ia, organizacion, solicitudes
 from .services.procesamiento import recuperar_interrumpidos
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -26,7 +26,7 @@ async def ciclo(app: FastAPI):
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type"])
-for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router):
+for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router, organizacion.router, solicitudes.router):
     app.include_router(r)
 
 

@@ -495,3 +495,92 @@ def test_verificacion_ia_se_detiene_si_el_servicio_falla(org, db, monkeypatch):
     assert res["ia"]["recibos"] == {"error": 3} and res["total_expediente"] == "32028.60"
     assert not [a for a in res["alertas"] if a["tipo"] == "verificacion_ia"]  # un fallo del servicio no bloquea
     assert comparar([("0102", Decimal("1.00"))], None) == ("no_legible", ["La IA no pudo leer el recibo con certeza."])
+
+
+# ---------- marca del cliente (logotipo por organización) ----------
+
+def _png(color=(18, 48, 72), lado=(400, 160)):
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", lado, color).save(b, format="PNG")
+    return b.getvalue()
+
+
+def test_logotipo_por_organizacion(org, org2, db):
+    sube = lambda o, nombre, datos, tipo="image/png", h=None: o.c.put(  # noqa: E731
+        "/api/organizacion/logo", headers=h or o.h, files={"archivo": (nombre, datos, tipo)})
+    assert org.c.get("/api/organizacion", headers=org.h).json()["tiene_logo"] is False
+    assert org.c.get("/api/organizacion/logo", headers=org.h).status_code == 404
+    # Rechazos: SVG con script, HTML disfrazado, archivo enorme, imagen diminuta
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    assert sube(org, "logo.svg", svg, "image/svg+xml").status_code == 415
+    assert sube(org, "logo.png", b"<html><script>alert(1)</script></html>").status_code == 415
+    assert sube(org, "logo.png", b"\x89PNG" + b"0" * (2 * 1024 * 1024 + 10)).status_code == 413
+    assert sube(org, "mini.png", _png(lado=(8, 8))).status_code == 422
+    # Solo el administrador cambia la marca
+    analista = org.usuario("analista", "ana3@org1.test")
+    assert sube(org, "logo.png", _png(), h=analista).status_code == 403
+    # Carga válida: se recodifica a PNG y se reduce
+    from PIL import Image
+    grande = io.BytesIO()
+    Image.new("RGB", (2400, 900), (1, 178, 166)).save(grande, format="JPEG")
+    r = sube(org, "marca.jpg", grande.getvalue(), "image/jpeg")
+    assert r.status_code == 200 and r.json()["tiene_logo"] and r.json()["logo_version"]
+    img = org.c.get("/api/organizacion/logo", headers=org.h)
+    assert img.status_code == 200 and img.headers["content-type"] == "image/png" and img.content.startswith(b"\x89PNG")
+    assert max(Image.open(io.BytesIO(img.content)).size) == 600
+    assert org.c.get("/api/organizacion/logo", headers=analista).status_code == 200  # todos en la organización lo ven
+    # Aislamiento: la otra organización no ve ni hereda el logotipo
+    assert org2.c.get("/api/organizacion/logo", headers=org2.h).status_code == 404
+    assert org2.c.get("/api/organizacion", headers=org2.h).json()["tiene_logo"] is False
+    assert org.c.get("/api/organizacion/logo").status_code == 401
+    # Los reportes llevan la marca del cliente
+    assert org.c.patch("/api/organizacion", headers=org.h, json={"nombre": "Despacho Ejemplo SC"}).status_code == 200
+    eid = org.expediente()
+    org.subir(eid, _pdf_trimestre())
+    pdf = pymupdf.open(stream=org.c.get(f"/api/expedientes/{eid}/exportar/pdf", headers=org.h).content, filetype="pdf")
+    texto = " ".join(p.get_text() for p in pdf)
+    assert "Despacho Ejemplo SC" in texto and "Nomira" in texto and len(pdf[0].get_images()) == 1
+    wb = load_workbook(io.BytesIO(org.c.get(f"/api/expedientes/{eid}/exportar/excel", headers=org.h).content))
+    celdas = [c for fila in wb["Resumen"].iter_rows(values_only=True) for c in fila if c]
+    assert "Despacho Ejemplo SC" in celdas
+    assert len(wb["Resumen"]._images) == 1
+    eid2 = org2.expediente()
+    org2.subir(eid2, _pdf_trimestre())
+    pdf2 = pymupdf.open(stream=org2.c.get(f"/api/expedientes/{eid2}/exportar/pdf", headers=org2.h).content, filetype="pdf")
+    assert len(pdf2[0].get_images()) == 0 and "Despacho Ejemplo SC" not in pdf2[0].get_text()
+    # Quitar el logotipo
+    assert org.c.delete("/api/organizacion/logo", headers=org.h).json()["tiene_logo"] is False
+    assert {"organizacion_logo_actualizado", "organizacion_logo_eliminado"} <= {a.accion for a in db.query(m.Auditoria)}
+
+
+# ---------- formulario público de informes y suscripción ----------
+
+def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, db):
+    base = {"tipo": "suscripcion", "nombre": "Laura Prospecto", "empresa": "Despacho Prueba", "email": "Laura@Prueba.test",
+            "telefono": "+52 55 1234 5678", "expedientes_mes": "11-50", "mensaje": "Quiero contratar.", "acepta_contacto": True}
+    assert cliente.post("/api/solicitudes", json=base).status_code == 201  # público: sin sesión
+    s = db.query(m.Solicitud).one()
+    assert (s.tipo, s.email, s.estado, s.expedientes_mes) == ("suscripcion", "laura@prueba.test", "nueva", "11-50")
+    for malo in ({"email": "sin-arroba"}, {"tipo": "otro"}, {"acepta_contacto": False}, {"nombre": ""},
+                 {"telefono": "<script>"}, {"expedientes_mes": "muchos"}, {"mensaje": "x" * 2001}):
+        assert cliente.post("/api/solicitudes", json={**base, **malo}).status_code == 422, malo
+    # Campo trampa lleno (bot): responde igual pero no guarda
+    assert cliente.post("/api/solicitudes", json={**base, "sitio_web": "http://spam.test"}).status_code == 201
+    assert db.query(m.Solicitud).count() == 1
+    # Solo quien opera la plataforma ve la bandeja; un administrador de otra organización no
+    assert cliente.get("/api/solicitudes").status_code == 401
+    assert org2.c.get("/api/solicitudes", headers=org2.h).status_code == 404
+    assert org2.c.get("/api/auth/yo", headers=org2.h).json()["es_plataforma"] is False
+    assert org.c.get("/api/auth/yo", headers=org.h).json()["es_plataforma"] is True
+    lista = org.c.get("/api/solicitudes", headers=org.h).json()
+    assert len(lista) == 1 and lista[0]["nombre"] == "Laura Prospecto"
+    assert org2.c.patch(f"/api/solicitudes/{s.id}", headers=org2.h, json={"estado": "atendida"}).status_code == 404
+    r = org.c.patch(f"/api/solicitudes/{s.id}", headers=org.h, json={"estado": "atendida", "nota": "Se le llamó"})
+    assert r.status_code == 200 and r.json()["atendida_en"]
+    # Freno de envíos por conexión
+    from app.routers import solicitudes
+    solicitudes._envios.clear()
+    codigos = [cliente.post("/api/solicitudes", json={**base, "tipo": "informes"}).status_code for _ in range(6)]
+    assert codigos == [201] * 5 + [429]
+    assert cliente.get("/api/publico").json() == {"permitir_registro": True}

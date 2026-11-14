@@ -3,7 +3,7 @@
 const LLAVE = "qc_sesion";
 
 export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null };
-export type Sesion = { token: string; usuario: Usuario; organizacion: string };
+export type Sesion = { token: string; usuario: Usuario; organizacion: string; es_plataforma?: boolean };
 const EVENTO = "nomira-sesion";
 
 export function leerSesion(): Sesion | null {
@@ -45,7 +45,8 @@ function mensajeDe(detalle: any, estado: number): string {
 
 async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {
   const s = leerSesion();
-  if (!s && !ruta.startsWith("/auth/")) {
+  const publica = ruta.startsWith("/auth/") || ruta === "/publico" || (ruta === "/solicitudes" && init.method === "POST" && !s);
+  if (!s && !publica) {
     if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.href = "/login";
     throw new ErrorApi(401, "Inicie sesión para continuar.");
   }
@@ -74,6 +75,7 @@ export const api = {
   patch: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
     (await pedir(ruta, { method: "PATCH", body: JSON.stringify(cuerpo) })).json(),
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
+  subirPut: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "PUT", body: datos })).json(),
   subir: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "POST", body: datos })).json(),
   blob: async (ruta: string): Promise<{ blob: Blob; nombre: string | null }> => {
     const r = await pedir(ruta);
