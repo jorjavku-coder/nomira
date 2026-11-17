@@ -29,6 +29,9 @@ services:
         sync: false
       - key: PLATAFORMA_ADMIN_CONTRASENA
         sync: false
+      # Botón de WhatsApp del sitio público: número con lada de país, p. ej. 5215512345678.
+      - key: WHATSAPP_CONTACTO
+        sync: false
       # Verificación opcional con IA. Para activarla: IA_HABILITADA=true y su clave en ANTHROPIC_API_KEY
       # (Render > nomira-demo > Environment). Envía imágenes de recibos al proveedor de IA.
       - key: IA_HABILITADA

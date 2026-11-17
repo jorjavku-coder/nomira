@@ -122,7 +122,8 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
 @router.get("/publico")
 def publico():
     """Datos no sensibles para la página de inicio."""
-    return {"permitir_registro": ajustes().permitir_registro}
+    digitos = re.sub(r"\D", "", ajustes().whatsapp_contacto)
+    return {"permitir_registro": ajustes().permitir_registro, "whatsapp": digitos if 10 <= len(digitos) <= 15 else None}
 
 
 @router.post("/auth/registro", status_code=201)

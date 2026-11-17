@@ -27,6 +27,9 @@ class Ajustes(BaseSettings):
     # informes y suscripción. No es un rol de organización.
     # Primer administrador del panel de la plataforma (/plataforma). Si no existe al arrancar, se
     # crea con estos datos; después la contraseña se cambia desde el panel y estos valores se ignoran.
+    # Número de WhatsApp del botón del sitio público, con lada de país (p. ej. 5215512345678).
+    # Vacío: no se muestra el botón.
+    whatsapp_contacto: str = ""
     plataforma_admin_email: str = ""
     plataforma_admin_contrasena: str = ""
 

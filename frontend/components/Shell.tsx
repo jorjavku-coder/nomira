@@ -65,7 +65,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
   const enlaces = [
-    { href: "/", texto: "Expedientes", icono: "expedientes", activo: ruta === "/" || ruta.startsWith("/expedientes") },
+    { href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
     { href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") },
     ...(sesion.usuario.rol === "administrador" ? [
       { href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
@@ -78,7 +78,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen lg:pl-64">
       <aside className="z-40 flex flex-col bg-marino-700 text-white lg:fixed lg:inset-y-0 lg:left-0 lg:w-64">
         <div className="flex items-center justify-between px-5 pb-3 pt-5 lg:pb-6 lg:pt-7">
-          <Link href="/" aria-label="Nomira, inicio"><Logo oscuro lema /></Link>
+          <Link href="/app" aria-label="Nomira, mis expedientes"><Logo oscuro lema /></Link>
           <button className="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-medium hover:bg-white/10 lg:hidden" onClick={salir}>Salir</button>
         </div>
         {marca && (
