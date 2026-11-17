@@ -1,16 +1,15 @@
-"""Formulario público de informes y suscripción, y su bandeja para quien opera la plataforma."""
+"""Formulario público de informes y suscripción. La bandeja está en el panel de la plataforma
+(routers/plataforma.py), al que no entra ningún usuario de una organización cliente."""
 import re
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models as m
-from ..config import ajustes
 from ..db import get_db
-from ..deps import ip_cliente, usuario_actual
+from ..deps import ip_cliente
 
 router = APIRouter(prefix="/api", tags=["solicitudes"])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -34,17 +33,6 @@ class SolicitudNueva(BaseModel):
 class Atencion(BaseModel):
     estado: str
     nota: str | None = Field(None, max_length=2000)
-
-
-def es_plataforma(u: m.Usuario) -> bool:
-    correos = {c.strip().lower() for c in ajustes().correos_plataforma.split(",") if c.strip()}
-    return u.activo and u.email.lower() in correos
-
-
-def operador(u: m.Usuario = Depends(usuario_actual)) -> m.Usuario:
-    if not es_plataforma(u):
-        raise HTTPException(404, "No encontrado.")  # no se revela que existe la bandeja
-    return u
 
 
 def _limpio(s: str | None) -> str | None:
@@ -85,21 +73,3 @@ def _s(x: m.Solicitud) -> dict:
             "telefono": x.telefono, "expedientes_mes": x.expedientes_mes, "mensaje": x.mensaje, "estado": x.estado,
             "nota": x.nota, "creado_en": x.creado_en.isoformat(),
             "atendida_en": x.atendida_en.isoformat() if x.atendida_en else None}
-
-
-@router.get("/solicitudes")
-def listar(u: m.Usuario = Depends(operador), db: Session = Depends(get_db)):
-    return [_s(x) for x in db.scalars(select(m.Solicitud).order_by(m.Solicitud.id.desc()).limit(500))]
-
-
-@router.patch("/solicitudes/{sid}")
-def atender(sid: int, d: Atencion, u: m.Usuario = Depends(operador), db: Session = Depends(get_db)):
-    x = db.get(m.Solicitud, sid)
-    if not x:
-        raise HTTPException(404, "No encontrado.")
-    if d.estado not in ("nueva", "atendida"):
-        raise HTTPException(422, "Estado inválido.")
-    x.estado, x.nota = d.estado, d.nota
-    x.atendida_en = m.ahora() if d.estado == "atendida" else None
-    db.commit()
-    return _s(x)

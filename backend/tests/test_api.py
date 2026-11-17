@@ -556,7 +556,7 @@ def test_logotipo_por_organizacion(org, org2, db):
 
 # ---------- formulario público de informes y suscripción ----------
 
-def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, db):
+def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, plataforma, db):
     base = {"tipo": "suscripcion", "nombre": "Laura Prospecto", "empresa": "Despacho Prueba", "email": "Laura@Prueba.test",
             "telefono": "+52 55 1234 5678", "expedientes_mes": "11-50", "mensaje": "Quiero contratar.", "acepta_contacto": True}
     assert cliente.post("/api/solicitudes", json=base).status_code == 201  # público: sin sesión
@@ -568,15 +568,15 @@ def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, db):
     # Campo trampa lleno (bot): responde igual pero no guarda
     assert cliente.post("/api/solicitudes", json={**base, "sitio_web": "http://spam.test"}).status_code == 201
     assert db.query(m.Solicitud).count() == 1
-    # Solo quien opera la plataforma ve la bandeja; un administrador de otra organización no
-    assert cliente.get("/api/solicitudes").status_code == 401
-    assert org2.c.get("/api/solicitudes", headers=org2.h).status_code == 404
-    assert org2.c.get("/api/auth/yo", headers=org2.h).json()["es_plataforma"] is False
-    assert org.c.get("/api/auth/yo", headers=org.h).json()["es_plataforma"] is True
-    lista = org.c.get("/api/solicitudes", headers=org.h).json()
+    # Solo el panel de la plataforma ve la bandeja; ningún usuario de un cliente (ni administrador)
+    assert cliente.get("/api/plataforma/solicitudes").status_code == 401
+    for o in (org, org2):
+        assert o.c.get("/api/plataforma/solicitudes", headers=o.h).status_code == 401
+        assert o.c.get("/api/solicitudes", headers=o.h).status_code == 405  # ya no existe la bandeja vieja
+    lista = plataforma.c.get("/api/plataforma/solicitudes", headers=plataforma.h).json()
     assert len(lista) == 1 and lista[0]["nombre"] == "Laura Prospecto"
-    assert org2.c.patch(f"/api/solicitudes/{s.id}", headers=org2.h, json={"estado": "atendida"}).status_code == 404
-    r = org.c.patch(f"/api/solicitudes/{s.id}", headers=org.h, json={"estado": "atendida", "nota": "Se le llamó"})
+    r = plataforma.c.patch(f"/api/plataforma/solicitudes/{s.id}", headers=plataforma.h,
+                           json={"estado": "atendida", "nota": "Se le llamó"})
     assert r.status_code == 200 and r.json()["atendida_en"]
     # Freno de envíos por conexión
     from app.routers import solicitudes

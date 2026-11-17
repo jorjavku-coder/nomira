@@ -25,7 +25,10 @@ class Ajustes(BaseSettings):
     ip_cliente_encabezado: str = ""
     # Correos (separados por coma) de quienes operan la plataforma: ven las solicitudes de
     # informes y suscripción. No es un rol de organización.
-    correos_plataforma: str = ""
+    # Primer administrador del panel de la plataforma (/plataforma). Si no existe al arrancar, se
+    # crea con estos datos; después la contraseña se cambia desde el panel y estos valores se ignoran.
+    plataforma_admin_email: str = ""
+    plataforma_admin_contrasena: str = ""
 
     # Lectura
     clave_regex: str = r"^\d{4}$"

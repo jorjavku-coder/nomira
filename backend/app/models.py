@@ -23,6 +23,9 @@ class Organizacion(Base):
     # Marca del cliente: se guarda en la base (no en disco) ya normalizada a PNG.
     logo: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
     logo_actualizado: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # La administra quien opera Nomira: «suspendida» impide entrar a todos sus usuarios.
+    estado: Mapped[str] = mapped_column(String(20), default="activa", server_default="activa")
+    motivo_suspension: Mapped[str | None] = mapped_column(String(300))
 
 
 class Usuario(Base):
@@ -257,3 +260,46 @@ class Solicitud(Base):
     ip: Mapped[str | None] = mapped_column(String(60))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
     atendida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AdminPlataforma(Base):
+    """Quien opera Nomira. NO pertenece a ninguna organización: su sesión no sirve en la API de
+    los clientes, así que no puede ver expedientes, recibos ni documentos."""
+    __tablename__ = "administradores_plataforma"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    hash_contrasena: Mapped[str] = mapped_column(String(200))
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    sesion_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TicketSoporte(Base):
+    """Conversación de soporte entre una organización cliente y quien opera Nomira."""
+    __tablename__ = "tickets_soporte"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto: Mapped[str] = mapped_column(String(200))
+    estado: Mapped[str] = mapped_column(String(20), default="abierto")  # abierto | cerrado
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    leido_cliente: Mapped[bool] = mapped_column(Boolean, default=True)
+    leido_plataforma: Mapped[bool] = mapped_column(Boolean, default=False)
+    mensajes: Mapped[list["MensajeSoporte"]] = relationship(
+        back_populates="ticket", order_by="MensajeSoporte.id", cascade="all, delete-orphan")
+
+
+class MensajeSoporte(Base):
+    __tablename__ = "mensajes_soporte"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets_soporte.id", ondelete="CASCADE"), index=True)
+    autor_tipo: Mapped[str] = mapped_column(String(15))  # cliente | plataforma
+    autor_nombre: Mapped[str] = mapped_column(String(200))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    texto: Mapped[str] = mapped_column(Text)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    ticket: Mapped[TicketSoporte] = relationship(back_populates="mensajes")

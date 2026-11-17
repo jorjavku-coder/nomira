@@ -1,6 +1,8 @@
-// Prueba de humo: formulario público, bandeja de solicitudes y logotipo del cliente (datos ficticios).
+// Prueba de humo: formulario público, logotipo del cliente y bandeja de solicitudes en el panel de
+// la plataforma (datos ficticios).
 // Uso: node e2e/marca_y_solicitudes.mjs [http://localhost:3000] [carpeta_capturas]
-// Requiere CORREOS_PLATAFORMA=admin@demo.local en el backend.
+// Requiere en el backend PLATAFORMA_ADMIN_EMAIL y PLATAFORMA_ADMIN_CONTRASENA; la prueba usa los
+// mismos valores desde E2E_PLATAFORMA_EMAIL / E2E_PLATAFORMA_CONTRASENA.
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -32,10 +34,7 @@ await page.evaluate(() => window.scrollTo(0, 0));
 await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
-await page.getByRole("link", { name: "Solicitudes" }).click();
-await page.getByText("Laura Prospecto Ficticia").waitFor();
-ok(await page.getByText("Suscripción").count() >= 1, "la solicitud aparece en la bandeja");
-await page.screenshot({ path: `${dir}/15-solicitudes.png` });
+ok(await page.getByRole("link", { name: "Solicitudes" }).count() === 0, "un cliente no ve la bandeja de solicitudes");
 
 await page.getByRole("link", { name: "Mi empresa" }).click();
 await page.locator('input[type="file"]').setInputFiles(new URL("../datos/ejemplos/logo_cliente_ficticio.png", import.meta.url).pathname);
@@ -47,5 +46,14 @@ await page.screenshot({ path: `${dir}/16-mi-empresa-logo.png` });
 await page.getByRole("link", { name: "Expedientes" }).click();
 await page.getByRole("link", { name: "#1" }).waitFor();
 await page.screenshot({ path: `${dir}/17-expedientes-con-marca.png` });
+
+await page.goto(base + "/plataforma/login");
+await page.getByLabel("Correo").fill(process.env.E2E_PLATAFORMA_EMAIL || "");
+await page.getByLabel("Contraseña").fill(process.env.E2E_PLATAFORMA_CONTRASENA || "");
+await page.getByRole("button", { name: "Entrar al panel" }).click();
+await page.getByRole("link", { name: /Solicitudes/ }).click();
+await page.getByText("Laura Prospecto Ficticia").waitFor();
+ok(await page.getByText("Quiere suscribirse").count() >= 1, "la solicitud aparece en el panel de la plataforma");
+await page.screenshot({ path: `${dir}/15-solicitudes.png` });
 ok(errores.length === 0, "sin errores de consola: " + errores.join(" | "));
 await browser.close();

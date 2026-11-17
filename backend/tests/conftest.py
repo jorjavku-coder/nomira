@@ -6,7 +6,6 @@ os.environ["DATABASE_URL"] = URL
 os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="qc_test_")
 os.environ["JWT_SECRETO"] = "secreto-solo-para-pruebas-0123456789abcdef"
 os.environ["IA_HABILITADA"] = "false"
-os.environ["CORREOS_PLATAFORMA"] = "admin1@org1.test"
 
 from sqlalchemy import create_engine, text as _text  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
@@ -44,6 +43,8 @@ def _limpiar():
     with engine.begin() as c:
         c.execute(text("TRUNCATE " + ", ".join(t.name for t in Base.metadata.sorted_tables) + " RESTART IDENTITY CASCADE"))
     auth._intentos.clear()
+    from app.routers import plataforma as _plataforma
+    _plataforma._intentos.clear()
     from app.routers import solicitudes
     solicitudes._envios.clear()
     yield
@@ -109,3 +110,24 @@ def org(cliente):
 @pytest.fixture
 def org2(cliente):
     return Org(cliente, 2)
+
+
+class Plataforma:
+    """Quien opera Nomira: cuenta aparte, sin organización."""
+    EMAIL, CONTRASENA = "dueno@nomira.test", "Plataforma-Segura-123"
+
+    def __init__(self, cliente):
+        from app.security import hash_contrasena
+        self.c = cliente
+        with SessionLocal() as s:
+            s.add(m.AdminPlataforma(email=self.EMAIL, nombre="Dueño de Nomira", hash_contrasena=hash_contrasena(self.CONTRASENA)))
+            s.commit()
+        r = cliente.post("/api/plataforma/login", json={"email": self.EMAIL, "contrasena": self.CONTRASENA})
+        assert r.status_code == 200, r.text
+        self.token = r.json()["token"]
+        self.h = {"Authorization": f"Bearer {self.token}"}
+
+
+@pytest.fixture
+def plataforma(cliente):
+    return Plataforma(cliente)

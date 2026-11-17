@@ -7,8 +7,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from .config import ajustes
-from .db import engine
-from .routers import auth, catalogos, documentos, expedientes, ia, organizacion, solicitudes
+from .db import SessionLocal, engine
+from .routers import auth, catalogos, documentos, expedientes, ia, organizacion, plataforma, soporte, solicitudes
+from .services.plataforma import asegurar_admin_inicial
 from .services.procesamiento import recuperar_interrumpidos
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -20,13 +21,19 @@ async def ciclo(app: FastAPI):
         recuperar_interrumpidos()
     except Exception:  # la base puede no estar migrada todavía
         logging.getLogger("quincena").warning("No se pudo revisar documentos interrumpidos.")
+    try:
+        with SessionLocal() as db:
+            asegurar_admin_inicial(db)
+    except Exception:
+        logging.getLogger("quincena").warning("No se pudo revisar el administrador de la plataforma.")
     yield
 
 
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type"])
-for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router, organizacion.router, solicitudes.router):
+for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router, organizacion.router,
+          solicitudes.router, plataforma.router, soporte.router):
     app.include_router(r)
 
 

@@ -12,7 +12,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   expedientes: <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />,
   catalogos: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" /><path d="M9 9h6M9 13h6" /></>,
   empresa: <><path d="M4 20V7l8-3v16M12 9l8 2v9M3 20h18M8 9v.01M8 13v.01M8 17v.01M16 14v.01M16 17v.01" /></>,
-  solicitudes: <><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></>,
+  soporte: <><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></>,
   usuarios: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
   perfil: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
 };
@@ -54,6 +54,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     window.addEventListener("nomira:marca", cargar);
     return () => { window.removeEventListener("nomira:marca", cargar); if (url) URL.revokeObjectURL(url); };
   }, [sesion]);
+  const [sinLeer, setSinLeer] = useState(0);
+  useEffect(() => {
+    if (!sesion) return;
+    const cargar = () => api.get("/soporte/sin-leer").then((r) => setSinLeer(r.total)).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 120000);
+    window.addEventListener("nomira:soporte", cargar);
+    return () => { clearInterval(t); window.removeEventListener("nomira:soporte", cargar); };
+  }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
   const enlaces = [
     { href: "/", texto: "Expedientes", icono: "expedientes", activo: ruta === "/" || ruta.startsWith("/expedientes") },
@@ -61,7 +70,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     ...(sesion.usuario.rol === "administrador" ? [
       { href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
       { href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
-    ...(sesion.es_plataforma ? [{ href: "/solicitudes", texto: "Solicitudes", icono: "solicitudes", activo: ruta.startsWith("/solicitudes") }] : []),
+    { href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
     { href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
   ];
   const salir = () => { guardarSesion(null); router.replace("/login"); };
@@ -87,7 +96,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               className={`relative flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition ${e.activo ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
               {e.activo && <span className="absolute -left-3 top-2 hidden h-6 w-1 rounded-r bg-turquesa-brillante lg:block" aria-hidden />}
               <span className={e.activo ? "text-turquesa-brillante" : ""}><Icono nombre={e.icono} /></span>
-              {e.texto}
+              <span className="flex-1">{e.texto}</span>
+              {!!(e as any).n && <span className="rounded-full bg-turquesa-brillante px-1.5 text-[11px] font-bold text-marino-900" aria-label={`${(e as any).n} respuestas nuevas`}>{(e as any).n}</span>}
             </Link>
           ))}
         </nav>

@@ -94,6 +94,14 @@ class FrenoAcceso:
         # Solo se perdona a la pareja IP+correo; los fallos de la IP contra otras cuentas siguen contando.
         self.cuenta.olvidar(f"{ip}|{email}")
 
+    def desbloquear_correo(self, email: str) -> int:
+        """Soporte: borra los fallos de ese correo desde cualquier IP. Devuelve cuántos había."""
+        with self.cuenta._candado:
+            llaves = [k for k in self.cuenta._eventos if k.endswith(f"|{email}")]
+            for k in llaves:
+                del self.cuenta._eventos[k]
+        return len(llaves)
+
     def clear(self) -> None:
         self.cuenta.clear()
         self.ip.clear()

@@ -23,9 +23,12 @@ services:
         value: "true"
       - key: ZONA_HORARIA
         value: America/Mexico_City
-      # Quién ve las solicitudes de informes y suscripción (correos separados por coma).
-      - key: CORREOS_PLATAFORMA
-        value: admin@demo.local
+      # Panel de la plataforma (/plataforma): su primer administrador se crea al arrancar con estos
+      # datos. Se capturan en Render > nomira-demo > Environment (no se guardan en el repositorio).
+      - key: PLATAFORMA_ADMIN_EMAIL
+        sync: false
+      - key: PLATAFORMA_ADMIN_CONTRASENA
+        sync: false
       # Verificación opcional con IA. Para activarla: IA_HABILITADA=true y su clave en ANTHROPIC_API_KEY
       # (Render > nomira-demo > Environment). Envía imágenes de recibos al proveedor de IA.
       - key: IA_HABILITADA

@@ -17,12 +17,15 @@ _bearer = HTTPBearer(auto_error=False)
 def usuario_actual(cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
                    db: Session = Depends(get_db)) -> m.Usuario:
     datos = leer_token(cred.credentials) if cred else None
-    if not datos:
+    if not datos or datos.get("tipo") == "plataforma" or "org" not in datos:
         raise HTTPException(401, "Sesión inválida o vencida.")
     u = db.get(m.Usuario, int(datos["sub"]))
     if (not u or not u.activo or u.organizacion_id != datos.get("org")
             or u.sesion_version != datos.get("ver", 0)):
         raise HTTPException(401, "Sesión inválida o vencida.")
+    org = db.get(m.Organizacion, u.organizacion_id)
+    if not org or org.estado != "activa":
+        raise HTTPException(401, "La cuenta de su organización está suspendida. Contacte a soporte de Nomira.")
     return u
 
 
