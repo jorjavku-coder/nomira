@@ -14,7 +14,6 @@ from ..freno import FrenoAcceso
 from ..models import ahora
 from ..services import fotos
 from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
-from .solicitudes import es_plataforma
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -109,17 +108,22 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(401, "Correo o contraseña incorrectos.")
     _intentos.exito(ip, email)
+    org = db.get(m.Organizacion, u.organizacion_id)
+    if org.estado != "activa":  # solo se dice tras validar la contraseña: no revela cuentas
+        auditar(db, u, "login_rechazado_suspension", request=request)
+        db.commit()
+        raise HTTPException(403, "La cuenta de su organización está suspendida. Contacte a soporte de Nomira.")
     auditar(db, u, "login", request=request)
     db.commit()
-    org = db.get(m.Organizacion, u.organizacion_id)
     return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
-            "organizacion": org.nombre, "es_plataforma": es_plataforma(u)}
+            "organizacion": org.nombre}
 
 
 @router.get("/publico")
 def publico():
     """Datos no sensibles para la página de inicio."""
-    return {"permitir_registro": ajustes().permitir_registro}
+    digitos = re.sub(r"\D", "", ajustes().whatsapp_contacto)
+    return {"permitir_registro": ajustes().permitir_registro, "whatsapp": digitos if 10 <= len(digitos) <= 15 else None}
 
 
 @router.post("/auth/registro", status_code=201)
@@ -146,7 +150,7 @@ def registro(r: Registro, request: Request, db: Session = Depends(get_db)):
 def yo(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     return {"usuario": _u(u), "organizacion": db.get(m.Organizacion, u.organizacion_id).nombre,
             "ia_habilitada": ajustes().ia_habilitada, "max_mb_archivo": ajustes().max_mb_archivo,
-            "es_plataforma": es_plataforma(u), "permitir_registro": ajustes().permitir_registro}
+            "permitir_registro": ajustes().permitir_registro}
 
 
 @router.get("/usuarios")

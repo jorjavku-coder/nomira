@@ -76,7 +76,7 @@ export default function Expediente() {
 
   return (
     <Shell>
-      <Link href="/" className="text-sm text-turquesa-700 hover:underline">← Expedientes</Link>
+      <Link href="/app" className="text-sm text-turquesa-700 hover:underline">← Expedientes</Link>
       <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -337,7 +337,7 @@ export default function Expediente() {
         onGuardado={() => { setEditando(false); setOk("Datos del expediente actualizados."); cargar(); }} />}
       {eliminando && (
         <ConfirmarEliminar titulo="Eliminar expediente" boton="Sí, eliminar expediente" onCerrar={() => setEliminando(false)}
-          onConfirmar={async () => { await api.borrar(`/expedientes/${id}`); window.location.href = "/?eliminado=" + id; }}>
+          onConfirmar={async () => { await api.borrar(`/expedientes/${id}`); window.location.href = "/app?eliminado=" + id; }}>
           <p>¿Eliminar el expediente <b>#{exp.id} · {exp.trabajador_nombre}</b>?</p>
           <p className="mt-2">Se borrarán sus {docs.length} documento(s) PDF, las lecturas y todas las correcciones. <b>No se puede deshacer.</b></p>
           {validado && <p className="mt-2 font-semibold text-red-700">Este expediente ya está validado.</p>}

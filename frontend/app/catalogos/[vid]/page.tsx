@@ -278,7 +278,7 @@ export default function Version() {
           {activada ? (
             <Aviso tipo="ok"><b>¡Versión activada!</b> Ya se usa para los expedientes nuevos
               {activada.expedientes_actualizados > 0 && <> y se actualizaron <b>{activada.expedientes_actualizados}</b> expediente(s) en revisión, que ya se recalcularon con las claves nuevas</>}.
-              {" "}<Link href="/" className="font-semibold underline">Ir a los expedientes →</Link></Aviso>
+              {" "}<Link href="/app" className="font-semibold underline">Ir a los expedientes →</Link></Aviso>
           ) : v.estado === "borrador" ? (
             <Aviso tipo="alerta">Borrador pendiente de validación por un administrador.</Aviso>
           ) : (

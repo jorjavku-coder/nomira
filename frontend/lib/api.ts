@@ -3,7 +3,7 @@
 const LLAVE = "qc_sesion";
 
 export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null };
-export type Sesion = { token: string; usuario: Usuario; organizacion: string; es_plataforma?: boolean };
+export type Sesion = { token: string; usuario: Usuario; organizacion: string };
 const EVENTO = "nomira-sesion";
 
 export function leerSesion(): Sesion | null {

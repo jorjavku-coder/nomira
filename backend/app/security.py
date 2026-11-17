@@ -38,7 +38,28 @@ def crear_token(usuario_id: int, organizacion_id: int, version: int = 0) -> str:
 
 
 def leer_token(token: str) -> dict | None:
+    """Token de un usuario de una organización cliente. Rechaza los de la plataforma: llevan
+    «aud» y PyJWT no acepta un «aud» que no se pidió."""
     try:
         return jwt.decode(token, ajustes().jwt_secreto, algorithms=["HS256"])
     except jwt.PyJWTError:
         return None
+
+
+AUDIENCIA_PLATAFORMA = "nomira-plataforma"
+
+
+def crear_token_plataforma(admin_id: int, version: int = 0) -> str:
+    exp = datetime.now(timezone.utc) + timedelta(minutes=ajustes().jwt_minutos)
+    return jwt.encode({"sub": str(admin_id), "tipo": "plataforma", "aud": AUDIENCIA_PLATAFORMA, "ver": version,
+                       "exp": exp}, ajustes().jwt_secreto, algorithm="HS256")
+
+
+def leer_token_plataforma(token: str) -> dict | None:
+    """Solo acepta tokens emitidos para el panel de la plataforma (exige «aud»)."""
+    try:
+        datos = jwt.decode(token, ajustes().jwt_secreto, algorithms=["HS256"], audience=AUDIENCIA_PLATAFORMA,
+                           options={"require": ["aud", "exp", "sub"]})
+    except jwt.PyJWTError:
+        return None
+    return datos if datos.get("tipo") == "plataforma" else None

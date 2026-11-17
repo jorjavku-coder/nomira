@@ -18,7 +18,7 @@ page.on("pageerror", (e) => errores.push(String(e)));
 const foto = async (n) => { await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(150); return page.screenshot({ path: `${dir}/${n}.png`, fullPage: true }); };
 const _fotoAnterior = (n) => page.screenshot({ path: `${dir}/${n}.png`, fullPage: true });
 
-await page.goto(base + "/");
+await page.goto(base + "/app");  // sin sesión, el panel manda al acceso
 await page.waitForURL("**/login");
 await page.waitForTimeout(500);
 await foto("00-login");

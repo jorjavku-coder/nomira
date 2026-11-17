@@ -119,8 +119,17 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
   negocio. Aparecen en la barra lateral para todo su equipo y en los reportes de Excel y PDF. El
   logotipo se guarda en la base de datos, recodificado a PNG (se aceptan PNG, JPG y WebP; no SVG).
 - **Informes y suscripción:** la página de inicio incluye un formulario público. Las solicitudes
-  se guardan y las ve, en **Solicitudes**, quien opera la plataforma: los usuarios cuyo correo esté
-  en `CORREOS_PLATAFORMA`. No se envía ningún correo de aviso; hay que revisar la bandeja.
+  se ven en el **panel de la plataforma**. No se envía ningún correo de aviso; hay que revisar la bandeja.
+- **Panel de la plataforma** (`/plataforma`), para quien opera Nomira: solicitudes de prospectos
+  (y convertirlas en clientes), alta, suspensión y eliminación de clientes, soporte a sus usuarios
+  (restablecer contraseña, desbloquear, activar/desactivar) y mensajes con cada cliente.
+  - Sus cuentas son **aparte**: no pertenecen a ningún cliente y su sesión es rechazada por
+    toda la API de los clientes, así que **no puede ver expedientes, recibos ni documentos**
+    (lo comprueba `tests/test_plataforma.py` recorriendo todas las rutas).
+  - Toda acción sobre la cuenta de un cliente queda en la auditoría de ese cliente como «Soporte Nomira».
+  - Primer administrador: `PLATAFORMA_ADMIN_EMAIL` y `PLATAFORMA_ADMIN_CONTRASENA` (se crea al
+    arrancar si no existe), o `python -m scripts.crear_admin_plataforma correo@dominio "Nombre"`.
+  - Los clientes escriben a soporte desde su sección **Soporte**.
 - El sistema se llama Nomira; el crédito «Desarrollado por IMA» va en el pie de página del sitio.
 
 ## 5. Reglas de cálculo implementadas
