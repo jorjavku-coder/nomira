@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ShellPlataforma, { Credenciales } from "@/components/plataforma";
+import ShellPlataforma, { Credenciales, EstadoSuscripcion, PlanInicial } from "@/components/plataforma";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { fecha, fechaHora } from "@/lib/api";
 import { apiP } from "@/lib/plataforma";
@@ -28,14 +28,15 @@ export default function Clientes() {
       <div className="tarjeta mt-3 overflow-x-auto">
         <div className="border-b border-crema-300 p-3"><input className="campo sm:max-w-xs" placeholder="Buscar cliente…" value={buscar} onChange={(e) => setBuscar(e.target.value)} aria-label="Buscar cliente" /></div>
         <table className="tabla">
-          <thead><tr><th>Cliente</th><th>Estado</th><th className="num">Usuarios</th><th className="num">Expedientes</th><th>Último acceso</th><th>Soporte</th><th>Alta</th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Estado</th><th>Suscripción</th><th className="num">Usuarios</th><th className="num">Expedientes</th><th>Último acceso</th><th>Soporte</th><th>Alta</th></tr></thead>
           <tbody>
-            {lista === null && <tr><td colSpan={7} className="text-slate-500">Cargando…</td></tr>}
-            {lista && visibles.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-slate-500">Sin clientes.</td></tr>}
+            {lista === null && <tr><td colSpan={8} className="text-slate-500">Cargando…</td></tr>}
+            {lista && visibles.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-slate-500">Sin clientes.</td></tr>}
             {visibles.map((c) => (
               <tr key={c.id}>
                 <td><Link className="font-semibold text-marino hover:underline" href={`/plataforma/clientes/${c.id}`}>{c.nombre}</Link><div className="text-xs text-slate-400">#{c.id}</div></td>
                 <td><Chip estado={c.estado === "activa" ? "activo" : "error"} texto={c.estado === "activa" ? "Activa" : "Suspendida"} /></td>
+                <td><EstadoSuscripcion s={c.suscripcion} compacto /></td>
                 <td className="num">{c.usuarios_activos}<span className="text-slate-400"> / {c.usuarios}</span></td>
                 <td className="num">{c.expedientes}</td>
                 <td className="whitespace-nowrap">{c.ultimo_acceso ? fechaHora(c.ultimo_acceso) : <span className="text-slate-400">Nunca</span>}</td>
@@ -53,7 +54,7 @@ export default function Clientes() {
 }
 
 function NuevoCliente({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r: any) => void }) {
-  const [f, setF] = useState({ organizacion: "", admin_nombre: "", admin_email: "" });
+  const [f, setF] = useState<any>({ organizacion: "", admin_nombre: "", admin_email: "", plan: "prueba" });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent) {
@@ -71,6 +72,7 @@ function NuevoCliente({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r
           <label className="block"><span className="etiqueta">Correo del administrador</span>
             <input className="campo" type="email" required value={f.admin_email} onChange={(e) => setF({ ...f, admin_email: e.target.value })} /></label>
         </div>
+        <PlanInicial valor={f.plan} onCambio={(plan) => setF({ ...f, plan })} />
         <p className="text-xs text-slate-500">Se genera una contraseña temporal; el administrador del cliente la cambia al entrar y da de alta a su propio equipo.</p>
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>

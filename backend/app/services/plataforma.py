@@ -34,6 +34,7 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
     oid = org.id
     n = db.query(m.Expediente).filter(m.Expediente.organizacion_id == oid).count()
     db.execute(delete(m.TicketSoporte).where(m.TicketSoporte.organizacion_id == oid))  # mensajes: CASCADE
+    db.execute(delete(m.PeriodoSuscripcion).where(m.PeriodoSuscripcion.organizacion_id == oid))
     db.execute(delete(m.Correccion).where(m.Correccion.organizacion_id == oid))
     db.execute(delete(m.Recibo).where(m.Recibo.organizacion_id == oid))  # filas: CASCADE
     db.execute(delete(m.Documento).where(m.Documento.organizacion_id == oid))  # páginas: CASCADE
