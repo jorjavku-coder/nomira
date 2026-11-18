@@ -103,7 +103,10 @@ export function mxn(v: string | null | undefined): string {
 
 export function fecha(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const [a, m, d] = iso.slice(0, 10).split("-");
+  // Con hora (p. ej. 2026-11-18T02:10:00+00:00) es un instante: se muestra el día en la hora local,
+  // no el de UTC. Sin hora (2026-11-17) es una fecha de calendario: se muestra tal cual.
+  if (iso.length > 10) return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const [a, m, d] = iso.split("-");
   return `${d}/${m}/${a}`;
 }
 

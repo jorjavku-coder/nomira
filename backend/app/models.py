@@ -303,3 +303,20 @@ class MensajeSoporte(Base):
     texto: Mapped[str] = mapped_column(Text)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     ticket: Mapped[TicketSoporte] = relationship(back_populates="mensajes")
+
+
+class PeriodoSuscripcion(Base):
+    """Un periodo contratado (o de prueba) de una organización cliente. Lo administra quien opera
+    Nomira; el historial completo queda para saber qué se vendió y cuándo vence."""
+    __tablename__ = "periodos_suscripcion"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    plan: Mapped[str] = mapped_column(String(15))  # prueba | mensual | semestral | anual
+    inicio: Mapped[date] = mapped_column(Date)
+    fin: Mapped[date] = mapped_column(Date)  # último día incluido
+    monto: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    pagado: Mapped[bool] = mapped_column(Boolean, default=False)
+    pagado_en: Mapped[date | None] = mapped_column(Date)
+    nota: Mapped[str | None] = mapped_column(String(500))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

@@ -25,7 +25,8 @@ export default function Resumen() {
         <Tarjeta etiqueta="Solicitudes nuevas" valor={r ? r.solicitudes_nuevas : "—"} nota="Prospectos sin atender" alerta={!!r?.solicitudes_nuevas} href="/plataforma/solicitudes" />
         <Tarjeta etiqueta="Mensajes sin leer" valor={r ? r.tickets_sin_leer : "—"} nota={r ? (r.tickets_abiertos === 1 ? "1 conversación abierta" : `${r.tickets_abiertos} conversaciones abiertas`) : ""} alerta={!!r?.tickets_sin_leer} href="/plataforma/soporte" />
         <Tarjeta etiqueta="Clientes activos" valor={r ? r.clientes_activos : "—"} nota={r?.clientes_suspendidos ? `${r.clientes_suspendidos} suspendido(s)` : "Ninguno suspendido"} href="/plataforma/clientes" />
-        <Tarjeta etiqueta="Usuarios activos" valor={r ? r.usuarios_activos : "—"} nota="En todos los clientes" />
+        <Tarjeta etiqueta="Suscripciones" valor={r ? r.por_vencer + r.vencidas : "—"} alerta={!!(r && r.por_vencer + r.vencidas)} href="/plataforma/suscripciones"
+          nota={r ? `${r.por_vencer} por vencer · ${r.vencidas} vencidas · ${r.en_prueba} en prueba` : ""} />
       </div>
       <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <section className="tarjeta">

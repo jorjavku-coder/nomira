@@ -7,6 +7,9 @@ cuenta de un cliente queda en SU auditoría como «Soporte Nomira», para que el
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from datetime import date, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -20,6 +23,7 @@ from ..deps import ip_cliente
 from ..freno import FrenoAcceso
 from ..security import (ROLES, crear_token_plataforma, gastar_tiempo_de_verificacion, hash_contrasena,
                         leer_token_plataforma, verificar_contrasena)
+from ..services import suscripciones as sus
 from ..services.plataforma import borrar_archivos, contrasena_temporal, eliminar_organizacion
 from . import auth as auth_clientes
 from .solicitudes import Atencion, _s
@@ -127,7 +131,26 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
         "tickets_abiertos": contar(select(m.TicketSoporte.id).where(m.TicketSoporte.estado == "abierto")),
         "tickets_sin_leer": contar(select(m.TicketSoporte.id).where(m.TicketSoporte.leido_plataforma.is_(False))),
         "usuarios_activos": contar(select(m.Usuario.id).where(m.Usuario.activo.is_(True))),
+        **_conteo_suscripciones(db),
     }
+
+
+def _periodos_por_org(db: Session, ids: list[int] | None = None) -> dict[int, list[m.PeriodoSuscripcion]]:
+    q = select(m.PeriodoSuscripcion)
+    if ids is not None:
+        q = q.where(m.PeriodoSuscripcion.organizacion_id.in_(ids))
+    grupos: dict[int, list] = defaultdict(list)
+    for p in db.scalars(q):
+        grupos[p.organizacion_id].append(p)
+    return grupos
+
+
+def _conteo_suscripciones(db: Session) -> dict:
+    grupos = _periodos_por_org(db)
+    estados = [sus.estado(grupos.get(oid, []))["estado"] for oid in db.scalars(select(m.Organizacion.id))]
+    pendientes = sum(sus.estado(ps)["pagos_pendientes"] for ps in grupos.values())
+    return {"en_prueba": estados.count("prueba"), "por_vencer": estados.count("por_vencer"),
+            "vencidas": estados.count("vencida"), "sin_plan": estados.count("sin_plan"), "pagos_pendientes": pendientes}
 
 
 # ---------- solicitudes de prospectos ----------
@@ -158,6 +181,21 @@ class ClienteNuevo(BaseModel):
     organizacion: str = Field(min_length=2, max_length=200)
     admin_nombre: str = Field(min_length=2, max_length=200)
     admin_email: str = Field(max_length=254)
+    plan: str | None = "prueba"  # periodo inicial desde hoy; None = sin plan por ahora
+
+
+class PeriodoNuevo(BaseModel):
+    plan: str
+    inicio: date
+    monto: Decimal | None = Field(None, ge=0, max_digits=12, decimal_places=2)
+    pagado: bool = False
+    nota: str | None = Field(None, max_length=500)
+
+
+class PeriodoCambio(BaseModel):
+    pagado: bool | None = None
+    monto: Decimal | None = Field(None, ge=0, max_digits=12, decimal_places=2)
+    nota: str | None = Field(None, max_length=500)
 
 
 class ClienteCambio(BaseModel):
@@ -207,9 +245,9 @@ def _metricas(db: Session, ids: list[int] | None = None) -> dict[int, dict]:
     }
 
 
-def _c(o: m.Organizacion, met: dict) -> dict:
+def _c(o: m.Organizacion, met: dict, periodos: list | None = None) -> dict:
     ult = met["ultimo_acceso"].get(o.id)
-    return {"id": o.id, "nombre": o.nombre, "estado": o.estado, "motivo_suspension": o.motivo_suspension,
+    return {"suscripcion": sus.estado(periodos or []), "id": o.id, "nombre": o.nombre, "estado": o.estado, "motivo_suspension": o.motivo_suspension,
             "creado_en": o.creado_en.isoformat(), "usuarios": met["usuarios"].get(o.id, 0),
             "usuarios_activos": met["usuarios_activos"].get(o.id, 0), "expedientes": met["expedientes"].get(o.id, 0),
             "ultimo_acceso": ult.isoformat() if ult else None, "tickets_abiertos": met["tickets_abiertos"].get(o.id, 0)}
@@ -229,7 +267,10 @@ def _crear_cliente(db: Session, a: m.AdminPlataforma, d: ClienteNuevo, request: 
     db.flush()
     _registrar(db, a, "cliente_creado", request, organizacion_id=o.id, entidad="organizacion", entidad_id=o.id,
                detalle={"administrador": email})
-    return {"cliente": _c(o, _metricas(db, [o.id])),
+    periodos = []
+    if d.plan:
+        periodos = [_crear_periodo(db, a, o, PeriodoNuevo(plan=d.plan, inicio=sus.hoy()), request)]
+    return {"cliente": _c(o, _metricas(db, [o.id]), periodos),
             "acceso": {"email": email, "nombre": u.nombre, "contrasena_temporal": temporal}}
 
 
@@ -237,7 +278,8 @@ def _crear_cliente(db: Session, a: m.AdminPlataforma, d: ClienteNuevo, request: 
 def clientes(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     orgs = db.scalars(select(m.Organizacion).order_by(m.Organizacion.nombre)).all()
     met = _metricas(db)
-    return [_c(o, met) for o in orgs]
+    periodos = _periodos_por_org(db)
+    return [_c(o, met, periodos.get(o.id)) for o in orgs]
 
 
 @router.post("/clientes", status_code=201)
@@ -270,7 +312,7 @@ def cliente(cid: int, a: m.AdminPlataforma = Depends(admin_plataforma), db: Sess
                               .group_by(m.Auditoria.usuario_id)).all())
     usuarios = db.scalars(select(m.Usuario).where(m.Usuario.organizacion_id == o.id, m.Usuario.eliminado_en.is_(None))
                           .order_by(m.Usuario.rol, m.Usuario.nombre)).all()
-    return {**_c(o, _metricas(db, [o.id])), "usuarios_detalle": [
+    return {**_c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id)), "usuarios_detalle": [
         {"id": u.id, "nombre": u.nombre, "email": u.email, "rol": u.rol, "activo": u.activo,
          "ultimo_acceso": ultimos[u.id].isoformat() if u.id in ultimos else None} for u in usuarios]}
 
@@ -296,7 +338,7 @@ def cambiar_cliente(cid: int, d: ClienteCambio, request: Request, a: m.AdminPlat
         _registrar(db, a, "cliente_modificado", request, organizacion_id=o.id, entidad="organizacion",
                    entidad_id=o.id, detalle=cambios)
     db.commit()
-    return _c(o, _metricas(db, [o.id]))
+    return _c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id))
 
 
 @router.post("/clientes/{cid}/eliminar")
@@ -379,6 +421,105 @@ def cambiar_usuario(cid: int, uid: int, d: UsuarioCambio, request: Request,
                    detalle={"activo": d.activo})
         db.commit()
     return {"ok": True}
+
+
+# ---------- suscripciones (periodos de venta) ----------
+
+def _crear_periodo(db: Session, a: m.AdminPlataforma, o: m.Organizacion, d: PeriodoNuevo,
+                   request: Request) -> m.PeriodoSuscripcion:
+    if d.plan not in sus.PLANES:
+        raise HTTPException(422, "Plan inválido: use prueba, mensual, semestral o anual.")
+    existentes = db.scalars(select(m.PeriodoSuscripcion).where(m.PeriodoSuscripcion.organizacion_id == o.id)).all()
+    if d.plan == "prueba" and any(p.plan == "prueba" for p in existentes):
+        raise HTTPException(409, "Este cliente ya tuvo su prueba gratuita.")
+    if d.inicio < sus.hoy() - timedelta(days=366):
+        raise HTTPException(422, "La fecha de inicio es de hace más de un año; revise la fecha.")
+    fin = sus.calcular_fin(d.plan, d.inicio)
+    for p in existentes:
+        if d.inicio <= p.fin and p.inicio <= fin:
+            raise HTTPException(409, f"Se encima con el periodo {sus.PLANES[p.plan][0].lower()} del "
+                                     f"{p.inicio:%d/%m/%Y} al {p.fin:%d/%m/%Y}. Elija otra fecha de inicio.")
+    p = m.PeriodoSuscripcion(organizacion_id=o.id, plan=d.plan, inicio=d.inicio, fin=fin, monto=d.monto,
+                             pagado=d.pagado and d.plan != "prueba",
+                             pagado_en=sus.hoy() if d.pagado and d.plan != "prueba" else None,
+                             nota=(d.nota or "").strip() or None, creado_por_id=a.id)
+    db.add(p)
+    db.flush()
+    _registrar(db, a, "suscripcion_registrada", request, organizacion_id=o.id, entidad="periodo", entidad_id=p.id,
+               detalle={"plan": d.plan, "inicio": d.inicio.isoformat(), "fin": fin.isoformat()})
+    return p
+
+
+def _periodo(db: Session, pid: int) -> m.PeriodoSuscripcion:
+    p = db.get(m.PeriodoSuscripcion, pid)
+    if not p:
+        raise HTTPException(404, "Periodo no encontrado.")
+    return p
+
+
+def _suscripcion(db: Session, cid: int) -> dict:
+    ps = _periodos_por_org(db, [cid]).get(cid, [])
+    ref = sus.hoy()
+    return {**sus.estado(ps, ref), "periodos": [sus.p_dict(p, ref) for p in sorted(ps, key=lambda p: (p.inicio, p.id), reverse=True)],
+            "planes": [{"clave": k, "nombre": v[0], "fin_si_inicia_hoy": sus.calcular_fin(k, ref).isoformat()}
+                       for k, v in sus.PLANES.items()]}
+
+
+@router.get("/clientes/{cid}/suscripcion")
+def suscripcion(cid: int, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    _cliente(db, cid)
+    return _suscripcion(db, cid)
+
+
+@router.post("/clientes/{cid}/periodos", status_code=201)
+def registrar_periodo(cid: int, d: PeriodoNuevo, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                      db: Session = Depends(get_db)):
+    _crear_periodo(db, a, _cliente(db, cid), d, request)
+    db.commit()
+    return _suscripcion(db, cid)
+
+
+@router.patch("/periodos/{pid}")
+def cambiar_periodo(pid: int, d: PeriodoCambio, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                    db: Session = Depends(get_db)):
+    p = _periodo(db, pid)
+    cambios = d.model_dump(exclude_unset=True)
+    if "pagado" in cambios and p.plan != "prueba":
+        p.pagado, p.pagado_en = d.pagado, (sus.hoy() if d.pagado else None)
+    if "monto" in cambios:
+        p.monto = d.monto
+    if "nota" in cambios:
+        p.nota = (d.nota or "").strip() or None
+    _registrar(db, a, "suscripcion_modificada", request, organizacion_id=p.organizacion_id, entidad="periodo",
+               entidad_id=p.id, detalle={k: str(v) for k, v in cambios.items()})
+    db.commit()
+    return _suscripcion(db, p.organizacion_id)
+
+
+@router.delete("/periodos/{pid}")
+def borrar_periodo(pid: int, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                   db: Session = Depends(get_db)):
+    """Para corregir un periodo capturado por error."""
+    p = _periodo(db, pid)
+    cid = p.organizacion_id
+    _registrar(db, a, "suscripcion_borrada", request, organizacion_id=cid, entidad="periodo", entidad_id=p.id,
+               detalle={"plan": p.plan, "inicio": p.inicio.isoformat(), "fin": p.fin.isoformat()})
+    db.delete(p)
+    db.commit()
+    return _suscripcion(db, cid)
+
+
+@router.get("/suscripciones")
+def suscripciones(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    """Todos los clientes con su situación de venta, para la pantalla «Suscripciones»."""
+    grupos = _periodos_por_org(db)
+    ref = sus.hoy()
+    salida = []
+    for o in db.scalars(select(m.Organizacion).order_by(m.Organizacion.nombre)):
+        ps = grupos.get(o.id, [])
+        salida.append({"id": o.id, "nombre": o.nombre, "estado_cuenta": o.estado, **sus.estado(ps, ref),
+                       "total_cobrado": str(sum((p.monto or 0) for p in ps if p.pagado))})
+    return salida
 
 
 # ---------- soporte ----------

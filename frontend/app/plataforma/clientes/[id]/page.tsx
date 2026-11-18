@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import ShellPlataforma, { Credenciales, Tarjeta } from "@/components/plataforma";
+import ShellPlataforma, { Credenciales, EstadoSuscripcion, RegistrarPeriodo, Tarjeta } from "@/components/plataforma";
 import { Aviso, Avatar, Chip, Modal } from "@/components/ui";
-import { fecha, fechaHora } from "@/lib/api";
-import { apiP } from "@/lib/plataforma";
+import { fecha, fechaHora, mxn } from "@/lib/api";
+import { apiP, avisarContadores } from "@/lib/plataforma";
 
 const ROLES: Record<string, string> = { administrador: "Administrador", analista: "Analista", consulta: "Consulta" };
 
@@ -43,6 +43,8 @@ export default function Cliente() {
         <Tarjeta etiqueta="Último acceso" valor={<span className="text-xl">{c.ultimo_acceso ? fecha(c.ultimo_acceso) : "Nunca"}</span>} />
         <Tarjeta etiqueta="Soporte abierto" valor={c.tickets_abiertos} alerta={c.tickets_abiertos > 0} href="/plataforma/soporte" />
       </div>
+
+      <Suscripcion c={c} onCambio={(m) => { setOk(m); setError(""); avisarContadores(); cargar(); }} onError={setError} />
 
       <section className="tarjeta mt-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-crema-300 px-5 py-3">
@@ -194,5 +196,61 @@ function NuevoMensaje({ c, onCerrar, onListo }: { c: any; onCerrar: () => void; 
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-primario">Enviar</button></div>
       </form>
     </Modal>
+  );
+}
+
+function Suscripcion({ c, onCambio, onError }: { c: any; onCambio: (m: string) => void; onError: (m: string) => void }) {
+  const [s, setS] = useState<any>(null);
+  const [registrar, setRegistrar] = useState(false);
+  const cargar = useCallback(() => apiP.get(`/clientes/${c.id}/suscripcion`).then(setS).catch((e) => onError(e.message)), [c.id, onError]);
+  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { if (s && window.location.hash === "#suscripcion") document.getElementById("suscripcion")?.scrollIntoView({ block: "start" }); }, [s]);
+  const accion = async (fn: () => Promise<any>, m: string) => { try { setS(await fn()); onCambio(m); } catch (e: any) { onError(e.message); } };
+  if (!s) return null;
+  const aviso: Record<string, string> = {
+    prueba: "border-sky-200 bg-sky-50/60", activa: "border-emerald-200 bg-emerald-50/50", por_vencer: "border-amber-300 bg-amber-50",
+    vencida: "border-red-200 bg-red-50/60", programada: "border-crema-300 bg-white", sin_plan: "border-crema-300 bg-white",
+  };
+  return (
+    <section id="suscripcion" className={`mt-6 scroll-mt-6 rounded-3xl border p-5 ${aviso[s.estado]}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="etiqueta">Suscripción</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2"><EstadoSuscripcion s={s} />
+            {s.pagos_pendientes > 0 && <span className="text-sm font-semibold text-amber-700">· {s.pagos_pendientes} pago(s) pendiente(s){s.monto_pendiente && Number(s.monto_pendiente) > 0 ? ` (${mxn(s.monto_pendiente)})` : ""}</span>}</div>
+          {s.inicio && <p className="mt-2 text-sm text-slate-600">{s.estado === "vencida" ? "Su último periodo" : "Periodo"}: <b>{s.plan_nombre}</b>, del {fecha(s.inicio)} al {fecha(s.fin)}.</p>}
+          {s.siguiente && <p className="text-sm text-emerald-700">✓ Renovación registrada: {s.siguiente.plan_nombre} desde el {fecha(s.siguiente.inicio)}.</p>}
+          {s.estado === "vencida" && c.estado === "activa" && <p className="mt-1 text-xs text-slate-500">La cuenta sigue abierta. Si no renueva, puede suspenderla en la zona delicada.</p>}
+        </div>
+        <button className="btn-turquesa" onClick={() => setRegistrar(true)}>{["sin_plan", "vencida"].includes(s.estado) ? "Registrar venta" : "Renovar / agregar periodo"}</button>
+      </div>
+      {s.periodos.length > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-crema-300 bg-white">
+          <table className="tabla">
+            <thead><tr><th>Plan</th><th>Inicio</th><th>Vence</th><th className="num">Monto</th><th>Pago</th><th>Nota</th><th></th></tr></thead>
+            <tbody>
+              {s.periodos.map((p: any) => (
+                <tr key={p.id} className={p.situacion === "vigente" ? "bg-turquesa-50/40" : ""}>
+                  <td className="whitespace-nowrap font-semibold text-marino">{p.plan_nombre}
+                    <div className="text-[11px] font-normal text-slate-500">{p.situacion === "vigente" ? "Vigente" : p.situacion === "futuro" ? "Próximo" : "Terminado"}</div></td>
+                  <td className="whitespace-nowrap">{fecha(p.inicio)}</td>
+                  <td className="whitespace-nowrap">{fecha(p.fin)}</td>
+                  <td className="num">{p.monto !== null ? mxn(p.monto) : <span className="text-slate-400">—</span>}</td>
+                  <td className="whitespace-nowrap">{p.plan === "prueba" ? <span className="text-xs text-slate-400">Gratis</span>
+                    : p.pagado ? <span className="text-xs font-semibold text-emerald-700">✓ Pagado {fecha(p.pagado_en)}</span>
+                    : <button className="text-xs font-semibold text-amber-700 hover:underline" onClick={() => accion(() => apiP.patch(`/periodos/${p.id}`, { pagado: true }), "Pago registrado.")}>Pendiente · marcar pagado</button>}</td>
+                  <td className="max-w-[16rem] truncate text-sm text-slate-600" title={p.nota || ""}>{p.nota || ""}</td>
+                  <td className="whitespace-nowrap text-right">
+                    {p.pagado && <button className="mr-2 text-xs text-slate-500 hover:underline" onClick={() => accion(() => apiP.patch(`/periodos/${p.id}`, { pagado: false }), "Pago desmarcado.")}>Desmarcar pago</button>}
+                    <button className="text-xs text-red-600 hover:underline" onClick={() => { if (confirm(`¿Borrar el periodo ${p.plan_nombre.toLowerCase()} del ${fecha(p.inicio)} al ${fecha(p.fin)}? Úselo solo para corregir un error de captura.`)) accion(() => apiP.borrar(`/periodos/${p.id}`), "Periodo borrado."); }}>Borrar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {registrar && <RegistrarPeriodo cliente={c} s={s} onCerrar={() => setRegistrar(false)} onListo={(nuevo) => { setS(nuevo); setRegistrar(false); onCambio("Periodo registrado."); }} />}
+    </section>
   );
 }
