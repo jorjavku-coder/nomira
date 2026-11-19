@@ -568,6 +568,9 @@ class CorreoPrueba(BaseModel):
     destinatario: str = Field(max_length=254)
 
 
+TIPOS_PLATAFORMA = ("bienvenida", "recordatorio_vencimiento", "prueba")
+
+
 def _c_dict(c: m.CorreoEnviado, nombres: dict) -> dict:
     return {"id": c.id, "tipo": c.tipo, "cliente": nombres.get(c.organizacion_id), "organizacion_id": c.organizacion_id,
             "destinatarios": c.destinatarios, "asunto": c.asunto, "estado": c.estado, "error": c.error,
@@ -583,7 +586,9 @@ def correos(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
                             "vence": x["periodo"].fin.isoformat(), "dias": x["dias"],
                             "destinatarios": [u.email for u in x["admins"]]} for x in pend],
             "historial": [_c_dict(c, nombres) for c in db.scalars(
-                select(m.CorreoEnviado).order_by(m.CorreoEnviado.id.desc()).limit(200))]}
+                # Solo correos de la plataforma: los que un despacho envía a SUS clientes no son de su incumbencia.
+                select(m.CorreoEnviado).where(m.CorreoEnviado.tipo.in_(TIPOS_PLATAFORMA))
+                .order_by(m.CorreoEnviado.id.desc()).limit(200))]}
 
 
 @router.post("/correos/prueba")

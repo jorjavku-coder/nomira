@@ -9,6 +9,7 @@ if __name__ == "__main__":
     with SessionLocal() as db:
         r = sembrar_demo(db)
         ev = evidencia_demo.sembrar(db)  # una sola vez por organización de demostración
+        evidencia_demo.sembrar_divorcio(db)
         if "--restaurar" in sys.argv:
             print("Archivos:", restaurar_archivos(db), "· Evidencia:", evidencia_demo.restaurar_archivos(db))
     if r["creado"]:

@@ -14,7 +14,17 @@ from app.services.plataforma import asegurar_admin_inicial
 from app.sinteticos import BASE, crear_pdf, recibo
 
 PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET", "/api/publico"),
-            ("GET", "/api/salud"), ("POST", "/api/solicitudes")}
+            ("GET", "/api/salud"), ("POST", "/api/solicitudes"),
+            # Carga de documentos del cliente: no usa sesión sino el enlace (X-Enlace); sin él, 404.
+            ("POST", "/api/subida/estado"), ("POST", "/api/subida/codigo"), ("POST", "/api/subida/verificar"),
+            ("POST", "/api/subida/archivos")}
+
+
+def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):
+    for ruta in ("/api/subida/estado", "/api/subida/codigo", "/api/subida/verificar"):
+        for h in ({}, plataforma.h):
+            r = cliente.post(ruta, headers=h, json={"codigo": "123456"})
+            assert r.status_code == 404 and set(r.json()) == {"detail"}, ruta
 
 
 def _rutas(prefijo_plataforma: bool):

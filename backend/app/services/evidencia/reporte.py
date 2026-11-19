@@ -43,8 +43,8 @@ def _revision(h: dict) -> str:
     if h["origen"] == "manual":
         return f"Capturado por {h['creado_por'] or 'usuario'}"
     if h["estado"] == "editado":
-        return f"Extraído automáticamente · editado por {h['revisado_por'] or 'usuario'}"
-    return f"Extraído automáticamente · confirmado por {h['revisado_por'] or 'usuario'}"
+        return f"Propuesto por Nomira · editado por {h['revisado_por'] or 'usuario'}"
+    return f"Propuesto por Nomira · confirmado por {h['revisado_por'] or 'usuario'}"
 
 
 def _fuente(h_o_v: dict, docs: dict[int, dict]) -> str:
@@ -115,7 +115,7 @@ def _documento(meta: dict, titulo: str, elementos: list) -> bytes:
 def _portada(datos: dict, meta: dict, est: dict, titulo: str) -> list:
     a = datos["asunto"]
     filas = [["Asunto", _P(a["nombre"], est["n"])], ["Cliente", _P(a["cliente"], est["n"])],
-             ["Tipo de caso", _P(a["tipo_caso"], est["n"])], ["Jurisdicción", _P(a["jurisdiccion"], est["n"])],
+             ["Tipo de caso", _P(a["tipo_caso"], est["n"])], ["Jurisdicción", _P(a.get("jurisdiccion_texto") or a["jurisdiccion"], est["n"])],
              ["Identificador interno", _P(a["identificador_interno"], est["n"])], ["Responsable", _P(a["responsable"], est["n"])]]
     filas += [[_P(k, est["n"]), _P(v, est["n"])] for k, v in (a.get("campos") or {}).items()]
     filas += [["Organización", _P(meta["organizacion"], est["n"])],
@@ -134,15 +134,16 @@ def pdf(datos: dict, meta: dict) -> bytes:
     el = _portada(datos, meta, est, "Expediente probatorio")
     el += [Spacer(1, 6), _P(f"{r['documentos']} documento(s) · {r['hechos']['confirmado'] + r['hechos']['editado']} hecho(s) "
                            f"revisado(s) · {r['hechos']['por_revisar']} propuesto(s) sin revisar (no incluidos) · "
-                           f"{r['contradicciones']} posible(s) contradicción(es) · {r['pendientes_abiertos']} pendiente(s) abierto(s)", est["n"])]
+                           f"{r['diferencias_pendientes']} posible(s) diferencia(s) por revisar · {r['pendientes_abiertos']} pendiente(s) abierto(s)", est["n"])]
 
     el += [PageBreak(), Paragraph("1. Índice de documentos", est["h2"])]
     filas = [["Ref.", "Documento", "Tipo", "Fecha", "Págs.", "Lectura", "Cargado por"]]
     for d in datos["documentos"]:
         tipo = d["tipo"] or (f"{d['tipo_sugerido']} (sugerido, sin revisar)" if d["tipo_sugerido"] else "Sin clasificar")
         fecha = _f(d["fecha_documento"]) if d["fecha_documento"] else (f"{_f(d['fecha_sugerida'])} (sug.)" if d["fecha_sugerida"] else "—")
-        el_estado = {"leido": "Leído", "requiere_revision": "Requiere revisión", "error": "No legible",
-                     "pendiente": "En proceso", "procesando": "En proceso"}[d["estado"]]
+        el_estado = {"leido": "Leído", "requiere_revision": "Requiere revisión", "error": "No legible", "recibido": "Del cliente, sin aceptar",
+                     "pendiente": "En proceso", "procesando": "En proceso"}[d["estado"]] + \
+            (" · RESTRINGIDO" if d.get("visibilidad") == "restringido" else "")
         filas.append([f"D{d['id']}", _P(d["nombre"], est["c"]), _P(tipo, est["c"]), _P(fecha, est["c"]), d["paginas"] or "—",
                       el_estado, _P(d["subido_por"], est["c"])])
     el.append(_tabla(filas, [1.1 * cm, 5 * cm, 3.2 * cm, 2.2 * cm, 1.1 * cm, 2.2 * cm, 2.7 * cm]) if len(filas) > 1
@@ -157,21 +158,21 @@ def pdf(datos: dict, meta: dict) -> bytes:
         for h in cr["eventos"] + cr["sin_fecha"]:
             desc = h["descripcion"] + (f" · Importe: {_mxn(h['importe'])}" if h["importe"] else "") + \
                 (f" · Personas: {', '.join(h['personas'])}" if h["personas"] else "") + \
-                (" · POSIBLE CONTRADICCIÓN PARA REVISAR" if h["contradicciones"] else "")
+                (" · POSIBLE DIFERENCIA ENTRE FUENTES" if h["contradicciones"] else "")
             filas.append([_f(h["fecha"]) if h["fecha"] else "Sin fecha", _P(desc, est["c"]), _P(_fuente(h, docs), est["c"]),
                           _P(_revision(h), est["c"])])
         el.append(_tabla(filas, [2 * cm, 8 * cm, 4 * cm, 3.5 * cm]))
     if datos["contradicciones"]:
-        el += [Spacer(1, 8), Paragraph("Posibles contradicciones para revisar", est["h2"]),
-               _P("Nomira señala datos que parecen incompatibles; no decide cuál es correcto.", est["gris"])]
-        filas = [["Versión A", "Versión B", "Difieren en"]]
+        el += [Spacer(1, 8), Paragraph("Posibles diferencias entre fuentes", est["h2"]),
+               _P("Nomira señala datos que parecen distintos; no decide cuál es correcto. La columna «Decisión» la registra el abogado.", est["gris"])]
+        filas = [["Versión A", "Versión B", "Decisión"]]
         for c in datos["contradicciones"]:
             a, b = (hechos[i] for i in c["hechos"])
             fila = []
             for h in (a, b):
                 fila.append(_P(f"{_f(h['fecha']) if h['fecha'] else 'Sin fecha'} — {h['descripcion']} [{_fuente(h, docs)}]", est["c"]))
-            filas.append(fila + [", ".join(c["difieren"])])
-        el.append(_tabla(filas, [7.5 * cm, 7.5 * cm, 2.5 * cm]))
+            filas.append(fila + [_P(c.get("decision_texto") or "Pendiente de revisar", est["c"])])
+        el.append(_tabla(filas, [7 * cm, 7 * cm, 3.5 * cm]))
 
     el += [Spacer(1, 10), Paragraph("3. Matriz de evidencia", est["h2"]),
            _P("El estado de cada punto lo decide el abogado. Las sugerencias del sistema no se incluyen como decisiones.", est["gris"])]
@@ -180,7 +181,7 @@ def pdf(datos: dict, meta: dict) -> bytes:
     else:
         filas = [["Hecho que se busca acreditar", "Estado (decisión del abogado)", "Evidencia vinculada"]]
         for p in datos["puntos"]:
-            ev = "\n".join(f"• {(v['hecho']['descripcion'][:140] + ' — ') if v.get('hecho') else ''}{_fuente(v, docs)}"
+            ev = "\n".join(f"• [{v.get('relacion_texto', 'Sin evaluar')}] {(v['hecho']['descripcion'][:140] + ' — ') if v.get('hecho') else ''}{_fuente(v, docs)}"
                            + (f" ({v['nota']})" if v["nota"] else "") for v in p["vinculos"]) or "Sin evidencia vinculada"
             decidido = p["estado_texto"] + (f"\n{p['estado_decidido_por']}, {_f(p['estado_decidido_en'])}" if p["estado_decidido_por"] else "\n(sin decisión registrada)")
             filas.append([_P(p["descripcion"] + (f"\nNotas: {p['notas']}" if p["notas"] else ""), est["c"]),
@@ -249,7 +250,7 @@ def excel(datos: dict, meta: dict, solo_pendientes: bool = False) -> bytes:
     ws.column_dimensions["B"].width = 80
     for fila in [("Nomira Evidencia — " + ("Pendientes" if solo_pendientes else "Expediente probatorio"), None),
                  ("Asunto", a["nombre"]), ("Cliente", a["cliente"]),
-                 *([] if solo_pendientes else [("Tipo de caso", a["tipo_caso"]), ("Jurisdicción", a["jurisdiccion"]),
+                 *([] if solo_pendientes else [("Tipo de caso", a["tipo_caso"]), ("Jurisdicción", a.get("jurisdiccion_texto") or a["jurisdiccion"]),
                                                ("Identificador interno", a["identificador_interno"]), ("Responsable", a["responsable"]),
                                                *[(k, v) for k, v in (a.get("campos") or {}).items()]]),
                  ("Organización", meta["organizacion"]),
@@ -312,12 +313,14 @@ def excel(datos: dict, meta: dict, solo_pendientes: bool = False) -> bytes:
         f[2].number_format = "DD/MM/YYYY"
     _envolver(ws)
 
-    ws = _hoja(wb, "Hechos sin revisar", ["Aviso", "Hecho propuesto", "Documento", "Página", "Confianza de lectura"], [26, 70, 34, 8, 12])
+    ws = _hoja(wb, "Hechos sin revisar", ["Aviso", "Hecho propuesto", "Tipo de dato", "Quién lo afirma", "Documento", "Página",
+                                         "Lectura"], [26, 70, 22, 30, 34, 8, 40])
     for h in datos["hechos"]:
         if h["estado"] == "por_revisar":
             d = docs.get(h["documento_id"]) or {}
-            ws.append(["PROPUESTA SIN REVISAR — no es un hecho verificado", h["descripcion"],
-                       f"D{d.get('id')} · {d.get('nombre')}" if d else "Sin documento", h["pagina"], h["confianza"]])
+            ws.append(["PROPUESTA SIN REVISAR — no es un hecho verificado", h["descripcion"], h.get("tipo_dato_texto"),
+                       h.get("atribucion"), f"D{d.get('id')} · {d.get('nombre')}" if d else "Sin documento", h["pagina"],
+                       (h.get("calidad") or {}).get("lectura")])
     _envolver(ws)
     return _guardar(wb)
 

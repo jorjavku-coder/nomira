@@ -63,15 +63,15 @@ export default function Evidencia() {
               <h2 className="font-marca text-lg font-bold leading-tight text-marino">{a.nombre}</h2>
               {a.tipo_caso && <span className="shrink-0 rounded-full bg-marino-50 px-2.5 py-0.5 text-xs font-semibold text-marino">{a.tipo_caso}</span>}
             </div>
-            <p className="mt-1 text-sm text-slate-600">{[a.cliente, a.identificador_interno, a.jurisdiccion].filter(Boolean).join(" · ") || "Sin datos adicionales"}</p>
+            <p className="mt-1 text-sm text-slate-600">{[a.cliente, a.identificador_interno, a.jurisdiccion_texto || a.jurisdiccion].filter(Boolean).join(" · ") || "Sin datos adicionales"}</p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
               <div className="rounded-lg bg-crema/70 p-2"><div className="font-marca text-lg font-extrabold text-marino">{a.documentos}</div>documentos</div>
               <div className={`rounded-lg p-2 ${a.hechos_por_revisar ? "bg-amber-50 text-amber-900" : "bg-crema/70"}`}><div className="font-marca text-lg font-extrabold">{a.hechos_por_revisar}</div>por revisar</div>
-              <div className="rounded-lg bg-turquesa-50 p-2 text-turquesa-700"><div className="font-marca text-lg font-extrabold">{a.hechos_confirmados}</div>confirmados</div>
+              <div className="rounded-lg bg-turquesa-50 p-2 text-turquesa-700"><div className="font-marca text-lg font-extrabold">{a.hechos_confirmados}</div>revisados</div>
             </div>
             <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
               <span>{a.responsable ? `Responsable: ${a.responsable}` : "Sin responsable"}</span>
-              <span>{a.pendientes_abiertos ? <b className="text-amber-700">{a.pendientes_abiertos} pendiente(s)</b> : "Sin pendientes"} · {fecha(a.actualizado_en)}</span>
+              <span>{a.documentos_recibidos > 0 && <b className="mr-1 text-violet-700">{a.documentos_recibidos} del cliente por aceptar ·</b>}{a.pendientes_abiertos ? <b className="text-amber-700">{a.pendientes_abiertos} pendiente(s)</b> : "Sin pendientes"} · {fecha(a.actualizado_en)}</span>
             </div>
           </Link>
         ))}

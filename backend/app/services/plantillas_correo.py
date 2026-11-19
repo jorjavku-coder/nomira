@@ -33,7 +33,10 @@ def _boton(texto: str, url: str) -> str:
   </td></tr></table>"""
 
 
-def _base(preencabezado: str, contenido: str) -> str:
+PIE_CUENTA = "Recibe este correo porque su organización tiene una cuenta en Nomira."
+
+
+def _base(preencabezado: str, contenido: str, pie: str = PIE_CUENTA) -> str:
     logo = _url("/correo/logo.png")
     return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -53,7 +56,7 @@ def _base(preencabezado: str, contenido: str) -> str:
     <tr><td style="padding:24px 36px;font-family:{FUENTE};font-size:12px;line-height:1.6;color:#64748b;text-align:center">
       Nomira · Cada prestación, en claro<br>
       <a href="{_url()}" style="color:{TURQUESA_700};text-decoration:none">{escape(_url().split('://')[-1])}</a>
-      <br>Recibe este correo porque su organización tiene una cuenta en Nomira.
+      <br>{escape(pie)}
     </td></tr>
   </table>
 </td></tr></table></body></html>"""
@@ -136,3 +139,61 @@ def recordatorio_vencimiento(nombre: str, organizacion: str, plan: str, fin: dat
              + (f"Escríbanos por WhatsApp: https://wa.me/{wa}\n\n" if 10 <= len(wa) <= 15 else "")
              + "Si ya realizó su pago, puede ignorar este mensaje o responder con su comprobante.\n\n— El equipo de Nomira\n")
     return asunto, _base(f"El plan de {organizacion} vence el {fecha_larga(fin)}", contenido), texto
+
+
+def _lista(items: list[str]) -> str:
+    filas = "".join(f'<tr><td style="padding:3px 10px 3px 0;color:{TURQUESA_700};vertical-align:top">•</td>'
+                    f'<td style="padding:3px 0">{escape(i)}</td></tr>' for i in items)
+    return f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-size:15px">{filas}</table>'
+
+
+def solicitud_documentos(despacho: str, abogado: str, enlace: str, vence: date, mensaje: str | None,
+                         documentos: list[str], requiere_codigo: bool) -> tuple[str, str, str]:
+    """Al cliente del despacho: enlace para SUBIR documentos. No incluye datos del expediente."""
+    asunto = f"{despacho} le solicita documentos"
+    d, a = escape(despacho), escape(abogado)
+    msj = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px">'
+           f'<tr><td style="background:{CREMA};border-left:4px solid {TURQUESA};border-radius:8px;padding:14px 18px;'
+           f'white-space:pre-line">{escape(mensaje)}</td></tr></table>') if mensaje else ""
+    lista = (f'<p style="margin:0 0 8px;font-weight:700;color:{MARINO}">Documentos solicitados</p>'
+             f'{_lista(documentos)}') if documentos else ""
+    codigo = ("Al abrir el enlace le enviaremos un código de verificación a este mismo correo." if requiere_codigo else "")
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Le solicitamos algunos documentos</h1>
+<p style="margin:0 0 20px"><b>{a}</b>, de <b style="color:{MARINO}">{d}</b>, le pide que envíe documentos por este medio seguro.</p>
+{msj}{lista}
+{_boton("Enviar mis documentos", enlace)}
+<p style="margin:0 0 6px;font-size:14px;color:#64748b">El enlace vence el <b>{fecha_larga(vence)}</b> y solo sirve para enviar archivos (PDF, JPG, PNG o WebP); no muestra ninguna información. {codigo}</p>
+<p style="margin:16px 0 0;font-size:13px;color:#64748b">Si no esperaba este mensaje, ignórelo: nadie de {d} le pedirá contraseñas por correo.</p>"""
+    texto = (f"{abogado}, de {despacho}, le pide que envíe documentos por un medio seguro.\n\n"
+             + (f"{mensaje}\n\n" if mensaje else "")
+             + ("Documentos solicitados:\n" + "\n".join(f"- {x}" for x in documentos) + "\n\n" if documentos else "")
+             + f"Enviar documentos: {enlace}\n\nEl enlace vence el {fecha_larga(vence)} y solo sirve para enviar archivos. "
+             + (codigo + "\n" if codigo else "\n")
+             + f"\nSi no esperaba este mensaje, ignórelo.\n")
+    return asunto, _base(f"{despacho} le pide documentos", contenido,
+                         pie=f"Recibe este correo porque {despacho} le solicitó documentos por medio de Nomira."), texto
+
+
+def codigo_verificacion(despacho: str, codigo: str, minutos: int) -> tuple[str, str, str]:
+    asunto = f"Su código para enviar documentos: {codigo}"
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Su código de verificación</h1>
+<p style="margin:0 0 20px">Escríbalo en la página para enviar sus documentos a <b>{escape(despacho)}</b>.</p>
+<p style="margin:0 0 20px;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:{MARINO}">{escape(codigo)}</p>
+<p style="margin:0;font-size:14px;color:#64748b">Vence en {minutos} minutos. Si usted no lo pidió, ignore este correo.</p>"""
+    texto = f"Su código para enviar documentos a {despacho}: {codigo}\nVence en {minutos} minutos. Si usted no lo pidió, ignore este correo.\n"
+    return asunto, _base(f"Código {codigo}", contenido, pie=f"Correo automático de Nomira para {despacho}."), texto
+
+
+def documentos_recibidos(nombre: str, asunto_nombre: str, n: int, email_cliente: str, url: str) -> tuple[str, str, str]:
+    """Al abogado: el cliente envió archivos; quedan pendientes de revisión."""
+    asunto = f"Recibió {n} documento(s) del cliente — {asunto_nombre}"[:250]
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Hola, {escape(nombre.split()[0])}: llegaron documentos</h1>
+<p style="margin:0 0 16px"><b>{escape(email_cliente)}</b> envió <b>{n}</b> archivo(s) al asunto <b style="color:{MARINO}">{escape(asunto_nombre)}</b>.</p>
+<p style="margin:0 0 4px">Quedaron como <b>«Recibido — pendiente de revisión»</b>: Nomira no los lee hasta que usted los acepte.</p>
+{_boton("Revisar documentos", url)}"""
+    texto = (f"{email_cliente} envió {n} archivo(s) al asunto {asunto_nombre}. Quedaron pendientes de revisión: "
+             f"Nomira no los lee hasta que usted los acepte.\n\nRevisar: {url}\n")
+    return asunto, _base(f"{n} documento(s) nuevos en {asunto_nombre}", contenido), texto

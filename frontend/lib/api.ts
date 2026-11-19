@@ -87,10 +87,10 @@ export const api = {
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
   subirPut: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "PUT", body: datos })).json(),
   subir: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "POST", body: datos })).json(),
-  blob: async (ruta: string): Promise<{ blob: Blob; nombre: string | null }> => {
-    const r = await pedir(ruta);
+  blob: async (ruta: string, init: RequestInit = {}): Promise<{ blob: Blob; nombre: string | null; encabezados: Headers }> => {
+    const r = await pedir(ruta, init);
     const cd = r.headers.get("Content-Disposition") || "";
-    return { blob: await r.blob(), nombre: /filename="([^"]+)"/.exec(cd)?.[1] ?? null };
+    return { blob: await r.blob(), nombre: /filename="([^"]+)"/.exec(cd)?.[1] ?? null, encabezados: r.headers };
   },
   descargar: async (ruta: string, respaldo: string) => {
     const { blob, nombre } = await api.blob(ruta);
