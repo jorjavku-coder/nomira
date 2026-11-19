@@ -16,6 +16,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   usuarios: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
   evidencia: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13l2 2 4-4" /></>,
   perfil: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  afore: <><path d="M12 3l8 4v2H4V7z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7M3 20h18" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
@@ -68,8 +69,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const activos = modulos ?? sesion?.modulos ?? ["nomina"];
   const deNomina = ruta === "/app" || ruta.startsWith("/expedientes") || ruta.startsWith("/catalogos");
   const deEvidencia = ruta.startsWith("/evidencia");
+  const deAfore = ruta.startsWith("/afore");
   useEffect(() => {
-    if (modulos && ruta === "/app" && !modulos.includes("nomina") && modulos.includes("evidencia")) router.replace("/evidencia");
+    if (modulos && ruta === "/app" && !modulos.includes("nomina")) {
+      if (modulos.includes("evidencia")) router.replace("/evidencia");
+      else if (modulos.includes("afore")) router.replace("/afore");
+    }
   }, [modulos, ruta, router]);
   const [sinLeer, setSinLeer] = useState(0);
   useEffect(() => {
@@ -81,14 +86,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return () => { clearInterval(t); window.removeEventListener("nomira:soporte", cargar); };
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
-  const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : "/perfil";
-  const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia"));
+  const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore" : "/perfil";
+  const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"));
   const enlaces = [
     ...(activos.includes("nomina") ? [
       { href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
       { href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
     ...(activos.includes("evidencia") ? [
       { href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
+    ...(activos.includes("afore") ? [
+      { href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
     ...(sesion.usuario.rol === "administrador" ? [
       { href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
       { href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),

@@ -2,6 +2,7 @@
 import sys
 
 from app.db import SessionLocal
+from app.services.afore import demo as afore_demo
 from app.services.evidencia import demo as evidencia_demo
 from app.services.semilla import restaurar_archivos, sembrar_demo
 
@@ -10,6 +11,7 @@ if __name__ == "__main__":
         r = sembrar_demo(db)
         ev = evidencia_demo.sembrar(db)  # una sola vez por organización de demostración
         evidencia_demo.sembrar_divorcio(db)
+        afore_demo.sembrar(db)  # Nomira AFORE: dos casos ficticios
         if "--restaurar" in sys.argv:
             print("Archivos:", restaurar_archivos(db), "· Evidencia:", evidencia_demo.restaurar_archivos(db))
     if r["creado"]:

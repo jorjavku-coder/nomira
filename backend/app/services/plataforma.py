@@ -35,6 +35,9 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
     n = db.query(m.Expediente).filter(m.Expediente.organizacion_id == oid).count()
     db.execute(delete(m.TicketSoporte).where(m.TicketSoporte.organizacion_id == oid))  # mensajes: CASCADE
     db.execute(delete(m.PeriodoSuscripcion).where(m.PeriodoSuscripcion.organizacion_id == oid))
+    # Nomira AFORE: mensajes, casos (requisitos, documentos, cronología, plazos: CASCADE), accesos y clientes
+    for modelo in (m.AfMensaje, m.AfCaso, m.AfAcceso, m.AfConsentimiento, m.AfCliente, m.AfPlantilla, m.AfConfig):
+        db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     db.execute(delete(m.EvAsunto).where(m.EvAsunto.organizacion_id == oid))  # documentos, hechos, matriz, pendientes: CASCADE
     db.execute(delete(m.OrganizacionModulo).where(m.OrganizacionModulo.organizacion_id == oid))
     db.execute(delete(m.Correccion).where(m.Correccion.organizacion_id == oid))

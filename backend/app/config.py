@@ -48,6 +48,16 @@ class Ajustes(BaseSettings):
     # Recordatorio a los administradores del cliente cuando faltan estos días (o menos) para que
     # venza su plan de pago sin renovación registrada. 0 = desactivado.
     recordatorio_dias: int = 7
+    # --- Nomira AFORE ---
+    afore_clave_cifrado: str = ""  # clave para cifrar CURP, NSS y tokens (vacío: se deriva de JWT_SECRETO)
+    # WhatsApp Business Platform (Cloud API oficial de Meta): datos de la APP de Meta de la plataforma.
+    # El número y el token de cada despacho se guardan cifrados en su configuración.
+    whatsapp_verify_token: str = ""  # para validar la suscripción del webhook
+    whatsapp_app_secret: str = ""  # para validar la firma X-Hub-Signature-256 de cada webhook
+    whatsapp_api_version: str = "v21.0"
+    # API oficial de CURP (opcional, deshabilitada sin credenciales y sin autorización por organización)
+    curp_api_url: str = ""
+    curp_api_key: str = ""
     plataforma_admin_email: str = ""
     plataforma_admin_contrasena: str = ""
 

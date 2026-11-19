@@ -45,6 +45,8 @@ def _limpiar():
     auth._intentos.clear()
     from app.routers import evidencia_publica
     evidencia_publica._fallos_ip._eventos.clear()
+    from app.routers import afore_publico
+    afore_publico._fallos_ip._eventos.clear()
     from app.routers import plataforma as _plataforma
     _plataforma._intentos.clear()
     from app.routers import solicitudes

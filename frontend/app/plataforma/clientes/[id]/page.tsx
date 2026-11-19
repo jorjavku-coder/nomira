@@ -50,7 +50,7 @@ export default function Cliente() {
         <section className="tarjeta mt-6 p-5">
           <h2 className="font-semibold text-marino">Módulos contratados</h2>
           <p className="mt-1 text-sm text-slate-500">Lo que marque aquí queda disponible y activo para el cliente; su administrador puede desactivarlo en «Mi empresa». Retirar un módulo lo oculta pero no borra sus datos.</p>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
             {Object.values(c.modulos as Record<string, any>).map((md) => (
               <label key={md.clave} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${md.contratado ? "border-turquesa bg-turquesa-50/60" : "border-crema-300"}`}>
                 <input type="checkbox" className="mt-1 h-4 w-4 accent-turquesa" checked={md.contratado}
@@ -67,6 +67,15 @@ export default function Cliente() {
               </label>
             ))}
           </div>
+          {c.modulos.afore?.contratado && (
+            <label className="mt-3 flex items-start gap-2 rounded-xl border border-crema-300 p-3 text-sm">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-turquesa" checked={!!c.curp_oficial_autorizado}
+                onChange={(e) => accion(() => apiP.patch(`/clientes/${c.id}/curp-oficial`, { autorizado: e.target.checked }),
+                  e.target.checked ? "Consulta oficial de CURP autorizada para este cliente." : "Consulta oficial de CURP retirada.")} />
+              <span><b className="text-marino">Nomira AFORE: autorizar consulta oficial de CURP</b>
+                <span className="block text-xs text-slate-500">Márquelo solo si el despacho acreditó su autorización. Además se requieren las credenciales del servicio oficial en el servidor (CURP_API_URL y CURP_API_KEY); sin ellas sigue «no configurada».</span></span>
+            </label>
+          )}
         </section>
       )}
 

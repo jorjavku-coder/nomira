@@ -17,7 +17,11 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET",
             ("GET", "/api/salud"), ("POST", "/api/solicitudes"),
             # Carga de documentos del cliente: no usa sesión sino el enlace (X-Enlace); sin él, 404.
             ("POST", "/api/subida/estado"), ("POST", "/api/subida/codigo"), ("POST", "/api/subida/verificar"),
-            ("POST", "/api/subida/archivos")}
+            ("POST", "/api/subida/archivos"),
+            # Nomira AFORE: portal del cliente (enlace) y webhook de WhatsApp (firma de Meta)
+            ("POST", "/api/portal-afore/estado"), ("POST", "/api/portal-afore/codigo"), ("POST", "/api/portal-afore/verificar"),
+            ("POST", "/api/portal-afore/documentos"), ("POST", "/api/portal-afore/preferencias"),
+            ("GET", "/api/whatsapp/webhook"), ("POST", "/api/whatsapp/webhook")}
 
 
 def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):

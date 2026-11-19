@@ -263,6 +263,7 @@ export function EnviarBienvenida({ valor, onCambio }: { valor: boolean; onCambio
 const MODULOS_ALTA = [
   ["nomina", "Nómina y prestaciones", "Desglose de prestaciones por quincena."],
   ["evidencia", "Nomira Evidencia", "Expediente probatorio con hechos, cronología y matriz."],
+  ["afore", "Nomira AFORE", "Casos AFORE/SAR, portal del cliente y mensajes con aprobación."],
 ];
 
 /** Módulos que el cliente contrata desde el alta (al menos uno). */
@@ -270,7 +271,7 @@ export function ModulosIniciales({ valor, onCambio }: { valor: string[]; onCambi
   return (
     <fieldset>
       <legend className="etiqueta">Módulos contratados</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-3">
         {MODULOS_ALTA.map(([clave, nombre, desc]) => {
           const marcado = valor.includes(clave);
           return (

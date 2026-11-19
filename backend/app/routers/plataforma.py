@@ -331,7 +331,9 @@ def cliente(cid: int, a: m.AdminPlataforma = Depends(admin_plataforma), db: Sess
     usuarios = db.scalars(select(m.Usuario).where(m.Usuario.organizacion_id == o.id, m.Usuario.eliminado_en.is_(None))
                           .order_by(m.Usuario.rol, m.Usuario.nombre)).all()
     return {**_c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id)),
-            "modulos": modulos.estado(db, o.id), "usuarios_detalle": [
+            "modulos": modulos.estado(db, o.id),
+            "curp_oficial_autorizado": bool(db.scalar(select(m.AfConfig.curp_oficial_autorizado).where(m.AfConfig.organizacion_id == o.id))),
+            "usuarios_detalle": [
         {"id": u.id, "nombre": u.nombre, "email": u.email, "rol": u.rol, "activo": u.activo,
          "ultimo_acceso": ultimos[u.id].isoformat() if u.id in ultimos else None} for u in usuarios]}
 
@@ -374,6 +376,27 @@ def contratar_modulo(cid: int, modulo: str, d: Contratacion, request: Request,
                entidad="organizacion", entidad_id=o.id, detalle={"modulo": modulo})
     db.commit()
     return nuevo
+
+
+class CurpOficial(BaseModel):
+    autorizado: bool
+
+
+@router.patch("/clientes/{cid}/curp-oficial")
+def autorizar_curp_oficial(cid: int, d: CurpOficial, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                           db: Session = Depends(get_db)):
+    """Nomira AFORE: habilita la consulta oficial de CURP para un despacho que acreditó su autorización.
+    Sin credenciales del servicio en el servidor sigue deshabilitada."""
+    from ..services.afore import curp_oficial, mensajes as af_msj
+
+    o = _cliente(db, cid)
+    cfg = af_msj.config(db, o.id)
+    cfg.curp_oficial_autorizado = d.autorizado
+    _registrar(db, a, "curp_oficial_autorizada" if d.autorizado else "curp_oficial_retirada", request, organizacion_id=o.id,
+               entidad="organizacion", entidad_id=o.id)
+    db.commit()
+    ok, motivo = curp_oficial.disponible(cfg)
+    return {"autorizado": cfg.curp_oficial_autorizado, "disponible": ok, "motivo": motivo}
 
 
 @router.post("/clientes/{cid}/eliminar")

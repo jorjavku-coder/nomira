@@ -20,6 +20,8 @@ MODULOS = {
                "por_defecto": True},
     "evidencia": {"nombre": "Nomira Evidencia", "descripcion": "Expediente probatorio: documentos, hechos con fuente, cronología, matriz de evidencia y pendientes.",
                   "por_defecto": False},
+    "afore": {"nombre": "Nomira AFORE", "descripcion": "Casos AFORE y SAR: checklist, folios y seguimientos, portal del cliente y mensajes con aprobación del abogado.",
+              "por_defecto": False},
 }
 
 
