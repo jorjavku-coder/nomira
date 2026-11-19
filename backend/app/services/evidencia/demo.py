@@ -76,6 +76,35 @@ def documentos() -> dict[str, bytes]:
             "correo_recursos_humanos_ficticio.png": correo, "recibo_de_finiquito_ficticio.pdf": finiquito}
 
 
+def documentos_divorcio() -> dict[str, bytes]:
+    """Asunto familiar ficticio («divorcio de Laura»). Sirve para comprobar que Nomira distingue la
+    fecha de un documento de la fecha del evento que describe, y que solo compara el mismo dato."""
+    entrevista = _pdf("ENTREVISTA INICIAL CON LA CLIENTE", [
+        "Fecha de la entrevista: 3 de febrero de 2026.",
+        "Cliente: Laura Ficticia Ramírez.",
+        "La cliente refiere que contrajo matrimonio con el señor Mario Demo Torres el 14 de mayo de 2015.",
+        "Indica que la separación de hecho ocurrió el 10 de enero de 2026, cuando el señor Mario Demo Torres "
+        "salió del domicilio conyugal.",
+        "Señala que tienen dos hijos menores de edad que viven con ella.",
+        "Refiere que él aportaba $8,000.00 M.N. mensuales para los gastos del hogar.",
+    ])
+    convenio = _pdf("BORRADOR DE CONVENIO DE DIVORCIO", [
+        "Toluca, Estado de México, a 12 de febrero de 2026. Estado del documento: borrador para revisión.",
+        "Nota editorial: la fecha de este borrador (12 de febrero de 2026) es la fecha en que se elaboró; "
+        "la fecha del documento no equivale a la fecha de los hechos que describe.",
+        "PRIMERA. Las partes manifiestan que viven separadas desde el 12 de enero de 2026.",
+        "SEGUNDA. El señor Mario Demo Torres aportará una pensión alimenticia de $9,500.00 M.N. mensuales.",
+        "TERCERA. La guarda y custodia de los hijos menores quedará a cargo de la señora Laura Ficticia Ramírez.",
+    ])
+    conversacion = _imagen(_pdf("Conversación simulada (mensajes)", [
+        "Fecha de la conversación: 20/01/2026.",
+        "Laura: Mario, desde que nos separamos el 12 de enero de 2026 no me has dado dinero para los niños.",
+        "Mario: Te deposito la próxima semana.",
+    ]))
+    return {"entrevista_inicial_ficticia.pdf": entrevista, "borrador_convenio_ficticio.pdf": convenio,
+            "conversacion_simulada_ficticia.png": conversacion}
+
+
 def _guardar(db: Session, a: m.EvAsunto, nombre: str, datos: bytes, usuario_id: int) -> m.EvDocumento:
     from .lectura import detectar_formato
 
@@ -156,10 +185,37 @@ def sembrar(db: Session, email: str = "admin@demo.local") -> bool:
     return True
 
 
+def sembrar_divorcio(db: Session, email: str = "admin@demo.local") -> bool:
+    """Segundo asunto de demostración (familiar). Se crea una sola vez y solo si la organización de
+    demostración tiene Evidencia activo. Los hechos quedan por revisar: son para practicar la validación."""
+    admin = db.scalar(select(m.Usuario).where(m.Usuario.email == email))
+    if not admin or "evidencia" not in modulos.activos(db, admin.organizacion_id):
+        return False
+    oid = admin.organizacion_id
+    if db.scalar(select(m.EvAsunto.id).where(m.EvAsunto.organizacion_id == oid, m.EvAsunto.identificador_interno == "DEMO-002")):
+        return False
+    a = m.EvAsunto(organizacion_id=oid, nombre="Divorcio de Laura Ficticia Ramírez", cliente="Laura Ficticia Ramírez",
+                   tipo_caso="Familiar", jurisdiccion="Toluca, Estado de México", identificador_interno="DEMO-002",
+                   responsable_id=admin.id, notas="Asunto de demostración con documentos ficticios.", creado_por_id=admin.id,
+                   campos={"Contraparte": "Mario Demo Torres"})
+    db.add(a)
+    db.commit()
+    for nombre, datos in documentos_divorcio().items():
+        _guardar(db, a, nombre, datos, admin.id)
+    db.add_all([
+        m.EvPendiente(organizacion_id=oid, asunto_id=a.id, descripcion="Acta de matrimonio", responsable="Cliente",
+                      estado="pendiente", creado_por_id=admin.id),
+        m.EvPendiente(organizacion_id=oid, asunto_id=a.id, descripcion="Actas de nacimiento de los hijos",
+                      responsable="Cliente", estado="pendiente", creado_por_id=admin.id),
+    ])
+    db.commit()
+    return True
+
+
 def restaurar_archivos(db: Session) -> dict:
     """Tras un reinicio con disco temporal: regenera los documentos ficticios por su huella; los
     demás quedan en error para que se vuelvan a cargar (nada se inventa)."""
-    demo = {hashlib.sha256(d).hexdigest(): d for d in documentos().values()}
+    demo = {hashlib.sha256(d).hexdigest(): d for d in [*documentos().values(), *documentos_divorcio().values()]}
     restaurados = perdidos = 0
     for d in db.scalars(select(m.EvDocumento)):
         if Path(d.ruta).exists():

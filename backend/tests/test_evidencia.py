@@ -131,8 +131,15 @@ def test_lectura_propone_hechos_con_fuente_y_nada_confirmado(ev, db):
     assert inicio["fecha"] == "2020-01-15" and inicio["fecha_texto"] == "15 de enero de 2020"
     salario = next(h for h in hechos if "salario" in h["descripcion"].lower())
     assert salario["importe"] == "18500.00" and salario["fecha"] is None
-    comparecen = next(h for h in hechos if "celebran" in h["descripcion"])
+    # «En la Ciudad de México, el 15 de enero de 2020, celebran el presente contrato…»: es la fecha DEL
+    # DOCUMENTO (no un evento del caso) y el lugar va en una propuesta aparte
+    comparecen = next(h for h in hechos if "celebran" in h["fragmento"] and h["tipo_dato"] == "fecha_documento")
     assert comparecen["personas"] == ["Roberto Ejemplo Pérez", "Juan Demo Ficticio"]
+    assert (comparecen["valor_original"], comparecen["valor"]) == ("15 de enero de 2020", "15 ene 2020")
+    lugar = next(h for h in hechos if h["tipo_dato"] == "lugar")
+    assert lugar["valor"] == "Ciudad de México" and "15 de enero" not in lugar["descripcion"]
+    assert (inicio["tipo_dato"], inicio["tema"]) == ("fecha_evento", "inicio_relacion")
+    assert (salario["tipo_dato"], salario["tema"]) == ("importe", "salario")
     # Cada frase propuesta existe literalmente en el documento (no se inventa texto)
     texto = " ".join(" ".join(pg.texto.split()) for pg in db.query(m.EvPagina).all())
     assert all(" ".join(h["fragmento"].split()) in texto for h in hechos)
@@ -153,7 +160,7 @@ def test_imagen_se_lee_con_ocr_y_contradiccion_se_senala_sin_decidir(ev):
     assert correo["estado"] == "leido" and correo["formato"] == "png" and correo["tipo_sugerido"] == "Correo o mensaje"
     a = next(h for h in p["hechos"] if "inicia el 15 de enero" in h["descripcion"])
     b = next(h for h in p["hechos"] if h["documento_id"] == correo["id"] and h["fecha"] == "2020-02-01")
-    assert b["confianza"] is not None  # viene de OCR
+    assert "OCR" in b["calidad"]["lectura"] and "confianza" not in b  # viene de OCR; sin porcentajes
     r = ev.c.post(f"/api/evidencia/asuntos/{aid}/hechos/confirmar", headers=ev.h, json={"ids": [a["id"], b["id"]]})
     assert r.status_code == 200
     p = panel(ev, aid)
@@ -171,7 +178,8 @@ def test_imagen_se_lee_con_ocr_y_contradiccion_se_senala_sin_decidir(ev):
     # La persona revisa el par y lo marca como revisado: deja de señalarse; los hechos no cambian
     ev.c.post(f"/api/evidencia/asuntos/{aid}/contradicciones/revisada", headers=ev.h, json={"par": p["contradicciones"][0]["par"]})
     p = panel(ev, aid)
-    assert p["contradicciones"] == [] and len(p["cronologia"]["eventos"]) == 2
+    assert [c["decision_texto"] for c in p["contradicciones"]] == ["No aplica"] and p["resumen"]["diferencias_pendientes"] == 0
+    assert len(p["cronologia"]["eventos"]) == 2 and not any(e["contradicciones"] for e in p["cronologia"]["eventos"])
 
 
 def test_hechos_manuales_edicion_y_confirmacion(ev, db):
@@ -193,7 +201,7 @@ def test_hechos_manuales_edicion_y_confirmacion(ev, db):
     assert ev.c.post(f"/api/evidencia/asuntos/{aid}/hechos", headers=ev.h, json={
         "descripcion": "Página inexistente", "documento_id": doc, "pagina": 9}).status_code == 422
     # Editar una propuesta automática la deja «Editado por usuario» y conserva la propuesta original
-    auto = next(h for h in panel(ev, aid)["hechos"] if h["origen"] == "automatico")
+    auto = next(h for h in panel(ev, aid)["hechos"] if h["origen"] == "automatico" and h["tipo_dato"] == "fecha_evento")
     r = ev.c.patch(f"/api/evidencia/hechos/{auto['id']}", headers=ev.h, json={"descripcion": "Inicio de la relación laboral", "fecha": "2020-01-15"})
     editado = r.json()
     assert editado["estado"] == "editado" and editado["original"]["descripcion"] == auto["descripcion"]

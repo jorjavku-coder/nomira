@@ -150,34 +150,67 @@ organización puede usar uno, el otro o ambos.
   del backend (403), pero **no borra datos**.
 - Tabla `organizacion_modulos`; lógica en `backend/app/services/modulos.py`.
 
-**Flujo de Evidencia** (`/evidencia`):
+**Flujo de Evidencia** (`/evidencia`). Nomira ayuda a localizar, comparar y organizar; **no decide**
+si un hecho es verdadero, relevante, admisible o suficiente.
 
-1. **Asunto:** nombre, cliente, tipo de caso (texto libre), jurisdicción, identificador interno,
-   responsable, notas y campos adicionales propios del despacho.
-2. **Documentos:** PDF o imágenes (JPG, PNG, WebP). El original se guarda sin cambios. Nomira lo
-   lee (texto del PDF u OCR) y **sugiere** tipo y fecha; una persona confirma la clasificación.
-   Lo que no se lee con confianza queda «Requiere revisión».
-3. **Hechos:** se propone un hecho por cada frase del documento con una fecha o un importe, con
-   documento, página, texto literal de origen y zona en la página. Todos nacen «Por revisar»;
-   una persona los confirma, edita («Editado por usuario») o descarta. Un hecho sin documento
-   fuente no puede confirmarse.
-4. **Cronología:** solo hechos revisados, ordenados por fecha, cada uno con su fuente. Si dos
-   documentos describen algo parecido con fecha o importe distintos, se muestran ambas versiones
-   como «Posible contradicción para revisar»; Nomira no decide cuál es correcta.
-5. **Matriz de evidencia:** hechos que se buscan acreditar, con hechos confirmados o páginas
-   vinculadas. El estado lo decide el abogado; el sistema solo sugiere (nunca «Respaldado»).
-6. **Pendientes:** documentos o datos faltantes con responsable, fecha de seguimiento y estado.
-   Se exporta una lista para el cliente sin notas internas. No se envían mensajes.
-7. **Exportación** PDF y Excel: portada, índice de documentos, cronología, matriz, pendientes y
-   referencias a archivo y página, con fecha y usuario que la generó.
+1. **Asunto:** nombre, cliente, tipo de caso, responsable, notas y campos propios. Jurisdicción en
+   campos separados y opcionales: ámbito (federal/local), entidad federativa (las 32), municipio o
+   distrito judicial, juzgado u órgano y número de expediente judicial (aparte del identificador
+   interno del despacho). El texto libre anterior se conserva en `jurisdiccion`; si era exactamente
+   una entidad, la migración 0012 llena la entidad.
+2. **Requiere tu atención** (pestaña inicial): documentos del cliente por aceptar, posibles
+   diferencias sin resolver, pendientes vencidos o por vencer (3 días), hechos por revisar,
+   documentos sin clasificar o ilegibles y puntos de la matriz sin evidencia, con acciones ahí mismo.
+3. **Documentos:** dos opciones: «Subirlos yo» o «Pedírselos al cliente» (ver abajo). El original no
+   se modifica. Visibilidad por documento: interno, compartible con el cliente o **restringido**
+   (solo administradores, responsable del asunto y quien lo cargó; se aplica en el servidor: lista,
+   hechos, visor, descarga, búsqueda y exportaciones). Se señalan posibles **duplicados** y
+   **versiones** (texto parecido) con comparación línea por línea; ambos se conservan y se indica
+   cuál se cargó al último, sin suponer que sea el vigente.
+4. **Visor de fuente:** abre la página citada con el fragmento resaltado; pestaña aparte con el
+   texto leído (PDF u OCR) y la cita resaltada. Las páginas dibujadas se guardan en
+   `STORAGE_DIR/cache`. Tiene límite de espera (45 s), mensaje de error y «Reintentar»: antes podía
+   quedarse en «Cargando página…» si la petición se atoraba (servidor despertando o con poco CPU).
+5. **Hechos candidatos:** un dato por tarjeta, de tipo fecha del evento, fecha mencionada por una
+   persona, fecha del documento, fecha sin determinar, importe, persona, lugar o dato
+   administrativo; con quién lo afirma («La cliente indica», «El borrador propone»), texto original
+   y dato normalizado, cita, documento y página. No se proponen títulos, notas editoriales, pies
+   de página ni texto sobre el sistema; lo fragmentado, ilegible o legal genérico se marca de
+   «baja calidad». Sin porcentajes: la calidad se explica en palabras. Estados: Propuesto por
+   Nomira, Confirmado por una persona, Editado por una persona, Descartado (o «no relevante para
+   este asunto»), con historial de quién hizo cada cambio. Volver a leer conserva lo revisado por
+   personas, no repite propuestas equivalentes e informa cuántas son nuevas.
+6. **Posibles diferencias:** compara solo el mismo dato (por tema: separación, inicio de la
+   relación, pago…; o nombres de una misma persona) entre documentos distintos; nunca la fecha de
+   un documento contra la del evento. Muestra ambas fuentes lado a lado con una explicación. El
+   abogado decide: «Son eventos distintos», «Diferencia aclarada», «Contradicción confirmada» o
+   «No aplica»; queda en el historial y no cambia ningún hecho.
+7. **Cronología:** solo hechos revisados de eventos (no fechas de documentos).
+8. **Matriz de evidencia:** se vinculan hechos y documentos desde el punto o desde la tarjeta del
+   hecho; cada fuente se marca como apoya / contradice / no basta, con quién lo decidió. El estado
+   del punto lo decide el abogado; el sistema nunca sugiere «Respaldado».
+9. **Pendientes**, **Buscar** (texto de todos los documentos, sin acentos ni mayúsculas, con
+   documento, página y fragmento), **Historial** del asunto y **Exportación** PDF/Excel.
 
-Evidencia no usa ninguna tabla de Nómina (tablas `ev_*`), no emite conclusiones jurídicas y no
-envía documentos a servicios externos. Cada carga, clasificación, revisión, cambio de estado y
-exportación queda en la auditoría.
+**Solicitud de documentos al cliente:** el abogado captura correo, mensaje, lista de documentos y
+vigencia (1 a 30 días; 7 por omisión). Nomira envía un correo con `URL_PUBLICA/subir#token`.
+- El token (256 bits) no se guarda: solo su SHA-256. Va en el fragmento de la URL, que el
+  navegador no envía al servidor, y de ahí en el encabezado `X-Enlace`: no queda en registros.
+- Por omisión exige un código de 6 dígitos enviado a ese correo (HMAC, 10 min, 5 intentos) y da
+  una sesión de 60 min ligada al enlace. Freno por IP ante enlaces o códigos inválidos.
+- Solo permite **subir** (máx. 20 archivos por enlace, 10 por envío, mismas reglas de tamaño y
+  tipo real que el despacho, y la extensión debe coincidir). El cliente ve qué se le pidió y lo
+  que él mismo envió; nada del asunto.
+- Lo recibido queda «Recibido — pendiente de revisión» y **no se lee** hasta que alguien lo
+  acepta. No hay antivirus en el servidor: la pantalla lo indica.
+- Se puede revocar; el abogado recibe un correo por cada envío. Todo queda en la auditoría.
+- Rutas públicas en `backend/app/routers/evidencia_publica.py` (`/api/subida/*`).
 
-**Fuera de esta primera versión:** audio, WhatsApp, plantillas jurídicas, integraciones
-externas, IA para proponer hechos, y adjuntar un resultado de Nómina como documento del asunto
-(el modelo ya guarda `origen` en cada documento para hacerlo después).
+**Correos:** fuera de producción (`ENTORNO` distinto de `produccion`) ningún correo sale: se
+guardan en `STORAGE_DIR/correos_prueba`, salvo `CORREO_ENVIO_REAL=true`. `CORREO_PROVEEDOR=prueba`
+fuerza ese modo en cualquier entorno.
+
+Evidencia no usa tablas de Nómina (tablas `ev_*`) ni envía documentos a servicios externos.
 
 ![Hechos con fuente](docs/capturas/ev-02-hechos.png)
 

@@ -17,6 +17,8 @@ class CorreoError(Exception):
 
 def configurado() -> bool:
     a = ajustes()
+    if a.correo_proveedor == "prueba":
+        return True
     if a.correo_proveedor == "resend":
         return bool(a.resend_api_key)
     if a.correo_proveedor == "smtp":
@@ -39,10 +41,32 @@ def enviar(destinatarios: list[str], asunto: str, html: str, texto: str) -> None
     if not configurado():
         raise CorreoError("El envío de correos no está configurado (CORREO_PROVEEDOR).")
     a = ajustes()
-    if a.correo_proveedor == "resend":
+    if modo_prueba():
+        _prueba(destinatarios, asunto, html, texto)
+    elif a.correo_proveedor == "resend":
         _resend(destinatarios, asunto, html, texto)
     else:
         _smtp(destinatarios, asunto, html, texto)
+
+
+def modo_prueba() -> bool:
+    """Fuera de producción nunca sale un correo real, salvo que se pida con CORREO_ENVIO_REAL=true."""
+    a = ajustes()
+    return a.correo_proveedor == "prueba" or (a.entorno != "produccion" and not a.correo_envio_real)
+
+
+def _prueba(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
+    """Modo de prueba: el correo se guarda en STORAGE_DIR/correos_prueba en vez de enviarse."""
+    import json
+    import time
+    from pathlib import Path
+
+    carpeta = Path(ajustes().storage_dir) / "correos_prueba"
+    carpeta.mkdir(parents=True, exist_ok=True, mode=0o700)
+    base = carpeta / f"{time.time():.6f}"
+    base.with_suffix(".html").write_text(html, encoding="utf-8")
+    base.with_suffix(".txt").write_text(texto, encoding="utf-8")
+    base.with_suffix(".json").write_text(json.dumps({"para": destinatarios, "asunto": asunto}, ensure_ascii=False), encoding="utf-8")
 
 
 def _resend(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:

@@ -43,6 +43,8 @@ def _limpiar():
     with engine.begin() as c:
         c.execute(text("TRUNCATE " + ", ".join(t.name for t in Base.metadata.sorted_tables) + " RESTART IDENTITY CASCADE"))
     auth._intentos.clear()
+    from app.routers import evidencia_publica
+    evidencia_publica._fallos_ip._eventos.clear()
     from app.routers import plataforma as _plataforma
     _plataforma._intentos.clear()
     from app.routers import solicitudes

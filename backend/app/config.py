@@ -39,6 +39,8 @@ class Ajustes(BaseSettings):
     correo_remitente: str = "Nomira <hola@nomirasoft.com>"
     correo_responder_a: str = ""
     resend_api_key: str = ""
+    # Fuera de producción los correos se guardan en STORAGE_DIR/correos_prueba (no se envían) salvo esto:
+    correo_envio_real: bool = False
     smtp_host: str = ""
     smtp_puerto: int = 465  # 465 = SSL; 587 = STARTTLS
     smtp_usuario: str = ""

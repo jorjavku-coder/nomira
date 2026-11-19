@@ -167,7 +167,7 @@ def test_resend(monkeypatch):
             return self._c
     respuesta = [Resp(200, {"id": "x"})]
     monkeypatch.setattr(correo.httpx, "post", lambda url, **kw: (llamadas.append((url, kw)), respuesta[0])[1])
-    for k, v in {"correo_proveedor": "resend", "resend_api_key": "re_123", "correo_remitente": "Nomira <hola@nomirasoft.com>",
+    for k, v in {"entorno": "produccion", "correo_proveedor": "resend", "resend_api_key": "re_123", "correo_remitente": "Nomira <hola@nomirasoft.com>",
                  "correo_responder_a": "hola@nomirasoft.com"}.items():
         monkeypatch.setattr(ajustes(), k, v)
     correo.enviar(["a@b.test"], "Asunto", "<p>hola</p>", "hola")
@@ -195,7 +195,7 @@ def test_smtp(monkeypatch):
         def send_message(self, msg):
             enviados.append(msg)
     monkeypatch.setattr(correo.smtplib, "SMTP_SSL", FalsoSMTP)
-    for k, v in {"correo_proveedor": "smtp", "smtp_host": "mail.nomirasoft.com", "smtp_puerto": 465,
+    for k, v in {"entorno": "produccion", "correo_proveedor": "smtp", "smtp_host": "mail.nomirasoft.com", "smtp_puerto": 465,
                  "smtp_usuario": "hola@nomirasoft.com", "smtp_contrasena": "secreta",
                  "correo_remitente": "Nomira <hola@nomirasoft.com>"}.items():
         monkeypatch.setattr(ajustes(), k, v)

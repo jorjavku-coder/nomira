@@ -372,7 +372,15 @@ class EvAsunto(Base):
     responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     notas: Mapped[str | None] = mapped_column(Text)
     campos: Mapped[dict | None] = mapped_column(JSON)  # campos adicionales que defina el despacho
-    contradicciones_descartadas: Mapped[list | None] = mapped_column(JSON)  # pares "idA-idB" revisados
+    contradicciones_descartadas: Mapped[list | None] = mapped_column(JSON)  # pares "idA-idB": «no es contradicción»
+    # Decisión de una persona sobre cada posible diferencia: {"idA-idB": {"decision", "por", "en", "nota"}}
+    decisiones_diferencias: Mapped[dict | None] = mapped_column(JSON)
+    # Jurisdicción en campos separados («jurisdiccion» se conserva tal como se capturó antes)
+    ambito: Mapped[str | None] = mapped_column(String(10))  # federal | local
+    entidad_federativa: Mapped[str | None] = mapped_column(String(40))
+    municipio_distrito: Mapped[str | None] = mapped_column(String(160))
+    organo: Mapped[str | None] = mapped_column(String(200))  # juzgado, tribunal u órgano
+    expediente_judicial: Mapped[str | None] = mapped_column(String(80))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
@@ -389,7 +397,7 @@ class EvDocumento(Base):
     tamano_bytes: Mapped[int] = mapped_column(Integer)
     formato: Mapped[str] = mapped_column(String(10))  # pdf | png | jpeg | webp
     ruta: Mapped[str] = mapped_column(String(500))
-    # Lectura: pendiente | procesando | leido | requiere_revision | error
+    # Lectura: recibido (del cliente, sin leer) | pendiente | procesando | leido | requiere_revision | error
     estado: Mapped[str] = mapped_column(String(20), default="pendiente")
     error: Mapped[str | None] = mapped_column(Text)
     intentos: Mapped[int] = mapped_column(Integer, default=0)
@@ -399,7 +407,14 @@ class EvDocumento(Base):
     fecha_documento: Mapped[date | None] = mapped_column(Date)  # confirmada por una persona
     fecha_sugerida: Mapped[date | None] = mapped_column(Date)
     clasificado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
-    origen: Mapped[str] = mapped_column(String(20), default="carga")  # carga | (futuro: nomina)
+    origen: Mapped[str] = mapped_column(String(20), default="carga")  # carga | cliente (enlace de solicitud)
+    solicitud_id: Mapped[int | None] = mapped_column(ForeignKey("ev_solicitudes.id", ondelete="SET NULL"), index=True)
+    solicitado_como: Mapped[str | None] = mapped_column(String(200))  # documento de la lista que el cliente dijo enviar
+    # interno (del despacho) | compartible (con el cliente) | restringido (solo administradores, responsable y quien lo cargó)
+    visibilidad: Mapped[str] = mapped_column(String(15), default="interno", server_default="interno")
+    resumen_lectura: Mapped[dict | None] = mapped_column(JSON)  # qué encontró la última lectura
+    aceptado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    aceptado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     origen_ref: Mapped[dict | None] = mapped_column(JSON)
     subido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
@@ -428,6 +443,14 @@ class EvHecho(Base):
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
     asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
     descripcion: Mapped[str] = mapped_column(Text)
+    # fecha_evento | fecha_documento | importe | persona | lugar | administrativo | otro
+    tipo_dato: Mapped[str] = mapped_column(String(20), default="otro", server_default="otro")
+    tema: Mapped[str | None] = mapped_column(String(40))  # qué evento describe (p. ej. separacion)
+    valor_original: Mapped[str | None] = mapped_column(String(300))  # texto tal como aparece
+    valor: Mapped[str | None] = mapped_column(String(300))  # dato normalizado para mostrar
+    atribucion: Mapped[str | None] = mapped_column(String(200))  # quién lo afirma: «La clienta refiere», «El borrador propone»
+    calidad: Mapped[str | None] = mapped_column(String(10))  # buena | revisar | baja (de la extracción, no del hecho)
+    motivo_descarte: Mapped[str | None] = mapped_column(String(30))  # no_relevante | (vacío: descartado sin más)
     fecha: Mapped[date | None] = mapped_column(Date)
     fecha_texto: Mapped[str | None] = mapped_column(String(80))  # como aparece en el documento
     personas: Mapped[list | None] = mapped_column(JSON)
@@ -473,6 +496,10 @@ class EvVinculo(Base):
     documento_id: Mapped[int] = mapped_column(ForeignKey("ev_documentos.id", ondelete="CASCADE"))
     pagina: Mapped[int | None] = mapped_column(Integer)
     nota: Mapped[str | None] = mapped_column(String(500))
+    # Qué hace esta fuente respecto al punto, según el abogado: sin_evaluar | apoya | contradice | no_basta
+    relacion: Mapped[str] = mapped_column(String(15), default="sin_evaluar", server_default="sin_evaluar")
+    relacion_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    relacion_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
@@ -490,3 +517,33 @@ class EvPendiente(Base):
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class EvSolicitud(Base):
+    """Enlace para que un cliente SUBA documentos a un asunto. Nunca permite consultar nada.
+    El token no se guarda: solo su huella SHA-256 (y 4 caracteres para reconocerlo)."""
+    __tablename__ = "ev_solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(254))
+    mensaje: Mapped[str | None] = mapped_column(Text)  # lo ve el cliente
+    documentos: Mapped[list | None] = mapped_column(JSON)  # lista de lo que se pide (lo ve el cliente)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_pista: Mapped[str] = mapped_column(String(8))
+    requiere_codigo: Mapped[bool] = mapped_column(Boolean, default=True)
+    max_archivos: Mapped[int] = mapped_column(Integer, default=20)
+    archivos_recibidos: Mapped[int] = mapped_column(Integer, default=0)
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revocada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revocada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    codigo_hash: Mapped[str | None] = mapped_column(String(64))
+    codigo_expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigo_intentos: Mapped[int] = mapped_column(Integer, default=0)
+    codigo_enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigos_enviados: Mapped[int] = mapped_column(Integer, default=0)
+    primer_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultima_carga_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
