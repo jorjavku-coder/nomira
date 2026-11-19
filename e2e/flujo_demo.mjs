@@ -114,7 +114,7 @@ await page.getByText("Huella SHA-256").waitFor();
 await foto("09-documentos");
 await page.getByRole("link", { name: "Catálogos" }).click();
 await page.getByRole("link", { name: "Versión 1" }).click();
-await page.getByText("Es inmutable").waitFor();
+await page.getByText("No se modifica:", { exact: false }).waitFor();
 await foto("10-catalogo-version");
 await page.getByRole("link", { name: "Usuarios" }).click();
 await page.getByRole("button", { name: /registro de auditoría/ }).click();
