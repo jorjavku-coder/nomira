@@ -259,3 +259,30 @@ export function EnviarBienvenida({ valor, onCambio }: { valor: boolean; onCambio
     </label>
   );
 }
+
+const MODULOS_ALTA = [
+  ["nomina", "Nómina y prestaciones", "Desglose de prestaciones por quincena."],
+  ["evidencia", "Nomira Evidencia", "Expediente probatorio con hechos, cronología y matriz."],
+];
+
+/** Módulos que el cliente contrata desde el alta (al menos uno). */
+export function ModulosIniciales({ valor, onCambio }: { valor: string[]; onCambio: (v: string[]) => void }) {
+  return (
+    <fieldset>
+      <legend className="etiqueta">Módulos contratados</legend>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {MODULOS_ALTA.map(([clave, nombre, desc]) => {
+          const marcado = valor.includes(clave);
+          return (
+            <label key={clave} className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 text-sm ${marcado ? "border-turquesa bg-turquesa-50" : "border-crema-300"}`}>
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-turquesa" checked={marcado}
+                onChange={(e) => onCambio(e.target.checked ? [...valor, clave] : valor.filter((x) => x !== clave))} />
+              <span><span className="block font-semibold text-marino">{nombre}</span><span className="block text-xs text-slate-500">{desc}</span></span>
+            </label>
+          );
+        })}
+      </div>
+      {valor.length === 0 && <p className="mt-1 text-xs text-red-700">Elija al menos un módulo.</p>}
+    </fieldset>
+  );
+}

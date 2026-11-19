@@ -336,3 +336,157 @@ class CorreoEnviado(Base):
     estado: Mapped[str] = mapped_column(String(20))  # enviando | enviado | error
     error: Mapped[str | None] = mapped_column(Text)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+# ---------------------------------------------------------------------------------------------
+# Módulos contratados por organización
+# ---------------------------------------------------------------------------------------------
+
+class OrganizacionModulo(Base):
+    """Un módulo de Nomira para una organización. Sin fila, se aplica el valor por defecto del
+    módulo (services/modulos.py). «contratado» lo fija quien opera la plataforma; «activo», el
+    administrador del despacho (solo entre los contratados). Desactivar nunca borra datos."""
+    __tablename__ = "organizacion_modulos"
+    __table_args__ = (UniqueConstraint("organizacion_id", "modulo"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    modulo: Mapped[str] = mapped_column(String(30))  # nomina | evidencia
+    contratado: Mapped[bool] = mapped_column(Boolean, default=False)
+    activo: Mapped[bool] = mapped_column(Boolean, default=False)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+# ---------------------------------------------------------------------------------------------
+# Nomira Evidencia (módulo independiente: no usa ninguna tabla de nómina)
+# ---------------------------------------------------------------------------------------------
+
+class EvAsunto(Base):
+    __tablename__ = "ev_asuntos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    cliente: Mapped[str | None] = mapped_column(String(200))
+    tipo_caso: Mapped[str | None] = mapped_column(String(120))  # texto libre: ninguna materia impuesta
+    jurisdiccion: Mapped[str | None] = mapped_column(String(160))
+    identificador_interno: Mapped[str | None] = mapped_column(String(80))
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    notas: Mapped[str | None] = mapped_column(Text)
+    campos: Mapped[dict | None] = mapped_column(JSON)  # campos adicionales que defina el despacho
+    contradicciones_descartadas: Mapped[list | None] = mapped_column(JSON)  # pares "idA-idB" revisados
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class EvDocumento(Base):
+    __tablename__ = "ev_documentos"
+    __table_args__ = (UniqueConstraint("asunto_id", "sha256"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
+    nombre_original: Mapped[str] = mapped_column(String(300))
+    sha256: Mapped[str] = mapped_column(String(64))
+    tamano_bytes: Mapped[int] = mapped_column(Integer)
+    formato: Mapped[str] = mapped_column(String(10))  # pdf | png | jpeg | webp
+    ruta: Mapped[str] = mapped_column(String(500))
+    # Lectura: pendiente | procesando | leido | requiere_revision | error
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente")
+    error: Mapped[str | None] = mapped_column(Text)
+    intentos: Mapped[int] = mapped_column(Integer, default=0)
+    num_paginas: Mapped[int | None] = mapped_column(Integer)
+    tipo: Mapped[str | None] = mapped_column(String(60))  # clasificación confirmada por una persona
+    tipo_sugerido: Mapped[str | None] = mapped_column(String(60))
+    fecha_documento: Mapped[date | None] = mapped_column(Date)  # confirmada por una persona
+    fecha_sugerida: Mapped[date | None] = mapped_column(Date)
+    clasificado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    origen: Mapped[str] = mapped_column(String(20), default="carga")  # carga | (futuro: nomina)
+    origen_ref: Mapped[dict | None] = mapped_column(JSON)
+    subido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    paginas: Mapped[list["EvPagina"]] = relationship(cascade="all, delete-orphan", order_by="EvPagina.numero")
+
+
+class EvPagina(Base):
+    __tablename__ = "ev_paginas"
+    __table_args__ = (UniqueConstraint("documento_id", "numero"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    documento_id: Mapped[int] = mapped_column(ForeignKey("ev_documentos.id", ondelete="CASCADE"), index=True)
+    numero: Mapped[int] = mapped_column(Integer)
+    metodo: Mapped[str] = mapped_column(String(10))  # texto | ocr
+    texto: Mapped[str] = mapped_column(Text)
+    confianza_ocr: Mapped[int | None] = mapped_column(Integer)
+    ancho: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    alto: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+
+class EvHecho(Base):
+    """Hecho con fuente. Estados: por_revisar | confirmado | editado | descartado. Solo una persona
+    puede llevarlo a confirmado/editado, y solo si tiene documento fuente."""
+    __tablename__ = "ev_hechos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
+    descripcion: Mapped[str] = mapped_column(Text)
+    fecha: Mapped[date | None] = mapped_column(Date)
+    fecha_texto: Mapped[str | None] = mapped_column(String(80))  # como aparece en el documento
+    personas: Mapped[list | None] = mapped_column(JSON)
+    importe: Mapped[Decimal | None] = mapped_column(DINERO)
+    dato: Mapped[str | None] = mapped_column(String(300))  # otro dato estructurado
+    documento_id: Mapped[int | None] = mapped_column(ForeignKey("ev_documentos.id", ondelete="SET NULL"), index=True)
+    pagina: Mapped[int | None] = mapped_column(Integer)
+    fragmento: Mapped[str | None] = mapped_column(Text)  # texto literal de origen
+    bbox: Mapped[list | None] = mapped_column(JSON)
+    confianza: Mapped[int | None] = mapped_column(Integer)
+    origen: Mapped[str] = mapped_column(String(15), default="automatico")  # automatico | manual
+    estado: Mapped[str] = mapped_column(String(15), default="por_revisar")
+    original: Mapped[dict | None] = mapped_column(JSON)  # propuesta automática tal como se generó
+    revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    revisado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class EvPunto(Base):
+    """Fila de la matriz de evidencia: un hecho que el despacho busca acreditar."""
+    __tablename__ = "ev_puntos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
+    descripcion: Mapped[str] = mapped_column(Text)
+    # pendiente_evidencia | respaldado | parcial | contradictorio — lo decide una persona
+    estado: Mapped[str] = mapped_column(String(25), default="pendiente_evidencia")
+    estado_decidido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    estado_decidido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notas: Mapped[str | None] = mapped_column(Text)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    vinculos: Mapped[list["EvVinculo"]] = relationship(cascade="all, delete-orphan", order_by="EvVinculo.id")
+
+
+class EvVinculo(Base):
+    __tablename__ = "ev_vinculos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    punto_id: Mapped[int] = mapped_column(ForeignKey("ev_puntos.id", ondelete="CASCADE"), index=True)
+    hecho_id: Mapped[int | None] = mapped_column(ForeignKey("ev_hechos.id", ondelete="CASCADE"))
+    documento_id: Mapped[int] = mapped_column(ForeignKey("ev_documentos.id", ondelete="CASCADE"))
+    pagina: Mapped[int | None] = mapped_column(Integer)
+    nota: Mapped[str | None] = mapped_column(String(500))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class EvPendiente(Base):
+    __tablename__ = "ev_pendientes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="CASCADE"), index=True)
+    descripcion: Mapped[str] = mapped_column(Text)
+    responsable: Mapped[str | None] = mapped_column(String(200))  # persona del despacho o del cliente
+    fecha_seguimiento: Mapped[date | None] = mapped_column(Date)
+    estado: Mapped[str] = mapped_column(String(15), default="pendiente")  # pendiente | solicitado | recibido | cancelado
+    nota: Mapped[str | None] = mapped_column(Text)  # interna: no sale en la lista para el cliente
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)

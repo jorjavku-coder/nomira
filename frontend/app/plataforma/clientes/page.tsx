@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ShellPlataforma, { Credenciales, EnviarBienvenida, EstadoSuscripcion, PlanInicial } from "@/components/plataforma";
+import ShellPlataforma, { Credenciales, EnviarBienvenida, EstadoSuscripcion, ModulosIniciales, PlanInicial } from "@/components/plataforma";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { fecha, fechaHora } from "@/lib/api";
 import { apiP } from "@/lib/plataforma";
@@ -54,7 +54,7 @@ export default function Clientes() {
 }
 
 function NuevoCliente({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r: any) => void }) {
-  const [f, setF] = useState<any>({ organizacion: "", admin_nombre: "", admin_email: "", plan: "prueba", enviar_correo: true });
+  const [f, setF] = useState<any>({ organizacion: "", admin_nombre: "", admin_email: "", plan: "prueba", modulos: ["nomina"], enviar_correo: true });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent) {
@@ -74,10 +74,11 @@ function NuevoCliente({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r
         </div>
         <PlanInicial valor={f.plan} onCambio={(plan) => setF({ ...f, plan })} />
         <EnviarBienvenida valor={f.enviar_correo} onCambio={(enviar_correo) => setF({ ...f, enviar_correo })} />
+        <ModulosIniciales valor={f.modulos} onCambio={(modulos) => setF({ ...f, modulos })} />
         <p className="text-xs text-slate-500">Se genera una contraseña temporal; el administrador del cliente la cambia al entrar y da de alta a su propio equipo.</p>
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primario" disabled={enviando}>{enviando ? "Creando…" : "Crear cliente"}</button></div>
+          <button className="btn-primario" disabled={enviando || !f.modulos?.length}>{enviando ? "Creando…" : "Crear cliente"}</button></div>
       </form>
     </Modal>
   );

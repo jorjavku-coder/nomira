@@ -3,7 +3,7 @@
 const LLAVE = "qc_sesion";
 
 export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null };
-export type Sesion = { token: string; usuario: Usuario; organizacion: string };
+export type Sesion = { token: string; usuario: Usuario; organizacion: string; modulos?: string[] };
 const EVENTO = "nomira-sesion";
 
 export function leerSesion(): Sesion | null {
@@ -43,8 +43,18 @@ function mensajeDe(detalle: any, estado: number): string {
   return `Error ${estado}`;
 }
 
+// Rutas de la API de cada módulo: si la sesión ya sabe que el módulo está inactivo, no se piden.
+const RUTAS_MODULO: [string, RegExp][] = [
+  ["nomina", /^\/(expedientes|catalogos|documentos|filas|recibos)(\/|\?|$)/],
+  ["evidencia", /^\/evidencia(\/|\?|$)/],
+];
+
 async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {
   const s = leerSesion();
+  const modulo = RUTAS_MODULO.find(([, re]) => re.test(ruta));
+  if (s?.modulos && modulo && !s.modulos.includes(modulo[0])) {
+    throw new ErrorApi(403, "Este módulo no está activo para su organización.");
+  }
   const publica = ruta.startsWith("/auth/") || ruta === "/publico" || (ruta === "/solicitudes" && init.method === "POST" && !s);
   if (!s && !publica) {
     if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.href = "/login";

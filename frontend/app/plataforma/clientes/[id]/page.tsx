@@ -46,6 +46,30 @@ export default function Cliente() {
 
       <Suscripcion c={c} onCambio={(m) => { setOk(m); setError(""); avisarContadores(); cargar(); }} onError={setError} />
 
+      {c.modulos && (
+        <section className="tarjeta mt-6 p-5">
+          <h2 className="font-semibold text-marino">Módulos contratados</h2>
+          <p className="mt-1 text-sm text-slate-500">Lo que marque aquí queda disponible y activo para el cliente; su administrador puede desactivarlo en «Mi empresa». Retirar un módulo lo oculta pero no borra sus datos.</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {Object.values(c.modulos as Record<string, any>).map((md) => (
+              <label key={md.clave} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${md.contratado ? "border-turquesa bg-turquesa-50/60" : "border-crema-300"}`}>
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-turquesa" checked={md.contratado}
+                  onChange={(e) => {
+                    const contratado = e.target.checked;
+                    if (!contratado && !confirm(`¿Retirar «${md.nombre}» a ${c.nombre}? Dejarán de verlo; sus datos se conservan.`)) return;
+                    accion(() => apiP.patch(`/clientes/${c.id}/modulos/${md.clave}`, { contratado }), contratado ? "Módulo contratado." : "Módulo retirado.");
+                  }} />
+                <span>
+                  <span className="block font-semibold text-marino">{md.nombre}</span>
+                  <span className="block text-xs text-slate-600">{md.descripcion}</span>
+                  <span className="mt-1 block text-xs font-semibold text-slate-500">{md.contratado ? (md.activo ? "Contratado · activo" : "Contratado · desactivado por el cliente") : "No contratado"}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="tarjeta mt-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-crema-300 px-5 py-3">
           <h2 className="font-semibold text-marino">Usuarios del cliente</h2>

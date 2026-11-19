@@ -12,7 +12,7 @@ from ..db import get_db
 from ..deps import auditar, ip_cliente, solo_admin, usuario_actual
 from ..freno import FrenoAcceso
 from ..models import ahora
-from ..services import fotos
+from ..services import fotos, modulos
 from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
@@ -116,7 +116,7 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
     auditar(db, u, "login", request=request)
     db.commit()
     return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
-            "organizacion": org.nombre}
+            "organizacion": org.nombre, "modulos": modulos.activos(db, u.organizacion_id)}
 
 
 @router.get("/publico")
@@ -143,14 +143,15 @@ def registro(r: Registro, request: Request, db: Session = Depends(get_db)):
     db.flush()
     auditar(db, u, "organizacion_creada", "organizacion", org.id, request=request)
     db.commit()
-    return {"token": crear_token(u.id, org.id, u.sesion_version), "usuario": _u(u), "organizacion": org.nombre}
+    return {"token": crear_token(u.id, org.id, u.sesion_version), "usuario": _u(u), "organizacion": org.nombre,
+            "modulos": modulos.activos(db, org.id)}
 
 
 @router.get("/auth/yo")
 def yo(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     return {"usuario": _u(u), "organizacion": db.get(m.Organizacion, u.organizacion_id).nombre,
             "ia_habilitada": ajustes().ia_habilitada, "max_mb_archivo": ajustes().max_mb_archivo,
-            "permitir_registro": ajustes().permitir_registro}
+            "permitir_registro": ajustes().permitir_registro, "modulos": modulos.activos(db, u.organizacion_id)}
 
 
 @router.get("/usuarios")
