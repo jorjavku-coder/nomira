@@ -130,6 +130,12 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
   - Primer administrador: `PLATAFORMA_ADMIN_EMAIL` y `PLATAFORMA_ADMIN_CONTRASENA` (se crea al
     arrancar si no existe), o `python -m scripts.crear_admin_plataforma correo@dominio "Nombre"`.
   - Los clientes escriben a soporte desde su sección **Soporte**.
+  - **Correos** (sección *Correos* del panel): al crear un cliente o aceptar una solicitud se le
+    manda una bienvenida con su dirección de acceso, usuario y contraseña temporal; y a cada cliente
+    con plan pagado se le avisa `RECORDATORIO_DIAS` (7) días antes del vencimiento, una sola vez por
+    periodo y solo si no tiene renovación registrada (se revisa cada hora). Proveedor: `resend`
+    (API por HTTPS; dominio verificado con registros DNS) o `smtp`. Sin proveedor no sale nada y
+    el panel muestra los datos para enviarlos a mano. Se guarda a quién y cuándo, nunca el contenido.
 - El sistema se llama Nomira; el crédito «Desarrollado por IMA» va en el pie de página del sitio.
 
 ## 4 ter. Módulos y Nomira Evidencia

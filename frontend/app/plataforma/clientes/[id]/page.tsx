@@ -244,6 +244,9 @@ function Suscripcion({ c, onCambio, onError }: { c: any; onCambio: (m: string) =
             {s.pagos_pendientes > 0 && <span className="text-sm font-semibold text-amber-700">· {s.pagos_pendientes} pago(s) pendiente(s){s.monto_pendiente && Number(s.monto_pendiente) > 0 ? ` (${mxn(s.monto_pendiente)})` : ""}</span>}</div>
           {s.inicio && <p className="mt-2 text-sm text-slate-600">{s.estado === "vencida" ? "Su último periodo" : "Periodo"}: <b>{s.plan_nombre}</b>, del {fecha(s.inicio)} al {fecha(s.fin)}.</p>}
           {s.siguiente && <p className="text-sm text-emerald-700">✓ Renovación registrada: {s.siguiente.plan_nombre} desde el {fecha(s.siguiente.inicio)}.</p>}
+          {s.recordatorios?.[0] && <p className={`text-sm ${s.recordatorios[0].estado === "enviado" ? "text-slate-600" : "text-red-700"}`}>
+            ✉️ {s.recordatorios[0].estado === "enviado" ? `Recordatorio de vencimiento enviado el ${fechaHora(s.recordatorios[0].fecha)} a ${s.recordatorios[0].destinatarios}.`
+              : `No se pudo enviar el recordatorio (${fechaHora(s.recordatorios[0].fecha)}): ${s.recordatorios[0].error}`}</p>}
           {s.estado === "vencida" && c.estado === "activa" && <p className="mt-1 text-xs text-slate-500">La cuenta sigue abierta. Si no renueva, puede suspenderla en la zona delicada.</p>}
         </div>
         <button className="btn-turquesa" onClick={() => setRegistrar(true)}>{["sin_plan", "vencida"].includes(s.estado) ? "Registrar venta" : "Renovar / agregar periodo"}</button>

@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,8 @@ from .routers import (auth, catalogos, documentos, evidencia, expedientes, ia, o
                       solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.modulos import requiere_modulo
+from .services import correo
+from .services.envios import ejecutar_recordatorios
 from .services.plataforma import asegurar_admin_inicial
 from .services.procesamiento import recuperar_interrumpidos
 
@@ -33,7 +36,31 @@ async def ciclo(app: FastAPI):
             asegurar_admin_inicial(db)
     except Exception:
         logging.getLogger("quincena").warning("No se pudo revisar el administrador de la plataforma.")
+    tarea = asyncio.create_task(_revisar_recordatorios())
     yield
+    tarea.cancel()
+    with suppress(asyncio.CancelledError):
+        await tarea
+
+
+def _una_revision() -> None:
+    with SessionLocal() as db:
+        for r in ejecutar_recordatorios(db):
+            logging.getLogger("nomira.correos").info("Recordatorio %s: %s (%s)", r["estado"], r["cliente"], r["detalle"])
+
+
+async def _revisar_recordatorios(espera_inicial: float = 120, cada: float = 3600) -> None:
+    """Cada hora revisa qué recordatorios de vencimiento faltan por enviar. Es seguro aunque haya
+    varios procesos: cada aviso tiene una llave única en la base. Si el servicio estuvo dormido,
+    los avisos atrasados salen en la siguiente revisión."""
+    await asyncio.sleep(espera_inicial)
+    while True:
+        if correo.configurado() and ajustes().recordatorio_dias > 0:
+            try:
+                await asyncio.to_thread(_una_revision)
+            except Exception:
+                logging.getLogger("nomira.correos").exception("Falló la revisión de recordatorios.")
+        await asyncio.sleep(cada)
 
 
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)

@@ -12,6 +12,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   clientes: <><path d="M4 20V7l8-3v16M12 9l8 2v9M3 20h18" /></>,
   suscripciones: <><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3" /></>,
   soporte: <><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></>,
+  correos: <><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /><circle cx="19" cy="6" r="2.5" fill="currentColor" stroke="none" /></>,
   admins: <><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
@@ -49,6 +50,7 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     { href: "/plataforma/solicitudes", texto: "Solicitudes", icono: "solicitudes", activo: ruta.startsWith("/plataforma/solicitudes"), n: cont?.solicitudes_nuevas },
     { href: "/plataforma/clientes", texto: "Clientes", icono: "clientes", activo: ruta.startsWith("/plataforma/clientes") },
     { href: "/plataforma/suscripciones", texto: "Suscripciones", icono: "suscripciones", activo: ruta.startsWith("/plataforma/suscripciones"), n: cont ? cont.por_vencer + cont.vencidas : 0 },
+    { href: "/plataforma/correos", texto: "Correos", icono: "correos", activo: ruta.startsWith("/plataforma/correos") },
     { href: "/plataforma/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/plataforma/soporte"), n: cont?.tickets_sin_leer },
     { href: "/plataforma/admins", texto: "Administradores", icono: "admins", activo: ruta.startsWith("/plataforma/admins") },
   ];
@@ -94,7 +96,10 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
 }
 
 /** Muestra una contraseña temporal UNA sola vez, con un mensaje listo para enviar. */
-export function Credenciales({ acceso, titulo, onCerrar }: { acceso: { email: string; nombre: string; contrasena_temporal: string }; titulo: string; onCerrar: () => void }) {
+export function Credenciales({ acceso, titulo, onCerrar, correo }: {
+  acceso: { email: string; nombre: string; contrasena_temporal: string }; titulo: string; onCerrar: () => void;
+  correo?: { enviado: boolean; destinatario: string; error: string | null } | null;
+}) {
   const [copiado, setCopiado] = useState("");
   const url = typeof window !== "undefined" ? `${window.location.origin}/login` : "/login";
   const mensaje = `Hola ${acceso.nombre}:\n\nEste es tu acceso a Nomira.\nDirección: ${url}\nCorreo: ${acceso.email}\nContraseña temporal: ${acceso.contrasena_temporal}\n\nAl entrar, cámbiala en «Mi perfil».`;
@@ -102,8 +107,12 @@ export function Credenciales({ acceso, titulo, onCerrar }: { acceso: { email: st
   return (
     <Modal titulo={titulo} onCerrar={onCerrar} ancho="max-w-xl">
       <div className="space-y-4">
+        {correo?.enviado && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          ✉️ <b>Le enviamos su correo de bienvenida</b> con estos datos a <b>{correo.destinatario}</b>.</div>}
+        {correo && !correo.enviado && <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <b>No se pudo enviar el correo de bienvenida.</b> {correo.error} Copie los datos y envíelos usted.</div>}
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <b>Copie estos datos ahora:</b> por seguridad la contraseña no se vuelve a mostrar. Si se pierde, genere otra.</div>
+          <b>{correo?.enviado ? "Por si acaso, copie estos datos:" : "Copie estos datos ahora:"}</b> por seguridad la contraseña no se vuelve a mostrar. Si se pierde, genere otra.</div>
         <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
           <dt className="text-slate-500">Persona</dt><dd className="font-semibold text-marino">{acceso.nombre}</dd>
           <dt className="text-slate-500">Correo</dt><dd className="font-mono">{acceso.email}</dd>
@@ -237,6 +246,16 @@ export function PlanInicial({ valor, onCambio }: { valor: string | null; onCambi
         <option value="">Sin plan por ahora</option>
       </select>
       <span className="mt-1 block text-xs text-slate-500">El monto y el pago se registran después en su sección «Suscripción».</span>
+    </label>
+  );
+}
+
+/** Casilla para enviar (o no) el correo de bienvenida con el acceso. */
+export function EnviarBienvenida({ valor, onCambio }: { valor: boolean; onCambio: (v: boolean) => void }) {
+  return (
+    <label className="flex items-start gap-2 rounded-xl border border-turquesa/30 bg-turquesa-50/60 p-3 text-sm">
+      <input type="checkbox" className="mt-0.5" checked={valor} onChange={(e) => onCambio(e.target.checked)} />
+      <span><b className="text-marino">Enviarle un correo de bienvenida</b> con el enlace, su usuario y su contraseña temporal.</span>
     </label>
   );
 }

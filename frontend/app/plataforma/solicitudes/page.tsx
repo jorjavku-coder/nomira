@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import ShellPlataforma, { Credenciales, ModulosIniciales, PlanInicial } from "@/components/plataforma";
+import ShellPlataforma, { Credenciales, EnviarBienvenida, ModulosIniciales, PlanInicial } from "@/components/plataforma";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { fechaHora } from "@/lib/api";
 import { apiP, avisarContadores } from "@/lib/plataforma";
@@ -67,8 +67,8 @@ export default function Solicitudes() {
       </div>
       {nota && <NotaModal s={nota} onCerrar={() => setNota(null)} onGuardar={async (t) => { await cambiar(nota, nota.estado, t || null); setNota(null); }} />}
       {convertir && <ConvertirModal s={convertir} onCerrar={() => setConvertir(null)}
-        onListo={(r) => { setConvertir(null); setAcceso(r.acceso); setOk(`${r.cliente.nombre} ya es cliente de Nomira.`); avisarContadores(); cargar(); }} />}
-      {acceso && <Credenciales acceso={acceso} titulo="Cliente creado: datos de acceso" onCerrar={() => setAcceso(null)} />}
+        onListo={(r) => { setConvertir(null); setAcceso(r); setOk(`${r.cliente.nombre} ya es cliente de Nomira.`); avisarContadores(); cargar(); }} />}
+      {acceso && <Credenciales acceso={acceso.acceso} correo={acceso.correo} titulo="Cliente creado: datos de acceso" onCerrar={() => setAcceso(null)} />}
     </ShellPlataforma>
   );
 }
@@ -86,7 +86,7 @@ function NotaModal({ s, onCerrar, onGuardar }: { s: any; onCerrar: () => void; o
 }
 
 function ConvertirModal({ s, onCerrar, onListo }: { s: any; onCerrar: () => void; onListo: (r: any) => void }) {
-  const [f, setF] = useState<any>({ organizacion: s.empresa || "", admin_nombre: s.nombre, admin_email: s.email, plan: "prueba", modulos: ["nomina"] });
+  const [f, setF] = useState<any>({ organizacion: s.empresa || "", admin_nombre: s.nombre, admin_email: s.email, plan: "prueba", modulos: ["nomina"], enviar_correo: true });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent) {
@@ -106,6 +106,7 @@ function ConvertirModal({ s, onCerrar, onListo }: { s: any; onCerrar: () => void
             <input className="campo" type="email" required value={f.admin_email} onChange={(e) => setF({ ...f, admin_email: e.target.value })} /></label>
         </div>
         <PlanInicial valor={f.plan} onCambio={(plan) => setF({ ...f, plan })} />
+        <EnviarBienvenida valor={f.enviar_correo} onCambio={(enviar_correo) => setF({ ...f, enviar_correo })} />
         <ModulosIniciales valor={f.modulos} onCambio={(modulos) => setF({ ...f, modulos })} />
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>
