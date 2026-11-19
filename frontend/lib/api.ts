@@ -47,6 +47,7 @@ function mensajeDe(detalle: any, estado: number): string {
 const RUTAS_MODULO: [string, RegExp][] = [
   ["nomina", /^\/(expedientes|catalogos|documentos|filas|recibos)(\/|\?|$)/],
   ["evidencia", /^\/evidencia(\/|\?|$)/],
+  ["afore", /^\/afore(\/|\?|$)/],
 ];
 
 async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {
@@ -85,6 +86,8 @@ export const api = {
   patch: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
     (await pedir(ruta, { method: "PATCH", body: JSON.stringify(cuerpo) })).json(),
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
+  put: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
+    (await pedir(ruta, { method: "PUT", body: JSON.stringify(cuerpo) })).json(),
   subirPut: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "PUT", body: datos })).json(),
   subir: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "POST", body: datos })).json(),
   blob: async (ruta: string, init: RequestInit = {}): Promise<{ blob: Blob; nombre: string | null; encabezados: Headers }> => {

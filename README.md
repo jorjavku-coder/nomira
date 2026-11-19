@@ -214,6 +214,52 @@ Evidencia no usa tablas de Nómina (tablas `ev_*`) ni envía documentos a servic
 
 ![Hechos con fuente](docs/capturas/ev-02-hechos.png)
 
+## 4 quater. Nomira AFORE
+
+Módulo independiente (clave `afore`) para casos de AFORE y SAR. No usa tablas de Nómina ni de Evidencia
+(tablas `af_*`, migración 0013) y funciona aunque esos módulos estén apagados. Se contrata en el panel
+de la plataforma y el administrador del despacho lo activa en «Mi empresa». Nomira organiza: **no
+decide** derechos, beneficiarios, acciones legales, infracciones ni resultados.
+
+- **Navegación** (`/afore`): Resumen («¿Qué requiere atención ahora?»), Casos, Clientes, Mensajes,
+  Catálogos y plantillas, Configuración.
+- **Alta guiada** en 4 pasos (cliente y titular · problema · instituciones y datos · revisión inicial),
+  con guardado como borrador. Cada dato admite «No lo sé», «Pendiente de confirmar» y «No aplica».
+  Los montos son datos informados.
+- **CURP y NSS**: revisión local de formato y dígito verificador (no es consulta oficial), cifrados en la
+  base (`AFORE_CLAVE_CIFRADO`), enmascarados en pantalla; mostrarlos completos queda en la bitácora.
+  Adaptador opcional de CURP oficial (`CURP_API_URL`/`CURP_API_KEY` + autorización por organización
+  en el panel de la plataforma); sin eso responde «Validación oficial no configurada».
+- **Checklist** por tipo de problema, editable por despacho y por caso, con 7 estados; **revisión de
+  expediente listo** (datos por confirmar, documentos faltantes, posibles inconsistencias, folios sin
+  registrar y puntos para el abogado) y progreso = % de documentos recibidos.
+- **Seguimiento**: cronología (solicitudes, respuestas, acuses, folios, responsable, quién registró y
+  modificó) y fechas con su naturaleza: plazo legal confirmado (exige fuente y confirmación), fecha
+  interna, tiempo informado por la institución o estimada. Sin plazos legales de fábrica; las reglas
+  del despacho solo sugieren fechas estimadas.
+- **Localizar AFORE**: flujo guiado al sitio oficial AforeWeb (sin automatizar ni guardar
+  contraseñas); queda registrado y se pide al cliente el resultado en su portal.
+- **Portal del cliente** (`/portal#token`): estado y siguiente paso que el despacho comparte,
+  documentos que faltan, carga de documentos por requisito, confirmación de recepción y preferencias
+  de comunicación (dar o revocar consentimiento). Enlaces que vencen, código por correo, sin notas
+  internas ni datos de otros casos.
+- **Mensajes** (correo y WhatsApp): solo con consentimiento registrado (fecha, canal, alcance,
+  revocación). Por omisión todo queda «Esperando aprobación» de un administrador o del abogado
+  responsable; si falta algo queda como borrador con el motivo; nunca se marca enviado sin respuesta
+  del proveedor. Plantillas editables sin CURP/NSS/montos; el enlace al portal se genera al enviar.
+- **WhatsApp Business Platform (Cloud API oficial de Meta)**: cada despacho registra su Phone number ID
+  y token (se guarda cifrado). Webhook `/api/whatsapp/webhook` con verificación (`WHATSAPP_VERIFY_TOKEN`),
+  firma `X-Hub-Signature-256` (`WHATSAPP_APP_SECRET`) e idempotencia. Estados enviado/entregado/leído/
+  fallido; los mensajes recibidos se asocian solo con certeza o quedan «Por asignar» y nunca cambian el
+  estado de un caso. «BAJA» revoca el consentimiento de WhatsApp.
+- **Reportes** con filtros (tipo, AFORE, responsable, estado, días esperando respuesta, documentos
+  pendientes) y Excel; los montos se marcan como datos capturados.
+- **Evidencia (opcional)**: si está activo, se vinculan documentos y hechos revisados sin copiar
+  archivos y respetando su visibilidad.
+- **Permisos**: administrador (todo), analista (abogado/asistente: captura y edita), consulta (solo
+  lectura). Casos restringidos: solo administradores, responsable y quien lo creó. Aprobar mensajes:
+  administrador o abogado responsable.
+
 ## 5. Reglas de cálculo implementadas
 
 | Regla | Comportamiento |

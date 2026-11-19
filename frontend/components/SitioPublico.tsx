@@ -5,7 +5,22 @@ import FormularioInformes from "@/components/FormularioInformes";
 import Logo from "@/components/Logo";
 import { api, leerSesion } from "@/lib/api";
 
-const NAV = [["#como-funciona", "Cómo funciona"], ["#beneficios", "Beneficios"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
+const NAV = [["#modulos", "Módulos"], ["#clientes", "Portal del cliente"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
+
+const MODULOS = [
+  { clave: "nomina", nombre: "Nómina y prestaciones", lema: "Del PDF al desglose por quincena",
+    texto: "Lee comprobantes de nómina digitales o escaneados y suma solo las prestaciones de su catálogo autorizado, con cada cifra ligada a su página.",
+    puntos: ["Lectura de PDF y OCR", "Catálogo con claves propias", "Excel y PDF con su logotipo", "Detecta faltantes y duplicados"],
+    imagen: "/sitio/resultados.webp", alt: "Total por clave de prestación en Nomira (datos ficticios)." },
+  { clave: "evidencia", nombre: "Nomira Evidencia", lema: "El expediente probatorio, ordenado",
+    texto: "Organiza los documentos de un asunto, propone hechos con su cita y página, y le ayuda a encontrar diferencias entre fuentes. Usted valida y decide.",
+    puntos: ["Hechos con cita, documento y página", "Fecha del documento ≠ fecha del evento", "Posibles diferencias lado a lado", "Matriz de evidencia y cronología", "Búsqueda dentro de los documentos"],
+    imagen: "/sitio/evidencia.webp", alt: "Bandeja «Requiere tu atención» de Nomira Evidencia (datos ficticios)." },
+  { clave: "afore", nombre: "Nomira AFORE", lema: "Casos AFORE y SAR sin perder el hilo",
+    texto: "Alta guiada del caso, checklist por tipo de problema, folios, respuestas y seguimientos, y un portal donde el cliente ve sus avances y envía documentos.",
+    puntos: ["Checklist editable por problema", "Folios, acuses y fechas con su naturaleza", "CURP y NSS cifrados y enmascarados", "Mensajes con aprobación del abogado", "WhatsApp oficial de Meta (opcional)"],
+    imagen: "/sitio/afore.webp", alt: "Resumen «¿Qué requiere atención ahora?» de Nomira AFORE (datos ficticios)." },
+];
 
 const PASOS = [
   ["Cree el expediente", "Nombre del trabajador y periodo a revisar. Si sube primero los PDF, Nomira propone esos datos por usted."],
@@ -29,7 +44,11 @@ const PREGUNTAS = [
   ["¿Quién puede ver mis expedientes?", "Solo los usuarios de su organización. Ni otras empresas ni el equipo de Nomira tienen acceso a sus expedientes ni a sus documentos."],
   ["¿Tengo que instalar algo?", "No. Nomira funciona desde el navegador, en computadora o tableta."],
   ["¿Puedo corregir una lectura?", "Sí. Cada corrección pide un motivo y queda registrada; el comprobante original no se modifica."],
-  ["¿Cómo empiezo?", "Llene el formulario de informes o escríbanos. Le damos de alta y le explicamos cómo cargar su catálogo y su primer expediente."],
+  ["¿Tengo que contratar los tres módulos?", "No. Cada módulo funciona por separado: contrate Nómina y prestaciones, Nomira Evidencia, Nomira AFORE o la combinación que necesite. Desactivar un módulo no borra su información."],
+  ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
+  ["¿Cómo envía documentos mi cliente?", "Usted le manda un enlace seguro que vence: lo abre en su celular, confirma un código que le llega a su correo y sube sus archivos. Solo puede enviar; no ve nada interno de su despacho."],
+  ["¿Nomira manda mensajes de WhatsApp por su cuenta?", "Solo con la API oficial de WhatsApp Business de Meta conectada a su número, con el consentimiento del cliente y, por omisión, con la aprobación del abogado. Si algo falta, el mensaje queda como borrador."],
+  ["¿Cómo empiezo?", "Llene el formulario de informes o escríbanos. Le damos de alta, activamos los módulos que necesite y le acompañamos en su primer caso."],
 ];
 
 function Palomita({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -58,7 +77,7 @@ export default function SitioPublico() {
     api.get("/publico").then((p) => setWhatsapp(p.whatsapp || null)).catch(() => {});
   }, []);
   const acceso = conSesion
-    ? <Link href="/app" className="btn-turquesa">Ir a mis expedientes</Link>
+    ? <Link href="/app" className="btn-turquesa">Ir a Nomira</Link>
     : <Link href="/login" className="btn-sec">Iniciar sesión</Link>;
 
   return (
@@ -92,18 +111,21 @@ export default function SitioPublico() {
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
             <div className="relative">
               <span className="inline-flex items-center gap-2 rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Análisis de comprobantes de nómina</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Software para despachos y áreas jurídicas</span>
               <h1 className="mt-5 font-marca text-4xl font-extrabold leading-[1.08] text-marino sm:text-5xl lg:text-[3.4rem]">
                 Cada prestación,<br /><span className="text-turquesa">en claro.</span></h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-                Nomira lee los comprobantes de nómina en PDF, suma solo las prestaciones de su catálogo autorizado y le entrega el
-                <b className="text-marino"> desglose por quincena</b>, con cada cifra ligada a la página de donde salió.</p>
+                Nomira lee sus documentos, ordena la información y le muestra de dónde sale cada dato, para que usted dedique su tiempo a
+                <b className="text-marino"> decidir</b>, no a copiar y pegar. Contrate solo los módulos que necesita.</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {MODULOS.map((m) => <a key={m.clave} href="#modulos" className="rounded-full border border-turquesa/40 bg-white px-3 py-1 text-sm font-semibold text-marino transition hover:border-turquesa">{m.nombre}</a>)}
+              </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#informes" className="btn-turquesa px-5 py-3 text-base">Solicitar informes</a>
                 <a href="#como-funciona" className="btn-sec px-5 py-3 text-base">Ver cómo funciona</a>
               </div>
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-                {["Sin instalar nada", "Excel y PDF con su logotipo", "Sus expedientes, privados"].map((t) => (
+                {["Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
                   <li key={t} className="flex items-center gap-2"><span className="text-turquesa-700"><Palomita /></span>{t}</li>))}
               </ul>
             </div>
@@ -120,11 +142,37 @@ export default function SitioPublico() {
         {/* El problema */}
         <section className="bg-marino-700 text-white">
           <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[1fr_1.4fr] md:items-center">
-            <h2 className="font-marca text-3xl font-extrabold leading-tight">Sumar quincenas a mano<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
+            <h2 className="font-marca text-3xl font-extrabold leading-tight">El trabajo repetitivo<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
             <p className="text-lg leading-relaxed text-white/75">
-              Un expediente puede traer decenas de comprobantes, cada uno con varias percepciones. Copiar claves e importes a una hoja de
-              cálculo es lento y basta un renglón equivocado para que el total no cuadre. Nomira hace la lectura y la suma, y le deja a usted
-              lo que de verdad requiere criterio.</p>
+              Sumar quincenas a mano, buscar una fecha entre decenas de documentos, perseguir al cliente por un acta o recordar en qué va
+              cada folio con la AFORE. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
+          </div>
+        </section>
+
+        {/* Módulos */}
+        <section id="modulos" className="scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-5 pt-20">
+            <div className="max-w-2xl">
+              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Módulos</span>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Tres módulos, una sola plataforma</h2>
+              <p className="mt-3 text-slate-600">Cada uno funciona por separado y comparte los mismos usuarios, la bitácora y la seguridad de su despacho.</p>
+            </div>
+            <div className="mt-10 grid gap-6 lg:grid-cols-3">
+              {MODULOS.map((m) => (
+                <article key={m.clave} className="tarjeta flex flex-col overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.imagen} alt={m.alt} loading="lazy" className="aspect-[16/10] w-full border-b border-crema-300 bg-crema object-cover object-left-top" />
+                  <div className="flex flex-1 flex-col p-6">
+                    <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">{m.lema}</span>
+                    <h3 className="mt-1 font-marca text-xl font-extrabold text-marino">{m.nombre}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{m.texto}</p>
+                    <ul className="mt-4 space-y-1.5 text-sm">
+                      {m.puntos.map((p) => <li key={p} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>{p}</li>)}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -133,7 +181,7 @@ export default function SitioPublico() {
           <div className="mx-auto max-w-6xl px-5 py-20">
             <div className="max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Cómo funciona</span>
-              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">De los PDF al desglose en cuatro pasos</h2>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Nómina y prestaciones: de los PDF al desglose en cuatro pasos</h2>
             </div>
             <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {PASOS.map(([t, d], i) => (
@@ -151,7 +199,7 @@ export default function SitioPublico() {
         <section id="beneficios" className="scroll-mt-20 border-y border-crema-300 bg-white">
           <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 lg:grid-cols-[1.25fr_1fr] lg:items-start">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Beneficios</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Nómina y prestaciones · Beneficios</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Un resultado que puede defender</h2>
               <p className="mt-3 max-w-xl text-slate-600">Nomira no adivina: aplica reglas claras y le muestra de dónde sale cada número.</p>
               <ul className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -172,14 +220,42 @@ export default function SitioPublico() {
           </div>
         </section>
 
+        {/* Portal del cliente */}
+        <section id="clientes" className="scroll-mt-20">
+          <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 lg:grid-cols-[1fr_1fr] lg:items-center">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Su cliente, conectado</span>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Menos llamadas de «¿cómo va mi asunto?»</h2>
+              <p className="mt-3 text-slate-600">Su cliente recibe un enlace seguro desde su celular: ve solo lo que usted decide compartir, sabe qué documentos faltan y los envía en un minuto.</p>
+              <ul className="mt-6 space-y-4">
+                {[["Solicitud de documentos con enlace seguro", "Vence, se puede cancelar y pide un código que llega al correo del cliente. Solo sirve para enviar archivos."],
+                  ["Usted revisa antes que nada", "Lo que llega queda «pendiente de revisión»: no se lee ni se agrega al expediente hasta que usted lo acepta."],
+                  ["Avisos con su aprobación", "Correos de bienvenida, recordatorios y avisos de novedades. En AFORE, también WhatsApp oficial, siempre con consentimiento del cliente."],
+                  ["Sin datos sensibles en los mensajes", "Los avisos solo dicen que hay novedades: los detalles se consultan en el portal seguro."]].map(([t, d]) => (
+                  <li key={t} className="flex gap-3">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-turquesa-50 text-turquesa-700"><Palomita /></span>
+                    <span><span className="block font-bold text-marino">{t}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{d}</span></span>
+                  </li>))}
+              </ul>
+            </div>
+            <figure className="mx-auto w-full max-w-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/sitio/portal.webp" alt="Página del cliente en el celular para enviar sus documentos de forma segura (datos ficticios)." loading="lazy"
+                className="w-full rounded-[2rem] border-8 border-marino-900 shadow-flotante" />
+              <figcaption className="mt-3 text-center text-xs text-slate-500">Lo que ve su cliente en el celular (datos ficticios).</figcaption>
+            </figure>
+          </div>
+        </section>
+
         {/* Para quién */}
         <section>
           <div className="mx-auto max-w-6xl px-5 py-16">
-            <h2 className="text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien revisa nóminas con detalle</h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {[["Despachos laborales", "Integre el monto de las prestaciones de cada trabajador con el respaldo de sus comprobantes."],
-                ["Recursos humanos", "Verifique pagos de varios periodos y detecte quincenas faltantes o recibos repetidos."],
-                ["Áreas jurídicas y contables", "Obtenga un desglose con trazabilidad completa, listo para integrarse a un expediente."]].map(([t, d]) => (
+            <h2 className="text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien trabaja con documentos y plazos</h2>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[["Despachos laborales", "Integre prestaciones con el respaldo de cada comprobante y arme el expediente probatorio."],
+                ["Familiar, civil y mercantil", "Ordene documentos, hechos y fechas de cada asunto, y detecte versiones distintas entre fuentes."],
+                ["Seguridad social y AFORE", "Lleve cada caso AFORE/SAR con su checklist, folios, respuestas y seguimientos al día."],
+                ["Recursos humanos y áreas jurídicas", "Verifique pagos de varios periodos con trazabilidad completa, lista para un expediente."]].map(([t, d]) => (
                 <div key={t} className="rounded-3xl border border-crema-300 bg-white/60 p-6">
                   <h3 className="font-bold text-marino">{t}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{d}</p>
                 </div>
@@ -194,13 +270,15 @@ export default function SitioPublico() {
             <div className="max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-brillante">Seguridad y privacidad</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold sm:text-4xl">Sus expedientes son solo suyos</h2>
-              <p className="mt-3 text-white/70">Los comprobantes de nómina contienen datos personales. Nomira está construido para tratarlos con ese cuidado.</p>
+              <p className="mt-3 text-white/70">Sus documentos contienen datos personales y secreto profesional. Nomira está construido para tratarlos con ese cuidado.</p>
             </div>
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {[["Separado por organización", "Cada empresa ve únicamente sus propios expedientes, documentos y catálogos."],
-                ["Ni nosotros los vemos", "El equipo de Nomira administra cuentas, pero no tiene acceso a sus expedientes ni a sus PDF."],
-                ["Accesos protegidos", "Conexión cifrada (HTTPS), contraseñas protegidas y bloqueo ante intentos repetidos."],
-                ["Todo queda registrado", "Bitácora de accesos, correcciones y validaciones para saber quién hizo qué y cuándo."]].map(([t, d]) => (
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {[["Separado por organización", "Cada despacho ve únicamente sus propios expedientes, casos, documentos y clientes."],
+                ["Ni nosotros los vemos", "El equipo de Nomira administra cuentas, pero no tiene acceso a sus expedientes ni a sus documentos."],
+                ["Accesos protegidos", "Conexión cifrada (HTTPS), contraseñas protegidas, bloqueo ante intentos repetidos y documentos restringidos por usuario."],
+                ["Datos sensibles cifrados", "CURP, NSS y credenciales se guardan cifrados y se muestran enmascarados; verlos completos queda registrado."],
+                ["Enlaces que vencen", "Los enlaces para sus clientes caducan, se pueden cancelar, piden código y no contienen información del caso."],
+                ["Todo queda registrado", "Bitácora de quién creó, editó, validó, envió o descargó cada cosa y cuándo."]].map(([t, d]) => (
                 <div key={t} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-turquesa-brillante/15 text-turquesa-brillante">
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></svg>
@@ -234,7 +312,7 @@ export default function SitioPublico() {
             <div>
               <span className="rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">Informes y suscripción</span>
               <h2 className="mt-4 font-marca text-3xl font-extrabold leading-tight text-marino sm:text-4xl">Hablemos de su operación</h2>
-              <p className="mt-3 text-slate-600">Cuéntenos cuántos expedientes revisa y cómo trabaja hoy. Le respondemos para explicarle cómo empezar.</p>
+              <p className="mt-3 text-slate-600">Cuéntenos qué módulos le interesan, cuántos asuntos lleva y cómo trabaja hoy. Le respondemos para explicarle cómo empezar.</p>
               {whatsapp && (
                 <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, me interesa conocer Nomira.")}`} target="_blank" rel="noopener noreferrer"
                   className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2.5 text-sm font-semibold text-[#128C4B] transition hover:bg-[#25D366]/20">
@@ -251,6 +329,7 @@ export default function SitioPublico() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm">
           <div className="flex items-center gap-3"><Logo oscuro /><span className="hidden text-white/40 sm:inline">Cada prestación, en claro</span></div>
           <nav className="flex flex-wrap gap-5" aria-label="Pie de página">
+            <a href="#modulos" className="hover:text-white">Módulos</a>
             <a href="#como-funciona" className="hover:text-white">Cómo funciona</a>
             <a href="#informes" className="hover:text-white">Informes</a>
             <Link href="/login" className="hover:text-white">Iniciar sesión</Link>

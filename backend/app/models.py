@@ -547,3 +547,263 @@ class EvSolicitud(Base):
     ultima_carga_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------------------------
+# Nomira AFORE (módulo independiente: no usa tablas de Nómina ni de Evidencia)
+# ---------------------------------------------------------------------------------------------
+
+class AfConfig(Base):
+    """Configuración de Nomira AFORE por organización. El token de WhatsApp se guarda cifrado."""
+    __tablename__ = "af_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    checklists: Mapped[dict | None] = mapped_column(JSON)  # {tipo: [requisito, …]} (vacío = valores de fábrica)
+    tipos_extra: Mapped[list | None] = mapped_column(JSON)  # tipos de problema propios del despacho
+    reglas_plazo: Mapped[list | None] = mapped_column(JSON)  # [{nombre, dias, fuente, revisado_en}] sugerencias, nunca obligatorias
+    wa_phone_number_id: Mapped[str | None] = mapped_column(String(40))
+    wa_waba_id: Mapped[str | None] = mapped_column(String(40))
+    wa_numero: Mapped[str | None] = mapped_column(String(30))  # número visible, solo para mostrar
+    wa_token_cifrado: Mapped[str | None] = mapped_column(Text)
+    wa_conectado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    wa_conectado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    curp_oficial_autorizado: Mapped[bool] = mapped_column(Boolean, default=False)  # lo decide la plataforma
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AfCliente(Base):
+    """Persona que se comunica con el despacho. CURP y NSS van cifrados; en pantalla, enmascarados."""
+    __tablename__ = "af_clientes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    telefono: Mapped[str | None] = mapped_column(String(20))  # solo dígitos, con lada de país
+    email: Mapped[str | None] = mapped_column(String(254))
+    curp_cifrado: Mapped[str | None] = mapped_column(Text)
+    curp_pista: Mapped[str | None] = mapped_column(String(12))
+    nss_cifrado: Mapped[str | None] = mapped_column(Text)
+    nss_pista: Mapped[str | None] = mapped_column(String(8))
+    titular_estado: Mapped[str] = mapped_column(String(12), default="vive")  # vive | fallecio | no_se
+    relacion: Mapped[str] = mapped_column(String(20), default="titular")  # titular | pensionado | beneficiario | representante | familiar
+    preferencia_contacto: Mapped[str] = mapped_column(String(12), default="correo")  # whatsapp | correo | telefono | ninguno
+    notas: Mapped[str | None] = mapped_column(Text)  # internas
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AfConsentimiento(Base):
+    """Consentimiento para recibir actualizaciones por un canal: cuándo, cómo, para qué y su revocación."""
+    __tablename__ = "af_consentimientos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("af_clientes.id", ondelete="CASCADE"), index=True)
+    canal: Mapped[str] = mapped_column(String(12))  # whatsapp | correo
+    alcance: Mapped[str] = mapped_column(String(300))
+    medio: Mapped[str] = mapped_column(String(40))  # verbal | escrito | portal | mensaje
+    otorgado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revocado_medio: Mapped[str | None] = mapped_column(String(40))
+
+
+class AfCaso(Base):
+    __tablename__ = "af_casos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("af_clientes.id"), index=True)
+    titular_nombre: Mapped[str | None] = mapped_column(String(200))  # si el titular no es quien se comunica
+    estado: Mapped[str] = mapped_column(String(20), default="borrador")  # borrador | abierto | esperando | pausado | cerrado
+    tipo_problema: Mapped[str] = mapped_column(String(60))
+    tipo_otro: Mapped[str | None] = mapped_column(String(200))
+    datos: Mapped[dict | None] = mapped_column(JSON)  # {campo: {"valor", "estado"}}: afore, institución, montos…
+    identificador_interno: Mapped[str | None] = mapped_column(String(80))
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    restringido: Mapped[bool] = mapped_column(Boolean, default=False)  # solo administradores, responsable y quien lo creó
+    siguiente_actividad: Mapped[str | None] = mapped_column(String(300))
+    siguiente_fecha: Mapped[date | None] = mapped_column(Date)
+    siguiente_responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    resumen_interno: Mapped[str | None] = mapped_column(Text)
+    portal_visible: Mapped[bool] = mapped_column(Boolean, default=False)
+    estado_publico: Mapped[str | None] = mapped_column(String(500))  # lo que el despacho decide mostrar al cliente
+    siguiente_paso_publico: Mapped[str | None] = mapped_column(String(500))
+    publico_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AfRequisito(Base):
+    """Elemento del checklist del caso (organización, no lista legal definitiva)."""
+    __tablename__ = "af_requisitos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    estado: Mapped[str] = mapped_column(String(25), default="no_solicitado")
+    visible_cliente: Mapped[bool] = mapped_column(Boolean, default=True)
+    nota: Mapped[str | None] = mapped_column(String(500))  # interna
+    nota_cliente: Mapped[str | None] = mapped_column(String(300))  # p. ej. qué corregir
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfDocumento(Base):
+    __tablename__ = "af_documentos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    requisito_id: Mapped[int | None] = mapped_column(ForeignKey("af_requisitos.id", ondelete="SET NULL"))
+    nombre_original: Mapped[str] = mapped_column(String(300))
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    ruta: Mapped[str | None] = mapped_column(String(500))  # vacío si es un vínculo a Evidencia (no se duplica)
+    formato: Mapped[str | None] = mapped_column(String(10))
+    tamano_bytes: Mapped[int | None] = mapped_column(Integer)
+    origen: Mapped[str] = mapped_column(String(12), default="despacho")  # despacho | cliente | evidencia
+    ev_documento_id: Mapped[int | None] = mapped_column(ForeignKey("ev_documentos.id", ondelete="SET NULL"))
+    visible_cliente: Mapped[bool] = mapped_column(Boolean, default=False)
+    estado: Mapped[str] = mapped_column(String(25), default="recibido")  # recibido | aceptado | requiere_correccion
+    recepcion_confirmada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    datos_capturados: Mapped[dict | None] = mapped_column(JSON)  # lo que una persona leyó: nombre, curp (pista), fechas
+    subido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfActividad(Base):
+    """Cronología: solicitudes, respuestas, acuses, llamadas, consultas, notas."""
+    __tablename__ = "af_actividades"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(30))
+    institucion: Mapped[str | None] = mapped_column(String(120))
+    canal: Mapped[str | None] = mapped_column(String(60))
+    folio: Mapped[str | None] = mapped_column(String(80))
+    fecha: Mapped[date] = mapped_column(Date)
+    resumen: Mapped[str | None] = mapped_column(Text)  # interno
+    documento_id: Mapped[int | None] = mapped_column(ForeignKey("af_documentos.id", ondelete="SET NULL"))
+    responde_a_id: Mapped[int | None] = mapped_column(ForeignKey("af_actividades.id", ondelete="SET NULL"))
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    modificado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    modificado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AfPlazo(Base):
+    """Fechas del caso, siempre con su naturaleza: un plazo legal solo existe si el abogado lo confirma."""
+    __tablename__ = "af_plazos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(25))  # legal_confirmado | seguimiento_interno | informado_institucion | estimado
+    descripcion: Mapped[str] = mapped_column(String(300))
+    fecha: Mapped[date] = mapped_column(Date)
+    fuente: Mapped[str | None] = mapped_column(String(300))
+    regla: Mapped[str | None] = mapped_column(String(120))  # regla configurable que lo sugirió
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    confirmado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    confirmado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfPlantilla(Base):
+    __tablename__ = "af_plantillas"
+    __table_args__ = (UniqueConstraint("organizacion_id", "clave"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    clave: Mapped[str] = mapped_column(String(40))
+    nombre: Mapped[str] = mapped_column(String(120))
+    texto: Mapped[str] = mapped_column(String(1000))
+    wa_nombre: Mapped[str | None] = mapped_column(String(120))  # nombre de la plantilla aprobada en Meta
+    wa_idioma: Mapped[str] = mapped_column(String(10), default="es_MX")
+    wa_aprobada: Mapped[bool] = mapped_column(Boolean, default=False)
+    envio: Mapped[str] = mapped_column(String(12), default="aprobacion")  # aprobacion | automatico
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AfMensaje(Base):
+    """Mensaje al cliente (o recibido de él). Nunca se marca «enviado» sin respuesta del proveedor."""
+    __tablename__ = "af_mensajes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("af_clientes.id", ondelete="SET NULL"), index=True)
+    caso_id: Mapped[int | None] = mapped_column(ForeignKey("af_casos.id", ondelete="SET NULL"), index=True)
+    canal: Mapped[str] = mapped_column(String(12))  # whatsapp | correo
+    direccion: Mapped[str] = mapped_column(String(10), default="saliente")  # saliente | entrante
+    plantilla: Mapped[str | None] = mapped_column(String(40))
+    texto: Mapped[str] = mapped_column(Text)  # sin el enlace: «[enlace]» se genera al enviar
+    # borrador | esperando_aprobacion | enviado | entregado | leido | fallido | cancelado | recibido | por_asignar
+    estado: Mapped[str] = mapped_column(String(25))
+    motivo: Mapped[str | None] = mapped_column(String(500))  # qué falta para poder enviarlo
+    origen: Mapped[str | None] = mapped_column(String(40))  # evento que lo generó
+    telefono: Mapped[str | None] = mapped_column(String(20))
+    proveedor_id: Mapped[str | None] = mapped_column(String(120), unique=True)
+    error: Mapped[str | None] = mapped_column(Text)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    aprobado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    aprobado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    entregado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    asignado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class AfEventoWebhook(Base):
+    """Idempotencia de los webhooks: cada evento se procesa una sola vez aunque el proveedor reintente."""
+    __tablename__ = "af_eventos_webhook"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    llave: Mapped[str] = mapped_column(String(200), unique=True)
+    recibido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfAcceso(Base):
+    """Acceso del cliente a su portal. Como en las solicitudes de Evidencia: solo la huella del token."""
+    __tablename__ = "af_accesos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("af_clientes.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_pista: Mapped[str] = mapped_column(String(8))
+    requiere_codigo: Mapped[bool] = mapped_column(Boolean, default=True)
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigo_hash: Mapped[str | None] = mapped_column(String(64))
+    codigo_expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigo_intentos: Mapped[int] = mapped_column(Integer, default=0)
+    codigo_enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigos_enviados: Mapped[int] = mapped_column(Integer, default=0)
+    ultimo_uso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfConsultaCurp(Base):
+    """Registro de cada intento de consulta OFICIAL de CURP (finalidad y consentimiento)."""
+    __tablename__ = "af_consultas_curp"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    finalidad: Mapped[str] = mapped_column(String(300))
+    consentimiento: Mapped[bool] = mapped_column(Boolean)
+    resultado: Mapped[str] = mapped_column(String(40))  # no_configurado | consultado | error
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AfVinculoEvidencia(Base):
+    """Referencia a un documento o hecho de Nomira Evidencia (no se copia el archivo)."""
+    __tablename__ = "af_vinculos_evidencia"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    caso_id: Mapped[int] = mapped_column(ForeignKey("af_casos.id", ondelete="CASCADE"), index=True)
+    ev_documento_id: Mapped[int | None] = mapped_column(ForeignKey("ev_documentos.id", ondelete="CASCADE"))
+    ev_hecho_id: Mapped[int | None] = mapped_column(ForeignKey("ev_hechos.id", ondelete="CASCADE"))
+    nota: Mapped[str | None] = mapped_column(String(300))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

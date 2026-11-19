@@ -53,6 +53,17 @@ services:
         sync: false
       - key: RECORDATORIO_DIAS
         value: "7"
+      # Nomira AFORE. La clave de cifrado se genera una vez y NO debe cambiarse (CURP/NSS/tokens cifrados).
+      - key: AFORE_CLAVE_CIFRADO
+        generateValue: true
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: CURP_API_URL
+        sync: false
+      - key: CURP_API_KEY
+        sync: false
       # Verificación opcional con IA. Para activarla: IA_HABILITADA=true y su clave en ANTHROPIC_API_KEY
       # (Render > nomira-demo > Environment). Envía imágenes de recibos al proveedor de IA.
       - key: IA_HABILITADA
