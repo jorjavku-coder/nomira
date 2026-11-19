@@ -30,6 +30,7 @@ from ..services import envios, modulos, plantillas_correo
 from ..services.afore import catalogos as cat
 from ..services.afore import portal, whatsapp
 from ..services.evidencia import solicitudes as sol
+from ..services.leads import whatsapp_entrada as leads_wa
 from .afore import guardar_archivo, tipos
 
 router = APIRouter(tags=["Nomira AFORE — público"])
@@ -261,14 +262,31 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
             v = cambio.get("value") or {}
             pid = (v.get("metadata") or {}).get("phone_number_id")
             cfg = db.scalar(select(m.AfConfig).where(m.AfConfig.wa_phone_number_id == pid)) if pid else None
-            if cfg is None:
+            # El mismo número puede estar conectado también en Nomira Leads (módulo independiente)
+            ld = leads_wa.config_por_numero(db, pid)
+            if cfg is None and ld is None:
                 continue  # número que no pertenece a ningún despacho
             for st in v.get("statuses", []):
-                _estado_mensaje(db, cfg, st)
+                if cfg is not None:
+                    _estado_mensaje(db, cfg, st)
+                if ld is not None:
+                    leads_wa.estado(db, ld, st)
             for mensaje in v.get("messages", []):
-                _mensaje_entrante(db, cfg, mensaje)
+                # A AFORE si el número no está en Leads o si el teléfono es de UN cliente AFORE; si no, a Leads
+                if cfg is not None and (ld is None or _es_cliente_afore(db, cfg, mensaje)):
+                    _mensaje_entrante(db, cfg, mensaje)
+                else:
+                    leads_wa.entrante(db, ld, mensaje, v.get("contacts"))
     db.commit()
     return {"ok": True}  # 200 rápido: Meta reintenta si no lo recibe
+
+
+def _es_cliente_afore(db: Session, cfg: m.AfConfig, mensaje: dict) -> bool:
+    tel = "".join(ch for ch in (mensaje.get("from") or "") if ch.isdigit())
+    if not tel:
+        return False
+    return sum(1 for c in db.scalars(select(m.AfCliente).where(m.AfCliente.organizacion_id == cfg.organizacion_id))
+               if c.telefono and c.telefono[-10:] == tel[-10:]) == 1
 
 
 def _estado_mensaje(db: Session, cfg: m.AfConfig, st: dict):

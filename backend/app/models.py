@@ -807,3 +807,364 @@ class AfVinculoEvidencia(Base):
     nota: Mapped[str | None] = mapped_column(String(300))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------------------------
+# Nomira Leads (módulo independiente: prospectos, seguimiento y origen de los clientes)
+# ---------------------------------------------------------------------------------------------
+
+class LdConfig(Base):
+    """Configuración de Nomira Leads por organización. Los tokens y claves se guardan cifrados o
+    como huella; nunca vuelven al navegador."""
+    __tablename__ = "ld_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    materias: Mapped[list | None] = mapped_column(JSON)  # materias o servicios que ofrece el despacho
+    motivos_perdida: Mapped[list | None] = mapped_column(JSON)
+    dias_sin_actividad: Mapped[int] = mapped_column(Integer, default=7)
+    # Enlace público del formulario general (no es secreto: se publica en el sitio o en redes)
+    formulario_token: Mapped[str | None] = mapped_column(String(40), unique=True)
+    formulario_activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Clave para recibir prospectos de otros sistemas (Zapier, Make, Google Ads, su sitio web): solo la huella
+    entrada_clave_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    entrada_clave_pista: Mapped[str | None] = mapped_column(String(8))
+    # WhatsApp Business Platform (Cloud API oficial de Meta)
+    wa_phone_number_id: Mapped[str | None] = mapped_column(String(40), index=True)
+    wa_numero: Mapped[str | None] = mapped_column(String(30))
+    wa_token_cifrado: Mapped[str | None] = mapped_column(Text)
+    wa_plantilla: Mapped[str | None] = mapped_column(String(120))  # plantilla aprobada para iniciar conversación
+    wa_plantilla_idioma: Mapped[str] = mapped_column(String(10), default="es_MX")
+    wa_conectado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Anuncios de clientes potenciales de Meta (Facebook e Instagram)
+    meta_page_id: Mapped[str | None] = mapped_column(String(40), index=True)
+    meta_page_nombre: Mapped[str | None] = mapped_column(String(200))
+    meta_token_cifrado: Mapped[str | None] = mapped_column(Text)
+    meta_conectado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class LdEtapa(Base):
+    """Etapa del tablero. «ganada» (Contratado) y «perdida» (No contratado) siempre existen."""
+    __tablename__ = "ld_etapas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(80))
+    clave: Mapped[str | None] = mapped_column(String(30))  # etapas de fábrica: nuevo, contactado, consulta_agendada…
+    tipo: Mapped[str] = mapped_column(String(10), default="abierta")  # abierta | ganada | perdida
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    archivada: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class LdCampana(Base):
+    """Campaña o fuente: un anuncio, un correo masivo del despacho, una publicación, un evento…"""
+    __tablename__ = "ld_campanas"
+    __table_args__ = (UniqueConstraint("organizacion_id", "codigo"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(160))
+    canal: Mapped[str] = mapped_column(String(20))
+    codigo: Mapped[str] = mapped_column(String(12))  # código corto para atribuir (enlaces y mensajes de WhatsApp)
+    enlace_token: Mapped[str] = mapped_column(String(40), unique=True)  # formulario propio de la campaña (público)
+    id_externo: Mapped[str | None] = mapped_column(String(80))  # id de la campaña en Meta o Google, si llega
+    inversion: Mapped[Decimal | None] = mapped_column(DINERO)  # solo si el despacho la registra
+    inicio: Mapped[date | None] = mapped_column(Date)
+    fin: Mapped[date | None] = mapped_column(Date)
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    notas: Mapped[str | None] = mapped_column(String(500))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class LdProspecto(Base):
+    __tablename__ = "ld_prospectos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    telefono: Mapped[str | None] = mapped_column(String(20))  # solo dígitos, con lada de país
+    email: Mapped[str | None] = mapped_column(String(254))
+    ciudad: Mapped[str | None] = mapped_column(String(120))
+    materia: Mapped[str | None] = mapped_column(String(120))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    canal: Mapped[str] = mapped_column(String(20), default="otro")
+    campana_id: Mapped[int | None] = mapped_column(ForeignKey("ld_campanas.id", ondelete="SET NULL"), index=True)
+    origen_detalle: Mapped[dict | None] = mapped_column(JSON)  # utm_*, anuncio, formulario… (sin datos personales)
+    entrada: Mapped[str] = mapped_column(String(20), default="manual")  # manual | formulario | whatsapp | meta | integracion
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
+    etapa_id: Mapped[int] = mapped_column(ForeignKey("ld_etapas.id"), index=True)
+    borrador: Mapped[bool] = mapped_column(Boolean, default=False)
+    preferencia_contacto: Mapped[str] = mapped_column(String(12), default="whatsapp")  # whatsapp | llamada | correo | ninguno
+    motivo_perdida: Mapped[str | None] = mapped_column(String(120))
+    motivo_nota: Mapped[str | None] = mapped_column(String(500))
+    primera_respuesta_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultima_actividad_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    # Contratación
+    contratado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    servicio_contratado: Mapped[str | None] = mapped_column(String(200))
+    asunto_titulo: Mapped[str | None] = mapped_column(String(200))
+    asunto_referencia: Mapped[str | None] = mapped_column(String(80))
+    ev_asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="SET NULL"))
+    af_caso_id: Mapped[int | None] = mapped_column(ForeignKey("af_casos.id", ondelete="SET NULL"))
+    anonimizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class LdConsentimiento(Base):
+    """Autorización del prospecto para ser contactado por un canal: fecha, medio, finalidad y revocación."""
+    __tablename__ = "ld_consentimientos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    prospecto_id: Mapped[int] = mapped_column(ForeignKey("ld_prospectos.id", ondelete="CASCADE"), index=True)
+    canal: Mapped[str] = mapped_column(String(12))  # whatsapp | correo | llamada
+    finalidad: Mapped[str] = mapped_column(String(300))
+    medio: Mapped[str] = mapped_column(String(30))  # verbal | escrito | formulario_web | formulario_meta | mensaje | integracion
+    otorgado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revocado_medio: Mapped[str | None] = mapped_column(String(30))
+
+
+class LdAccion(Base):
+    """Próximo paso: llamada, mensaje, consulta, propuesta… Un recordatorio NUNCA envía nada solo."""
+    __tablename__ = "ld_acciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    prospecto_id: Mapped[int] = mapped_column(ForeignKey("ld_prospectos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(20))  # llamada | mensaje | consulta | propuesta | seguimiento
+    descripcion: Mapped[str | None] = mapped_column(String(300))
+    fecha: Mapped[date] = mapped_column(Date, index=True)
+    hora: Mapped[str | None] = mapped_column(String(5))
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    recordatorio: Mapped[bool] = mapped_column(Boolean, default=True)  # aviso dentro de Nomira
+    completada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resultado: Mapped[str | None] = mapped_column(String(500))
+    completada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    cancelada: Mapped[bool] = mapped_column(Boolean, default=False)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class LdActividad(Base):
+    """Historial del prospecto: notas, cambios de etapa, responsable, datos, mensajes y contratación."""
+    __tablename__ = "ld_actividades"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    prospecto_id: Mapped[int] = mapped_column(ForeignKey("ld_prospectos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(20))
+    texto: Mapped[str | None] = mapped_column(Text)
+    detalle: Mapped[dict | None] = mapped_column(JSON)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class LdMensaje(Base):
+    """Conversación con el prospecto. Nunca se marca «enviado» sin respuesta del proveedor."""
+    __tablename__ = "ld_mensajes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    prospecto_id: Mapped[int | None] = mapped_column(ForeignKey("ld_prospectos.id", ondelete="SET NULL"), index=True)
+    canal: Mapped[str] = mapped_column(String(12))  # whatsapp | correo
+    direccion: Mapped[str] = mapped_column(String(10))  # saliente | entrante
+    texto: Mapped[str] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(15))  # enviado | entregado | leido | fallido | recibido | por_asignar | manual
+    telefono: Mapped[str | None] = mapped_column(String(20))
+    proveedor_id: Mapped[str | None] = mapped_column(String(120), unique=True)
+    error: Mapped[str | None] = mapped_column(Text)
+    respondido: Mapped[bool] = mapped_column(Boolean, default=False)  # para entrantes: ya se atendió
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    entregado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class LdEventoExterno(Base):
+    """Idempotencia de webhooks de Leads (WhatsApp y anuncios de Meta)."""
+    __tablename__ = "ld_eventos_externos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    llave: Mapped[str] = mapped_column(String(200), unique=True)
+    recibido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------------------------
+# Nomira Academia (módulo independiente: cursos breves para el equipo del despacho)
+# ---------------------------------------------------------------------------------------------
+
+class AcCurso(Base):
+    """Curso del despacho (organizacion_id) o de Nomira (organizacion_id vacío, de solo lectura)."""
+    __tablename__ = "ac_cursos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    clave: Mapped[str | None] = mapped_column(String(60), unique=True)  # cursos de Nomira
+    titulo: Mapped[str] = mapped_column(String(200))
+    materia: Mapped[str] = mapped_column(String(120))
+    roles: Mapped[list | None] = mapped_column(JSON)  # a quién va dirigido (texto libre)
+    instructor: Mapped[str | None] = mapped_column(String(200))
+    institucion: Mapped[str | None] = mapped_column(String(200))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    duracion_min: Mapped[int | None] = mapped_column(Integer)
+    modalidad: Mapped[str] = mapped_column(String(15), default="autodirigido")  # autodirigido | en_vivo | combinado
+    estado: Mapped[str] = mapped_column(String(12), default="borrador")  # borrador | publicado | archivado
+    juridico: Mapped[bool] = mapped_column(Boolean, default=False)
+    requiere_revision: Mapped[bool] = mapped_column(Boolean, default=False)
+    nota_revision: Mapped[str | None] = mapped_column(String(500))
+    asistido_ia: Mapped[bool] = mapped_column(Boolean, default=False)  # exige revisión humana antes de publicar
+    calificacion_minima: Mapped[int | None] = mapped_column(Integer)  # vacío: basta con completar las lecciones
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    contenido_actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    revisado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    publicado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archivado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AcModulo(Base):
+    __tablename__ = "ac_modulos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    archivado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AcLeccion(Base):
+    """Lección. Se archiva (no se borra) para no perder el avance de quien ya la tomó."""
+    __tablename__ = "ac_lecciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"), index=True)
+    modulo_id: Mapped[int] = mapped_column(ForeignKey("ac_modulos.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    texto: Mapped[str | None] = mapped_column(Text)
+    video_url: Mapped[str | None] = mapped_column(String(500))
+    sesion_url: Mapped[str | None] = mapped_column(String(500))
+    transcripcion: Mapped[str | None] = mapped_column(Text)
+    recursos: Mapped[list | None] = mapped_column(JSON)  # [{titulo, url}]
+    actividad: Mapped[dict | None] = mapped_column(JSON)  # {pregunta, opciones, correcta, explicacion}
+    archivo_ruta: Mapped[str | None] = mapped_column(String(500))
+    archivo_nombre: Mapped[str | None] = mapped_column(String(300))
+    archivo_formato: Mapped[str | None] = mapped_column(String(10))
+    archivo_tamano: Mapped[int | None] = mapped_column(Integer)
+    duracion_min: Mapped[int | None] = mapped_column(Integer)
+    archivado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AcPregunta(Base):
+    """Pregunta del cuestionario final del curso."""
+    __tablename__ = "ac_preguntas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"), index=True)
+    texto: Mapped[str] = mapped_column(String(500))
+    opciones: Mapped[list] = mapped_column(JSON)
+    correcta: Mapped[int] = mapped_column(Integer)
+    explicacion: Mapped[str | None] = mapped_column(String(500))
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    archivado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AcSesion(Base):
+    """Sesión en vivo. Nomira no crea reuniones: el despacho pega el enlace de su plataforma."""
+    __tablename__ = "ac_sesiones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    inicio: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    duracion_min: Mapped[int] = mapped_column(Integer, default=60)
+    enlace: Mapped[str | None] = mapped_column(String(500))
+    grabacion_url: Mapped[str | None] = mapped_column(String(500))
+    notas: Mapped[str | None] = mapped_column(String(500))
+    cancelada: Mapped[bool] = mapped_column(Boolean, default=False)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+
+
+class AcEquipo(Base):
+    __tablename__ = "ac_equipos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    nombre: Mapped[str] = mapped_column(String(120))
+    descripcion: Mapped[str | None] = mapped_column(String(300))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AcEquipoMiembro(Base):
+    __tablename__ = "ac_equipo_miembros"
+    __table_args__ = (UniqueConstraint("equipo_id", "usuario_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    equipo_id: Mapped[int] = mapped_column(ForeignKey("ac_equipos.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+
+
+class AcInstructor(Base):
+    """Usuarios que pueden crear y editar cursos del despacho (además de los administradores)."""
+    __tablename__ = "ac_instructores"
+    __table_args__ = (UniqueConstraint("organizacion_id", "usuario_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"))
+
+
+class AcAsignacion(Base):
+    """Curso asignado a una persona o a un equipo. Al retirarla se conserva en el historial."""
+    __tablename__ = "ac_asignaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    equipo_id: Mapped[int | None] = mapped_column(ForeignKey("ac_equipos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(12), default="obligatorio")  # obligatorio | recomendado
+    fecha_sugerida: Mapped[date | None] = mapped_column(Date)
+    asignado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    retirada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retirada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+
+
+class AcAvance(Base):
+    """Avance de una persona en un curso. Nunca se borra al actualizar o archivar el curso."""
+    __tablename__ = "ac_avances"
+    __table_args__ = (UniqueConstraint("usuario_id", "curso_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id"), index=True)
+    iniciado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    ultima_leccion_id: Mapped[int | None] = mapped_column(ForeignKey("ac_lecciones.id", ondelete="SET NULL"))
+    ultima_actividad_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    completado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    calificacion: Mapped[int | None] = mapped_column(Integer)
+    constancia_folio: Mapped[str | None] = mapped_column(String(20), unique=True)
+    # Copia del curso al completarlo: la constancia no cambia aunque el curso se edite después
+    curso_titulo: Mapped[str | None] = mapped_column(String(200))
+    curso_version: Mapped[int | None] = mapped_column(Integer)
+    curso_duracion_min: Mapped[int | None] = mapped_column(Integer)
+
+
+class AcAvanceLeccion(Base):
+    __tablename__ = "ac_avance_lecciones"
+    __table_args__ = (UniqueConstraint("avance_id", "leccion_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    avance_id: Mapped[int] = mapped_column(ForeignKey("ac_avances.id", ondelete="CASCADE"), index=True)
+    leccion_id: Mapped[int] = mapped_column(ForeignKey("ac_lecciones.id", ondelete="CASCADE"))
+    posicion: Mapped[int] = mapped_column(Integer, default=0)  # desplazamiento o segundo de video donde se quedó
+    respuesta: Mapped[int | None] = mapped_column(Integer)
+    correcta: Mapped[bool | None] = mapped_column(Boolean)
+    completada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AcIntento(Base):
+    __tablename__ = "ac_intentos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    avance_id: Mapped[int] = mapped_column(ForeignKey("ac_avances.id", ondelete="CASCADE"), index=True)
+    respuestas: Mapped[dict] = mapped_column(JSON)
+    aciertos: Mapped[int] = mapped_column(Integer)
+    total: Mapped[int] = mapped_column(Integer)
+    calificacion: Mapped[int] = mapped_column(Integer)
+    aprobado: Mapped[bool] = mapped_column(Boolean)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

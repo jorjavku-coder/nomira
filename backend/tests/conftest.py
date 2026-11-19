@@ -47,6 +47,9 @@ def _limpiar():
     evidencia_publica._fallos_ip._eventos.clear()
     from app.routers import afore_publico
     afore_publico._fallos_ip._eventos.clear()
+    from app.routers import leads_publico
+    leads_publico._fallos_ip._eventos.clear()
+    leads_publico._altas_ip._eventos.clear()
     from app.routers import plataforma as _plataforma
     _plataforma._intentos.clear()
     from app.routers import solicitudes

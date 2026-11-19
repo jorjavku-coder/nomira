@@ -9,9 +9,10 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (afore, afore_publico, auth, catalogos, documentos, evidencia, evidencia_publica, expedientes, ia,
-                      organizacion, plataforma, soporte, solicitudes)
+from .routers import (academia, afore, afore_publico, auth, catalogos, documentos, evidencia, evidencia_publica, expedientes, ia,
+                      leads, leads_publico, organizacion, plataforma, soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
+from .services.academia import nomira as cursos_nomira
 from .services.modulos import requiere_modulo
 from .services import correo
 from .services.envios import ejecutar_recordatorios
@@ -31,6 +32,11 @@ async def ciclo(app: FastAPI):
         recuperar_evidencia()
     except Exception:
         logging.getLogger("quincena").warning("No se pudo revisar documentos de evidencia interrumpidos.")
+    try:
+        with SessionLocal() as db:
+            cursos_nomira.asegurar(db)
+    except Exception:
+        logging.getLogger("quincena").warning("No se pudieron revisar los cursos de Nomira Academia.")
     try:
         with SessionLocal() as db:
             asegurar_admin_inicial(db)
@@ -77,6 +83,10 @@ app.include_router(evidencia_publica.router)
 app.include_router(afore.router, dependencies=[Depends(requiere_modulo("afore"))])
 # Portal del cliente y webhook de WhatsApp: sin sesión de usuario (validan su enlace o la firma de Meta).
 app.include_router(afore_publico.router)
+app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))])
+# Formulario de contacto, entrada de otros sistemas y anuncios de Meta: validan su enlace, clave o firma.
+app.include_router(leads_publico.router)
+app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
 
 
 @app.get("/api/salud")

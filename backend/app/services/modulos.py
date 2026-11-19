@@ -22,6 +22,10 @@ MODULOS = {
                   "por_defecto": False},
     "afore": {"nombre": "Nomira AFORE", "descripcion": "Casos AFORE y SAR: checklist, folios y seguimientos, portal del cliente y mensajes con aprobación del abogado.",
               "por_defecto": False},
+    "leads": {"nombre": "Nomira Leads", "descripcion": "Prospectos y consultas: bandeja, tablero de seguimiento, próximos pasos, campañas y origen de los clientes.",
+              "por_defecto": False},
+    "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
+                 "por_defecto": False},
 }
 
 

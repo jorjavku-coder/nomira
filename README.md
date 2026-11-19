@@ -260,6 +260,65 @@ decide** derechos, beneficiarios, acciones legales, infracciones ni resultados.
   lectura). Casos restringidos: solo administradores, responsable y quien lo creó. Aprobar mensajes:
   administrador o abogado responsable.
 
+## 4 quinquies. Nomira Leads
+
+Módulo independiente para organizar prospectos y saber qué canales generan clientes. No depende de
+Nómina, Evidencia ni AFORE (si el despacho los tiene, al registrar una contratación puede abrir ahí el
+asunto sin capturar de nuevo los datos).
+
+- **Bandeja**: nuevos, consultas por responder, citas próximas, seguimientos de hoy o vencidos, sin
+  actividad reciente o sin próximo paso, y clientes contratados. Cada indicador abre su lista.
+- **Alta rápida** (con opción de borrador), **tablero** con etapas configurables (agregar, renombrar,
+  ordenar), motivo obligatorio al marcar «No contratado», historial de quién cambió qué y cuándo.
+- **Próximos pasos** (llamada, mensaje, consulta, propuesta, seguimiento) con responsable, fecha y
+  recordatorio dentro de Nomira. Un recordatorio nunca envía mensajes.
+- **Consentimiento** por canal (fecha, medio, finalidad y revocación). Los datos de contacto se
+  enmascaran para el rol «consulta». Exportación a Excel/CSV (analistas: solo los suyos),
+  anonimización y eliminación (administradores).
+- **Campañas y fuentes** (WhatsApp, correo, Facebook, Instagram, TikTok, Google, LinkedIn, sitio web…):
+  cada campaña tiene un código, un enlace propio al formulario público (`/contacto#…`, con parámetros
+  UTM) y, si hay número registrado, un enlace de WhatsApp con el código. Reportes por canal y por
+  campaña: prospectos, consultas, contratos, tiempo de primera respuesta, motivos de pérdida y costo
+  por cliente (solo si se registra la inversión).
+
+Integraciones (todas opcionales; sin ellas el módulo funciona con captura manual y el formulario):
+
+| Integración | Qué hace | Qué se necesita |
+|---|---|---|
+| WhatsApp Business Platform (Cloud API) | Mensajes entrantes crean o se vinculan a prospectos; responder con texto en la ventana de 24 h o con una plantilla aprobada | Número y token del despacho (Leads → Configuración); en el servidor `WHATSAPP_APP_SECRET` y `WHATSAPP_VERIFY_TOKEN`. Webhook: `/api/whatsapp/webhook` (compartido con AFORE) |
+| Anuncios de Facebook e Instagram (Lead Ads) | Cada formulario llega como prospecto con su campaña de Meta | ID y token de la página del despacho; mismas variables del servidor. Webhook (objeto Page, campo `leadgen`): `/api/meta/webhook` |
+| Otros sistemas (Google Ads, Zapier, Make, su sitio) | `POST /api/leads-entrada` con `X-Nomira-Clave` (o `google_key` en formularios de Google Ads) | Clave generada en Leads → Configuración (se muestra una sola vez) |
+| Correo | Responder a un prospecto por correo | La configuración de correo que ya existe (`CORREO_PROVEEDOR`) |
+
+Nomira no usa WhatsApp Web, scraping ni envíos masivos, y ninguna IA responde a los prospectos.
+
+## 4 sexies. Nomira Academia
+
+Módulo independiente de capacitación para el equipo del despacho.
+
+- **Mi aprendizaje**: continuar donde se quedó, cursos asignados (obligatorios o recomendados, con
+  fecha sugerida), disponibles, completados y próximas sesiones en vivo. **Cursos**: catálogo con
+  materia, instructor o institución, duración, modalidad y fecha de actualización.
+- **Cursos** con módulos y lecciones (texto, video de YouTube/Vimeo u otro enlace, enlace a sesión,
+  transcripción, material descargable, recursos y pregunta de comprobación). El avance se guarda solo.
+- **Cuestionario** final opcional con calificación mínima; **constancia de participación** en PDF
+  (curso, participante, organización, fecha y folio). No se presenta como certificación oficial.
+- **Administrar** (administradores e instructores): crear, duplicar, publicar, pasar a borrador y
+  archivar. El contenido jurídico o preparado con IA exige que una persona confirme la revisión antes
+  de publicarse. Se puede marcar un curso «para revisión»; los jurídicos sin actualizar en un año
+  muestran aviso; mientras tanto no se recomiendan ni se asignan. Actualizar o archivar no borra el
+  avance ni las constancias.
+- **Equipo** (administradores): asignar a personas o equipos, avance por persona, curso y equipo (sin
+  rankings), instructores, historial de asignaciones y reporte de finalización en Excel.
+- Nomira incluye tres cursos prácticos propios (atención inicial, confidencialidad y seguimiento de
+  asuntos), de solo lectura y duplicables.
+
+Integraciones: ninguna obligatoria. Los videos y sesiones en vivo son enlaces (Nomira no aloja videos
+ni crea reuniones).
+
+Ambos módulos se activan por organización en el panel de plataforma (**Clientes → cliente → Módulos
+contratados**) y el administrador del despacho puede encenderlos o apagarlos en **Mi empresa**.
+
 ## 5. Reglas de cálculo implementadas
 
 | Regla | Comportamiento |
