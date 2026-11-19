@@ -23,6 +23,7 @@ from ..deps import ip_cliente
 from ..freno import FrenoAcceso
 from ..security import (ROLES, crear_token_plataforma, gastar_tiempo_de_verificacion, hash_contrasena,
                         leer_token_plataforma, verificar_contrasena)
+from ..services import modulos
 from ..services import suscripciones as sus
 from ..services.plataforma import borrar_archivos, contrasena_temporal, eliminar_organizacion
 from . import auth as auth_clientes
@@ -182,6 +183,7 @@ class ClienteNuevo(BaseModel):
     admin_nombre: str = Field(min_length=2, max_length=200)
     admin_email: str = Field(max_length=254)
     plan: str | None = "prueba"  # periodo inicial desde hoy; None = sin plan por ahora
+    modulos: list[str] | None = None  # contratados al dar de alta; None = solo Nómina y prestaciones
 
 
 class PeriodoNuevo(BaseModel):
@@ -267,6 +269,13 @@ def _crear_cliente(db: Session, a: m.AdminPlataforma, d: ClienteNuevo, request: 
     db.flush()
     _registrar(db, a, "cliente_creado", request, organizacion_id=o.id, entidad="organizacion", entidad_id=o.id,
                detalle={"administrador": email})
+    if d.modulos is not None:
+        if not d.modulos or set(d.modulos) - set(modulos.MODULOS):
+            raise HTTPException(422, "Elija al menos un módulo válido.")
+        for clave in d.modulos:  # primero se activan los elegidos, para no dejarla nunca sin módulos
+            modulos.fijar(db, o.id, clave, contratado=True, activo=True)
+        for clave in set(modulos.MODULOS) - set(d.modulos):
+            modulos.fijar(db, o.id, clave, contratado=False)
     periodos = []
     if d.plan:
         periodos = [_crear_periodo(db, a, o, PeriodoNuevo(plan=d.plan, inicio=sus.hoy()), request)]
@@ -312,7 +321,8 @@ def cliente(cid: int, a: m.AdminPlataforma = Depends(admin_plataforma), db: Sess
                               .group_by(m.Auditoria.usuario_id)).all())
     usuarios = db.scalars(select(m.Usuario).where(m.Usuario.organizacion_id == o.id, m.Usuario.eliminado_en.is_(None))
                           .order_by(m.Usuario.rol, m.Usuario.nombre)).all()
-    return {**_c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id)), "usuarios_detalle": [
+    return {**_c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id)),
+            "modulos": modulos.estado(db, o.id), "usuarios_detalle": [
         {"id": u.id, "nombre": u.nombre, "email": u.email, "rol": u.rol, "activo": u.activo,
          "ultimo_acceso": ultimos[u.id].isoformat() if u.id in ultimos else None} for u in usuarios]}
 
@@ -339,6 +349,22 @@ def cambiar_cliente(cid: int, d: ClienteCambio, request: Request, a: m.AdminPlat
                    entidad_id=o.id, detalle=cambios)
     db.commit()
     return _c(o, _metricas(db, [o.id]), _periodos_por_org(db, [o.id]).get(o.id))
+
+
+class Contratacion(BaseModel):
+    contratado: bool
+
+
+@router.patch("/clientes/{cid}/modulos/{modulo}")
+def contratar_modulo(cid: int, modulo: str, d: Contratacion, request: Request,
+                     a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    """Marca un módulo como contratado (queda activo) o no contratado (se oculta; sus datos se conservan)."""
+    o = _cliente(db, cid)
+    nuevo = modulos.fijar(db, o.id, modulo, contratado=d.contratado)
+    _registrar(db, a, "modulo_contratado" if d.contratado else "modulo_retirado", request, organizacion_id=o.id,
+               entidad="organizacion", entidad_id=o.id, detalle={"modulo": modulo})
+    db.commit()
+    return nuevo
 
 
 @router.post("/clientes/{cid}/eliminar")

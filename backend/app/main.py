@@ -1,14 +1,17 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import auth, catalogos, documentos, expedientes, ia, organizacion, plataforma, soporte, solicitudes
+from .routers import (auth, catalogos, documentos, evidencia, expedientes, ia, organizacion, plataforma, soporte,
+                      solicitudes)
+from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
+from .services.modulos import requiere_modulo
 from .services.plataforma import asegurar_admin_inicial
 from .services.procesamiento import recuperar_interrumpidos
 
@@ -22,6 +25,10 @@ async def ciclo(app: FastAPI):
     except Exception:  # la base puede no estar migrada todavía
         logging.getLogger("quincena").warning("No se pudo revisar documentos interrumpidos.")
     try:
+        recuperar_evidencia()
+    except Exception:
+        logging.getLogger("quincena").warning("No se pudo revisar documentos de evidencia interrumpidos.")
+    try:
         with SessionLocal() as db:
             asegurar_admin_inicial(db)
     except Exception:
@@ -32,9 +39,12 @@ async def ciclo(app: FastAPI):
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type"])
-for r in (auth.router, catalogos.router, documentos.router, expedientes.router, ia.router, organizacion.router,
-          solicitudes.router, plataforma.router, soporte.router):
+for r in (auth.router, organizacion.router, solicitudes.router, plataforma.router, soporte.router):
     app.include_router(r)
+# Cada módulo protege sus rutas en el backend: si no está activo para la organización, responde 403.
+for r in (catalogos.router, documentos.router, expedientes.router, ia.router):
+    app.include_router(r, dependencies=[Depends(requiere_modulo("nomina"))])
+app.include_router(evidencia.router, dependencies=[Depends(requiere_modulo("evidencia"))])
 
 
 @app.get("/api/salud")

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..db import get_db
 from ..deps import auditar, solo_admin, usuario_actual
+from ..services import modulos
 
 router = APIRouter(prefix="/api/organizacion", tags=["organización"])
 MAX_BYTES = 2 * 1024 * 1024
@@ -57,7 +58,29 @@ class Nombre(BaseModel):
 
 @router.get("")
 def ver(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    return _datos(_org(db, u))
+    return {**_datos(_org(db, u)), "modulos": modulos.estado(db, u.organizacion_id)}
+
+
+class Activacion(BaseModel):
+    activo: bool
+
+
+@router.get("/modulos")
+def ver_modulos(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    return modulos.estado(db, u.organizacion_id)
+
+
+@router.patch("/modulos/{modulo}")
+def activar_modulo(modulo: str, d: Activacion, request: Request, u: m.Usuario = Depends(solo_admin),
+                   db: Session = Depends(get_db)):
+    """El administrador del despacho activa o desactiva un módulo contratado. Desactivar no borra datos."""
+    antes = modulos.estado(db, u.organizacion_id).get(modulo, {}).get("activo")
+    nuevo = modulos.fijar(db, u.organizacion_id, modulo, activo=d.activo)
+    if antes != d.activo:
+        auditar(db, u, "modulo_activado" if d.activo else "modulo_desactivado", "organizacion", u.organizacion_id,
+                {"modulo": modulo}, request)
+    db.commit()
+    return nuevo
 
 
 @router.patch("")

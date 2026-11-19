@@ -132,6 +132,49 @@ Recorrido de humo en navegador sobre la demo (requiere Playwright): `node e2e/fl
   - Los clientes escriben a soporte desde su sección **Soporte**.
 - El sistema se llama Nomira; el crédito «Desarrollado por IMA» va en el pie de página del sitio.
 
+## 4 ter. Módulos y Nomira Evidencia
+
+Nomira tiene dos módulos independientes: **Nómina y prestaciones** y **Nomira Evidencia**. Una
+organización puede usar uno, el otro o ambos.
+
+- **Contratación:** en el panel de la plataforma (ficha del cliente, o al darlo de alta) se marca
+  qué módulos contrató cada cliente. Sin registro, una cuenta conserva solo Nómina, como antes.
+- **Activación:** el administrador del despacho activa o desactiva los módulos contratados en
+  **Mi empresa**. Debe quedar al menos uno activo. Desactivar oculta el menú y cierra las rutas
+  del backend (403), pero **no borra datos**.
+- Tabla `organizacion_modulos`; lógica en `backend/app/services/modulos.py`.
+
+**Flujo de Evidencia** (`/evidencia`):
+
+1. **Asunto:** nombre, cliente, tipo de caso (texto libre), jurisdicción, identificador interno,
+   responsable, notas y campos adicionales propios del despacho.
+2. **Documentos:** PDF o imágenes (JPG, PNG, WebP). El original se guarda sin cambios. Nomira lo
+   lee (texto del PDF u OCR) y **sugiere** tipo y fecha; una persona confirma la clasificación.
+   Lo que no se lee con confianza queda «Requiere revisión».
+3. **Hechos:** se propone un hecho por cada frase del documento con una fecha o un importe, con
+   documento, página, texto literal de origen y zona en la página. Todos nacen «Por revisar»;
+   una persona los confirma, edita («Editado por usuario») o descarta. Un hecho sin documento
+   fuente no puede confirmarse.
+4. **Cronología:** solo hechos revisados, ordenados por fecha, cada uno con su fuente. Si dos
+   documentos describen algo parecido con fecha o importe distintos, se muestran ambas versiones
+   como «Posible contradicción para revisar»; Nomira no decide cuál es correcta.
+5. **Matriz de evidencia:** hechos que se buscan acreditar, con hechos confirmados o páginas
+   vinculadas. El estado lo decide el abogado; el sistema solo sugiere (nunca «Respaldado»).
+6. **Pendientes:** documentos o datos faltantes con responsable, fecha de seguimiento y estado.
+   Se exporta una lista para el cliente sin notas internas. No se envían mensajes.
+7. **Exportación** PDF y Excel: portada, índice de documentos, cronología, matriz, pendientes y
+   referencias a archivo y página, con fecha y usuario que la generó.
+
+Evidencia no usa ninguna tabla de Nómina (tablas `ev_*`), no emite conclusiones jurídicas y no
+envía documentos a servicios externos. Cada carga, clasificación, revisión, cambio de estado y
+exportación queda en la auditoría.
+
+**Fuera de esta primera versión:** audio, WhatsApp, plantillas jurídicas, integraciones
+externas, IA para proponer hechos, y adjuntar un resultado de Nómina como documento del asunto
+(el modelo ya guarda `origen` en cada documento para hacerlo después).
+
+![Hechos con fuente](docs/capturas/ev-02-hechos.png)
+
 ## 5. Reglas de cálculo implementadas
 
 | Regla | Comportamiento |

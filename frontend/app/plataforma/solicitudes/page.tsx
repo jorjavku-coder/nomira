@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import ShellPlataforma, { Credenciales, PlanInicial } from "@/components/plataforma";
+import ShellPlataforma, { Credenciales, ModulosIniciales, PlanInicial } from "@/components/plataforma";
 import { Aviso, Chip, Modal } from "@/components/ui";
 import { fechaHora } from "@/lib/api";
 import { apiP, avisarContadores } from "@/lib/plataforma";
@@ -86,7 +86,7 @@ function NotaModal({ s, onCerrar, onGuardar }: { s: any; onCerrar: () => void; o
 }
 
 function ConvertirModal({ s, onCerrar, onListo }: { s: any; onCerrar: () => void; onListo: (r: any) => void }) {
-  const [f, setF] = useState<any>({ organizacion: s.empresa || "", admin_nombre: s.nombre, admin_email: s.email, plan: "prueba" });
+  const [f, setF] = useState<any>({ organizacion: s.empresa || "", admin_nombre: s.nombre, admin_email: s.email, plan: "prueba", modulos: ["nomina"] });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent) {
@@ -106,9 +106,10 @@ function ConvertirModal({ s, onCerrar, onListo }: { s: any; onCerrar: () => void
             <input className="campo" type="email" required value={f.admin_email} onChange={(e) => setF({ ...f, admin_email: e.target.value })} /></label>
         </div>
         <PlanInicial valor={f.plan} onCambio={(plan) => setF({ ...f, plan })} />
+        <ModulosIniciales valor={f.modulos} onCambio={(modulos) => setF({ ...f, modulos })} />
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primario" disabled={enviando}>{enviando ? "Creando…" : "Crear cliente"}</button></div>
+          <button className="btn-primario" disabled={enviando || !f.modulos?.length}>{enviando ? "Creando…" : "Crear cliente"}</button></div>
       </form>
     </Modal>
   );
