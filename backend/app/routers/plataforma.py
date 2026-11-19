@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -23,7 +24,7 @@ from ..deps import ip_cliente
 from ..freno import FrenoAcceso
 from ..security import (ROLES, crear_token_plataforma, gastar_tiempo_de_verificacion, hash_contrasena,
                         leer_token_plataforma, verificar_contrasena)
-from ..services import suscripciones as sus
+from ..services import correo, envios, plantillas_correo, suscripciones as sus
 from ..services.plataforma import borrar_archivos, contrasena_temporal, eliminar_organizacion
 from . import auth as auth_clientes
 from .solicitudes import Atencion, _s
@@ -182,6 +183,7 @@ class ClienteNuevo(BaseModel):
     admin_nombre: str = Field(min_length=2, max_length=200)
     admin_email: str = Field(max_length=254)
     plan: str | None = "prueba"  # periodo inicial desde hoy; None = sin plan por ahora
+    enviar_correo: bool = True  # correo de bienvenida con su acceso
 
 
 class PeriodoNuevo(BaseModel):
@@ -287,7 +289,14 @@ def crear_cliente(d: ClienteNuevo, request: Request, a: m.AdminPlataforma = Depe
                   db: Session = Depends(get_db)):
     r = _crear_cliente(db, a, d, request)
     db.commit()
-    return r
+    return _con_bienvenida(db, r, d)
+
+
+def _con_bienvenida(db: Session, r: dict, d: ClienteNuevo) -> dict:
+    """El correo sale DESPUÉS de guardar: si fallara el alta, no se manda nada."""
+    if not d.enviar_correo:
+        return {**r, "correo": None}
+    return {**r, "correo": envios.enviar_bienvenida(db, db.get(m.Organizacion, r["cliente"]["id"]), r["acceso"])}
 
 
 @router.post("/solicitudes/{sid}/convertir", status_code=201)
@@ -301,7 +310,7 @@ def convertir(sid: int, d: ClienteNuevo, request: Request, a: m.AdminPlataforma 
     x.estado, x.atendida_en = "atendida", m.ahora()
     x.nota = ((x.nota + "\n") if x.nota else "") + f"Convertida en cliente #{r['cliente']['id']} ({d.organizacion.strip()})."
     db.commit()
-    return r
+    return _con_bienvenida(db, r, d)
 
 
 @router.get("/clientes/{cid}")
@@ -460,7 +469,12 @@ def _periodo(db: Session, pid: int) -> m.PeriodoSuscripcion:
 def _suscripcion(db: Session, cid: int) -> dict:
     ps = _periodos_por_org(db, [cid]).get(cid, [])
     ref = sus.hoy()
+    avisos = db.scalars(select(m.CorreoEnviado).where(m.CorreoEnviado.organizacion_id == cid,
+                                                      m.CorreoEnviado.tipo == "recordatorio_vencimiento")
+                        .order_by(m.CorreoEnviado.id.desc()).limit(10)).all()
     return {**sus.estado(ps, ref), "periodos": [sus.p_dict(p, ref) for p in sorted(ps, key=lambda p: (p.inicio, p.id), reverse=True)],
+            "recordatorios": [{"periodo_id": c.periodo_id, "estado": c.estado, "fecha": c.creado_en.isoformat(),
+                               "destinatarios": c.destinatarios, "error": c.error} for c in avisos],
             "planes": [{"clave": k, "nombre": v[0], "fin_si_inicia_hoy": sus.calcular_fin(k, ref).isoformat()}
                        for k, v in sus.PLANES.items()]}
 
@@ -520,6 +534,68 @@ def suscripciones(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session 
         salida.append({"id": o.id, "nombre": o.nombre, "estado_cuenta": o.estado, **sus.estado(ps, ref),
                        "total_cobrado": str(sum((p.monto or 0) for p in ps if p.pagado))})
     return salida
+
+
+# ---------- correos ----------
+
+class CorreoPrueba(BaseModel):
+    destinatario: str = Field(max_length=254)
+
+
+def _c_dict(c: m.CorreoEnviado, nombres: dict) -> dict:
+    return {"id": c.id, "tipo": c.tipo, "cliente": nombres.get(c.organizacion_id), "organizacion_id": c.organizacion_id,
+            "destinatarios": c.destinatarios, "asunto": c.asunto, "estado": c.estado, "error": c.error,
+            "fecha": c.creado_en.isoformat()}
+
+
+@router.get("/correos")
+def correos(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    nombres = dict(db.execute(select(m.Organizacion.id, m.Organizacion.nombre)).all())
+    pend = envios.recordatorios_pendientes(db)
+    return {"config": correo.descripcion(),
+            "pendientes": [{"cliente": x["organizacion"].nombre, "organizacion_id": x["organizacion"].id,
+                            "vence": x["periodo"].fin.isoformat(), "dias": x["dias"],
+                            "destinatarios": [u.email for u in x["admins"]]} for x in pend],
+            "historial": [_c_dict(c, nombres) for c in db.scalars(
+                select(m.CorreoEnviado).order_by(m.CorreoEnviado.id.desc()).limit(200))]}
+
+
+@router.post("/correos/prueba")
+def correo_de_prueba(d: CorreoPrueba, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                     db: Session = Depends(get_db)):
+    """Envía la plantilla de bienvenida con datos de ejemplo para comprobar la configuración."""
+    destino = _email(d.destinatario)
+    asunto, html, texto = plantillas_correo.bienvenida("Laura Ejemplo", "Despacho de Ejemplo", "laura@ejemplo.com",
+                                                      "Nomira-Ab3d-Ef6h-Jk9m", sus.hoy() + timedelta(days=6))
+    r = envios.registrar_y_enviar(db, "prueba", [destino], "[Prueba] " + asunto, html, texto)
+    _registrar(db, a, "correo_prueba", request, detalle={"destinatario": destino, "estado": r.estado})
+    db.commit()
+    return {"enviado": r.estado == "enviado", "error": r.error}
+
+
+@router.post("/recordatorios/ejecutar")
+def ejecutar_recordatorios(request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+                           db: Session = Depends(get_db)):
+    """Lo mismo que hace la revisión automática, pero al momento."""
+    resultados = envios.ejecutar_recordatorios(db)
+    _registrar(db, a, "recordatorios_ejecutados", request, detalle={"enviados": sum(r["estado"] == "enviado" for r in resultados)})
+    db.commit()
+    return resultados
+
+
+@router.get("/correos/vista-previa/{tipo}", response_class=HTMLResponse)
+def vista_previa(tipo: str, a: m.AdminPlataforma = Depends(admin_plataforma)):
+    """La plantilla con datos de ejemplo, para verla en el panel."""
+    hoy = sus.hoy()
+    if tipo == "bienvenida":
+        _, html, _ = plantillas_correo.bienvenida("Laura Ejemplo", "Despacho de Ejemplo", "laura@ejemplo.com",
+                                                 "Nomira-Ab3d-Ef6h-Jk9m", hoy + timedelta(days=6))
+    elif tipo == "recordatorio":
+        _, html, _ = plantillas_correo.recordatorio_vencimiento("Laura Ejemplo", "Despacho de Ejemplo", "Mensual",
+                                                               hoy + timedelta(days=7), 7)
+    else:
+        raise HTTPException(404, "No encontrado.")
+    return HTMLResponse(html)
 
 
 # ---------- soporte ----------

@@ -320,3 +320,19 @@ class PeriodoSuscripcion(Base):
     nota: Mapped[str | None] = mapped_column(String(500))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CorreoEnviado(Base):
+    """Bitácora de correos que envía Nomira. Nunca guarda el cuerpo (puede llevar una contraseña
+    temporal). `llave` evita enviar dos veces el mismo recordatorio (única cuando no es nula)."""
+    __tablename__ = "correos_enviados"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(40))  # bienvenida | recordatorio_vencimiento | prueba
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    periodo_id: Mapped[int | None] = mapped_column(ForeignKey("periodos_suscripcion.id", ondelete="SET NULL"))
+    llave: Mapped[str | None] = mapped_column(String(80), unique=True)
+    destinatarios: Mapped[str] = mapped_column(String(1000))
+    asunto: Mapped[str] = mapped_column(String(300))
+    estado: Mapped[str] = mapped_column(String(20))  # enviando | enviado | error
+    error: Mapped[str | None] = mapped_column(Text)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)

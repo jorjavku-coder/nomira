@@ -32,6 +32,27 @@ services:
       # Botón de WhatsApp del sitio público: número con lada de país, p. ej. 5215512345678.
       - key: WHATSAPP_CONTACTO
         sync: false
+      # Correos (bienvenida y recordatorio de vencimiento). CORREO_PROVEEDOR=resend (funciona en el
+      # plan gratuito, por HTTPS) o smtp (Render solo deja salir por SMTP en planes de pago).
+      # Vacío = no se envía nada. Las claves se capturan en Render > nomira-demo > Environment.
+      - key: URL_PUBLICA
+        value: https://nomirasoft.com
+      - key: CORREO_PROVEEDOR
+        sync: false
+      - key: CORREO_REMITENTE
+        value: Nomira <hola@nomirasoft.com>
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PUERTO
+        value: "465"
+      - key: SMTP_USUARIO
+        sync: false
+      - key: SMTP_CONTRASENA
+        sync: false
+      - key: RECORDATORIO_DIAS
+        value: "7"
       # Verificación opcional con IA. Para activarla: IA_HABILITADA=true y su clave en ANTHROPIC_API_KEY
       # (Render > nomira-demo > Environment). Envía imágenes de recibos al proveedor de IA.
       - key: IA_HABILITADA

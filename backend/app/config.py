@@ -30,6 +30,22 @@ class Ajustes(BaseSettings):
     # Número de WhatsApp del botón del sitio público, con lada de país (p. ej. 5215512345678).
     # Vacío: no se muestra el botón.
     whatsapp_contacto: str = ""
+    # Dirección pública para los enlaces de los correos (sin «/» al final).
+    url_publica: str = "http://localhost:3000"
+    # Envío de correos. CORREO_PROVEEDOR: «resend» (API por HTTPS; funciona en el plan gratuito de
+    # Render), «smtp» (p. ej. el correo de su hosting; Render solo lo permite en planes de pago) o
+    # vacío (no se envía nada; el panel lo indica).
+    correo_proveedor: str = ""
+    correo_remitente: str = "Nomira <hola@nomirasoft.com>"
+    correo_responder_a: str = ""
+    resend_api_key: str = ""
+    smtp_host: str = ""
+    smtp_puerto: int = 465  # 465 = SSL; 587 = STARTTLS
+    smtp_usuario: str = ""
+    smtp_contrasena: str = ""
+    # Recordatorio a los administradores del cliente cuando faltan estos días (o menos) para que
+    # venza su plan de pago sin renovación registrada. 0 = desactivado.
+    recordatorio_dias: int = 7
     plataforma_admin_email: str = ""
     plataforma_admin_contrasena: str = ""
 
