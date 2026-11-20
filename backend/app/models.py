@@ -274,6 +274,8 @@ class AdminPlataforma(Base):
     sesion_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # superadministrador: todo el panel, incluido Comercial · soporte: todo excepto Comercial y roles
+    rol: Mapped[str] = mapped_column(String(20), default="soporte", server_default="superadministrador")
 
 
 class TicketSoporte(Base):
@@ -1250,4 +1252,195 @@ class LgSolicitudNota(Base):
     estado: Mapped[str] = mapped_column(String(25))
     nota: Mapped[str | None] = mapped_column(Text)
     admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------- Comercial (solo superadministrador)
+
+class CmConfig(Base):
+    """Datos comerciales de Nomira (una sola fila). Nada aquí se inventa: lo vacío no se muestra."""
+    __tablename__ = "cm_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre_comercial: Mapped[str] = mapped_column(String(120), default="Nomira")
+    razon_social: Mapped[str | None] = mapped_column(String(200))
+    rfc: Mapped[str | None] = mapped_column(String(13))
+    domicilio: Mapped[str | None] = mapped_column(String(400))
+    correo_ventas: Mapped[str | None] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(40))
+    sitio_web: Mapped[str | None] = mapped_column(String(200))
+    iva_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("16"))
+    vigencia_dias: Mapped[int] = mapped_column(Integer, default=15)
+    descuento_maximo_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("20"))
+    periodicidades: Mapped[list | None] = mapped_column(JSON)  # claves habilitadas: mensual | semestral | anual
+    condiciones: Mapped[str | None] = mapped_column(Text)  # condiciones comerciales generales
+    instrucciones_contratar: Mapped[str | None] = mapped_column(Text)
+    notas_pie: Mapped[str | None] = mapped_column(Text)
+    mb_promedio_por_asunto: Mapped[int | None] = mapped_column(Integer)  # solo referencia; vacío = no se estima
+    asunto_correo: Mapped[str | None] = mapped_column(String(200))
+    mensaje_presentacion: Mapped[str | None] = mapped_column(Text)
+    aceptacion_en_linea: Mapped[bool] = mapped_column(Boolean, default=True)
+    precios_publicos: Mapped[str] = mapped_column(String(10), default="ocultos")  # ocultos | desde
+    pago_tarjeta: Mapped[bool] = mapped_column(Boolean, default=False)  # solo funciona si Stripe está conectado
+    spei_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)
+    spei_banco: Mapped[str | None] = mapped_column(String(80))
+    spei_titular: Mapped[str | None] = mapped_column(String(200))
+    spei_clabe: Mapped[str | None] = mapped_column(String(18))
+    spei_instrucciones: Mapped[str | None] = mapped_column(Text)
+    otro_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)
+    otro_nombre: Mapped[str | None] = mapped_column(String(80))
+    otro_instrucciones: Mapped[str | None] = mapped_column(Text)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CmPaquete(Base):
+    __tablename__ = "cm_paquetes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clave: Mapped[str] = mapped_column(String(40), unique=True)
+    nombre: Mapped[str] = mapped_column(String(80))
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+    precio_mensual: Mapped[Decimal] = mapped_column(DINERO)  # antes de IVA
+    modulos_incluidos: Mapped[int] = mapped_column(Integer)  # cuántos módulos entran en el precio
+    usuarios: Mapped[int] = mapped_column(Integer)  # usuarios internos (los clientes del portal no cuentan)
+    almacenamiento_gb: Mapped[int] = mapped_column(Integer)
+    ciclo: Mapped[str] = mapped_column(String(15), default="mensual")
+    iva_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # vacío = el de la configuración
+    estado: Mapped[str] = mapped_column(String(12), default="activo")  # activo | inactivo | archivado
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CmPrecio(Base):
+    """Precios de extras: módulos adicionales, usuario adicional, bloque de almacenamiento."""
+    __tablename__ = "cm_precios"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clave: Mapped[str] = mapped_column(String(40), unique=True)  # modulo:nomina | usuario | almacenamiento
+    nombre: Mapped[str] = mapped_column(String(120))
+    precio_mensual: Mapped[Decimal] = mapped_column(DINERO)
+    unidad_gb: Mapped[int | None] = mapped_column(Integer)  # solo almacenamiento: GB por bloque
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class CmCambioPrecio(Base):
+    __tablename__ = "cm_cambios_precio"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entidad: Mapped[str] = mapped_column(String(15))  # paquete | precio
+    entidad_id: Mapped[int] = mapped_column(Integer, index=True)
+    campo: Mapped[str] = mapped_column(String(40))
+    antes: Mapped[str | None] = mapped_column(String(200))
+    despues: Mapped[str | None] = mapped_column(String(200))
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class CmCotizacion(Base):
+    __tablename__ = "cm_cotizaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    folio: Mapped[str] = mapped_column(String(30), unique=True)
+    # borrador | revision | enviada | vista | aceptada | pendiente_pago | pagada | vencida | cancelada
+    estado: Mapped[str] = mapped_column(String(20), default="borrador", index=True)
+    contacto: Mapped[str] = mapped_column(String(200))
+    despacho: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(40))
+    pais: Mapped[str] = mapped_column(String(2), default="MX")
+    moneda: Mapped[str] = mapped_column(String(3), default="MXN")
+    necesidad: Mapped[str | None] = mapped_column(String(1000))  # se muestra al cliente
+    notas_internas: Mapped[str | None] = mapped_column(Text)  # NUNCA sale al cliente
+    version_actual: Mapped[int] = mapped_column(Integer, default=1)
+    vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Enlace del cliente: se busca por huella; se guarda cifrado solo para volver a mostrarlo al panel.
+    enlace_huella: Mapped[str | None] = mapped_column(String(64), unique=True)
+    enlace_cifrado: Mapped[str | None] = mapped_column(Text)
+    enlace_vence_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enlace_revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"), index=True)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    enviada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    vista_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    aceptada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pagada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    convertida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CmVersion(Base):
+    """Versión de una cotización. Al enviarse queda congelada: editarla crea la siguiente."""
+    __tablename__ = "cm_versiones"
+    __table_args__ = (UniqueConstraint("cotizacion_id", "numero"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cotizacion_id: Mapped[int] = mapped_column(ForeignKey("cm_cotizaciones.id", ondelete="CASCADE"), index=True)
+    numero: Mapped[int] = mapped_column(Integer)
+    entrada: Mapped[dict] = mapped_column(JSON)  # lo que capturó el administrador
+    calculo: Mapped[dict] = mapped_column(JSON)  # desglose calculado en el servidor (precios congelados)
+    nomira: Mapped[dict | None] = mapped_column(JSON)  # datos comerciales y formas de pago al enviarse
+    subtotal: Mapped[Decimal] = mapped_column(DINERO)
+    descuento: Mapped[Decimal] = mapped_column(DINERO, default=Decimal("0"))
+    iva: Mapped[Decimal] = mapped_column(DINERO)
+    total: Mapped[Decimal] = mapped_column(DINERO)
+    cambios: Mapped[list | None] = mapped_column(JSON)  # qué cambió respecto a la versión anterior
+    huella: Mapped[str | None] = mapped_column(String(64))  # SHA-256 del contenido enviado
+    preparada_por: Mapped[str | None] = mapped_column(String(200))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    enviada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CmEvento(Base):
+    __tablename__ = "cm_eventos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cotizacion_id: Mapped[int] = mapped_column(ForeignKey("cm_cotizaciones.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int | None] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(30), index=True)
+    actor: Mapped[str] = mapped_column(String(20))  # admin | cliente | stripe | sistema
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    detalle: Mapped[dict | None] = mapped_column(JSON)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class CmPago(Base):
+    __tablename__ = "cm_pagos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cotizacion_id: Mapped[int] = mapped_column(ForeignKey("cm_cotizaciones.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    metodo: Mapped[str] = mapped_column(String(15))  # tarjeta | spei | otro
+    estado: Mapped[str] = mapped_column(String(15))  # iniciado | confirmado
+    monto: Mapped[Decimal | None] = mapped_column(DINERO)
+    referencia: Mapped[str | None] = mapped_column(String(120))
+    fecha_pago: Mapped[date | None] = mapped_column(Date)
+    stripe_sesion: Mapped[str | None] = mapped_column(String(120), unique=True)
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    confirmado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CmEventoStripe(Base):
+    """Eventos de Stripe ya procesados: el mismo evento nunca se aplica dos veces."""
+    __tablename__ = "cm_eventos_stripe"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    evento_id: Mapped[str] = mapped_column(String(120), unique=True)
+    tipo: Mapped[str] = mapped_column(String(80))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CmAsignacion(Base):
+    """Paquete asignado a una organización. Vencer o cambiar de paquete nunca borra datos."""
+    __tablename__ = "cm_asignaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cotizacion_id: Mapped[int | None] = mapped_column(ForeignKey("cm_cotizaciones.id", ondelete="SET NULL"))
+    periodo_id: Mapped[int | None] = mapped_column(ForeignKey("periodos_suscripcion.id", ondelete="SET NULL"))
+    paquete: Mapped[str] = mapped_column(String(80))
+    modulos: Mapped[list] = mapped_column(JSON)
+    usuarios: Mapped[int] = mapped_column(Integer)
+    almacenamiento_gb: Mapped[int] = mapped_column(Integer)
+    periodicidad: Mapped[str] = mapped_column(String(15))
+    monto: Mapped[Decimal] = mapped_column(DINERO)
+    inicio: Mapped[date] = mapped_column(Date)
+    renovacion: Mapped[date] = mapped_column(Date)
+    estado: Mapped[str] = mapped_column(String(20), default="activa")  # activa | impago | vencida | cancelada
+    origen: Mapped[str] = mapped_column(String(15))  # pago | promocional
+    motivo: Mapped[str | None] = mapped_column(String(300))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

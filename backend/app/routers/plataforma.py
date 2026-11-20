@@ -49,6 +49,16 @@ def admin_plataforma(cred: HTTPAuthorizationCredentials | None = Depends(_bearer
     return a
 
 
+ROLES_PLATAFORMA = {"superadministrador": "Superadministrador", "soporte": "Soporte"}
+
+
+def superadmin(a: m.AdminPlataforma = Depends(admin_plataforma)) -> m.AdminPlataforma:
+    """Solo el superadministrador de Nomira (módulo Comercial, roles de la plataforma)."""
+    if a.rol != "superadministrador":
+        raise HTTPException(403, "Solo un superadministrador de Nomira puede hacer esto.")
+    return a
+
+
 def _registrar(db: Session, a: m.AdminPlataforma, accion: str, request: Request | None = None, *,
                organizacion_id: int | None = None, entidad: str | None = None, entidad_id: int | None = None,
                detalle: dict | None = None) -> None:
@@ -64,7 +74,7 @@ def _email(valor: str) -> str:
 
 
 def _a(a: m.AdminPlataforma) -> dict:
-    return {"id": a.id, "nombre": a.nombre, "email": a.email, "activo": a.activo,
+    return {"id": a.id, "nombre": a.nombre, "email": a.email, "activo": a.activo, "rol": a.rol,
             "creado_en": a.creado_en.isoformat(), "ultimo_acceso": a.ultimo_acceso.isoformat() if a.ultimo_acceso else None}
 
 
@@ -751,6 +761,12 @@ def estado_ticket(tid: int, d: TicketCambio, request: Request, a: m.AdminPlatafo
 class AdminNuevo(BaseModel):
     nombre: str = Field(min_length=2, max_length=200)
     email: str = Field(max_length=254)
+    rol: str = "soporte"
+
+
+class AdminCambio(BaseModel):
+    activo: bool | None = None
+    rol: str | None = None
 
 
 @router.get("/admins")
@@ -764,22 +780,42 @@ def crear_admin(d: AdminNuevo, request: Request, a: m.AdminPlataforma = Depends(
     email = _email(d.email)
     if db.scalar(select(m.AdminPlataforma.id).where(m.AdminPlataforma.email == email)):
         raise HTTPException(409, "Ese correo ya es administrador de la plataforma.")
+    if d.rol not in ROLES_PLATAFORMA:
+        raise HTTPException(422, "Rol inválido.")
+    if d.rol == "superadministrador" and a.rol != "superadministrador":
+        raise HTTPException(403, "Solo un superadministrador puede crear otro superadministrador.")
     temporal = contrasena_temporal()
-    x = m.AdminPlataforma(email=email, nombre=d.nombre.strip(), hash_contrasena=hash_contrasena(temporal))
+    x = m.AdminPlataforma(email=email, nombre=d.nombre.strip(), hash_contrasena=hash_contrasena(temporal), rol=d.rol)
     db.add(x)
     db.flush()
     _registrar(db, a, "plataforma_admin_creado", request, entidad="admin_plataforma", entidad_id=x.id,
-               detalle={"email": email})
+               detalle={"email": email, "rol": d.rol})
     db.commit()
     return {"admin": _a(x), "acceso": {"email": email, "nombre": x.nombre, "contrasena_temporal": temporal}}
 
 
 @router.patch("/admins/{aid}")
-def cambiar_admin(aid: int, d: UsuarioCambio, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
+def cambiar_admin(aid: int, d: AdminCambio, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
                   db: Session = Depends(get_db)):
     x = db.get(m.AdminPlataforma, aid)
     if not x:
         raise HTTPException(404, "No encontrado.")
+    if x.rol == "superadministrador" and a.rol != "superadministrador":
+        raise HTTPException(403, "Solo un superadministrador puede modificar a otro superadministrador.")
+    if d.rol is not None and d.rol != x.rol:
+        if d.rol not in ROLES_PLATAFORMA:
+            raise HTTPException(422, "Rol inválido.")
+        if a.rol != "superadministrador":
+            raise HTTPException(403, "Solo un superadministrador puede cambiar roles.")
+        if x.id == a.id:
+            raise HTTPException(409, "No puede cambiar su propio rol.")
+        antes, x.rol = x.rol, d.rol
+        x.sesion_version += 1  # la sesión abierta vuelve a pedir acceso con el rol nuevo
+        _registrar(db, a, "plataforma_admin_rol", request, entidad="admin_plataforma", entidad_id=x.id,
+                   detalle={"antes": antes, "despues": d.rol})
+        db.commit()
+    if d.activo is None:
+        return _a(x)
     if x.id == a.id and not d.activo:
         raise HTTPException(409, "No puede desactivar su propia cuenta.")
     if x.activo != d.activo:

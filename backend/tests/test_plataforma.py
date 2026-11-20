@@ -26,7 +26,18 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET",
             ("POST", "/api/leads-publico/formulario/info"), ("POST", "/api/leads-publico/formulario"), ("POST", "/api/leads-entrada"),
             ("GET", "/api/meta/webhook"), ("POST", "/api/meta/webhook"),
             # Centro Legal: documentos publicados y solicitudes ARCO (sin sesión)
-            ("GET", "/api/legal/documentos"), ("GET", "/api/legal/documentos/{clave}"), ("POST", "/api/legal/arco")}
+            ("GET", "/api/legal/documentos"), ("GET", "/api/legal/documentos/{clave}"), ("POST", "/api/legal/arco"),
+            # Comercial: propuesta del prospecto (enlace X-Enlace; sin él, 404) y webhook de Stripe (firma)
+            ("POST", "/api/propuesta"), ("POST", "/api/propuesta/pdf"), ("POST", "/api/propuesta/ajustes"),
+            ("POST", "/api/propuesta/aceptar"), ("POST", "/api/propuesta/pagar"), ("POST", "/api/comercial/stripe/webhook")}
+
+
+def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):
+    for ruta in ("/api/propuesta", "/api/propuesta/pdf", "/api/propuesta/ajustes", "/api/propuesta/aceptar", "/api/propuesta/pagar"):
+        for h in ({}, plataforma.h, org.h):
+            r = cliente.post(ruta, headers=h, json={"mensaje": "hola hola", "nombre": "Ana", "version": 1, "acepto": True, "metodo": "spei"})
+            assert r.status_code in (404, 422) and set(r.json()) == {"detail"}, ruta
+    assert cliente.post("/api/comercial/stripe/webhook", content=b"{}").status_code == 400  # sin firma
 
 
 def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):

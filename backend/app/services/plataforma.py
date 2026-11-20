@@ -75,6 +75,7 @@ def asegurar_admin_inicial(db: Session) -> None:
     if len(contrasena) < 12:
         log.warning("PLATAFORMA_ADMIN_CONTRASENA debe tener al menos 12 caracteres: no se creó el administrador.")
         return
-    db.add(m.AdminPlataforma(email=email, nombre="Administrador de Nomira", hash_contrasena=hash_contrasena(contrasena)))
+    db.add(m.AdminPlataforma(email=email, nombre="Administrador de Nomira", hash_contrasena=hash_contrasena(contrasena),
+                             rol="superadministrador"))
     db.commit()
     log.info("Se creó el administrador de la plataforma %s.", email)

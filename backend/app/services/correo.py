@@ -34,19 +34,23 @@ def descripcion() -> dict:
             "recordatorio_dias": a.recordatorio_dias, "url_publica": a.url_publica}
 
 
-def enviar(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
+Adjunto = tuple[str, bytes, str]  # (nombre de archivo, contenido, tipo MIME)
+
+
+def enviar(destinatarios: list[str], asunto: str, html: str, texto: str, adjuntos: list[Adjunto] | None = None) -> None:
     """Envía o lanza CorreoError. No reintenta: quien llama decide."""
     if not destinatarios:
         raise CorreoError("No hay destinatarios.")
     if not configurado():
         raise CorreoError("El envío de correos no está configurado (CORREO_PROVEEDOR).")
     a = ajustes()
+    adjuntos = adjuntos or []
     if modo_prueba():
-        _prueba(destinatarios, asunto, html, texto)
+        _prueba(destinatarios, asunto, html, texto, adjuntos)
     elif a.correo_proveedor == "resend":
-        _resend(destinatarios, asunto, html, texto)
+        _resend(destinatarios, asunto, html, texto, adjuntos)
     else:
-        _smtp(destinatarios, asunto, html, texto)
+        _smtp(destinatarios, asunto, html, texto, adjuntos)
 
 
 def modo_prueba() -> bool:
@@ -55,7 +59,7 @@ def modo_prueba() -> bool:
     return a.correo_proveedor == "prueba" or (a.entorno != "produccion" and not a.correo_envio_real)
 
 
-def _prueba(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
+def _prueba(destinatarios: list[str], asunto: str, html: str, texto: str, adjuntos: list[Adjunto] = ()) -> None:
     """Modo de prueba: el correo se guarda en STORAGE_DIR/correos_prueba en vez de enviarse."""
     import json
     import time
@@ -66,12 +70,19 @@ def _prueba(destinatarios: list[str], asunto: str, html: str, texto: str) -> Non
     base = carpeta / f"{time.time():.6f}"
     base.with_suffix(".html").write_text(html, encoding="utf-8")
     base.with_suffix(".txt").write_text(texto, encoding="utf-8")
-    base.with_suffix(".json").write_text(json.dumps({"para": destinatarios, "asunto": asunto}, ensure_ascii=False), encoding="utf-8")
+    for i, (nombre, contenido, _tipo) in enumerate(adjuntos):
+        Path(f"{base}-adjunto{i + 1}-{Path(nombre).name}").write_bytes(contenido)
+    base.with_suffix(".json").write_text(json.dumps({"para": destinatarios, "asunto": asunto, "adjuntos": [x[0] for x in adjuntos]},
+                                                    ensure_ascii=False), encoding="utf-8")
 
 
-def _resend(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
+def _resend(destinatarios: list[str], asunto: str, html: str, texto: str, adjuntos: list[Adjunto] = ()) -> None:
+    import base64
+
     a = ajustes()
     cuerpo = {"from": a.correo_remitente, "to": destinatarios, "subject": asunto, "html": html, "text": texto}
+    if adjuntos:
+        cuerpo["attachments"] = [{"filename": n, "content": base64.b64encode(c).decode()} for n, c, _t in adjuntos]
     if a.correo_responder_a:
         cuerpo["reply_to"] = a.correo_responder_a
     try:
@@ -87,7 +98,7 @@ def _resend(destinatarios: list[str], asunto: str, html: str, texto: str) -> Non
         raise CorreoError(f"Resend rechazó el envío ({r.status_code}): {detalle[:300]}")
 
 
-def _smtp(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
+def _smtp(destinatarios: list[str], asunto: str, html: str, texto: str, adjuntos: list[Adjunto] = ()) -> None:
     a = ajustes()
     m = EmailMessage()
     nombre, direccion = parseaddr(a.correo_remitente)
@@ -99,6 +110,9 @@ def _smtp(destinatarios: list[str], asunto: str, html: str, texto: str) -> None:
         m["Reply-To"] = a.correo_responder_a
     m.set_content(texto)
     m.add_alternative(html, subtype="html")
+    for nombre, contenido, tipo in adjuntos:
+        principal, _, sub = tipo.partition("/")
+        m.add_attachment(contenido, maintype=principal, subtype=sub or "octet-stream", filename=nombre)
     contexto = ssl.create_default_context()
     try:
         if a.smtp_puerto == 465:

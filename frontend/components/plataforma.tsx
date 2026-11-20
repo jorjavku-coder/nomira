@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/Logo";
 import { Aviso, Avatar, Modal } from "@/components/ui";
-import { SesionP, alCambiarSesionP, apiP, guardarSesionP, leerSesionP } from "@/lib/plataforma";
+import { SesionP, alCambiarSesionP, apiP, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
 
 const ICONOS: Record<string, React.ReactNode> = {
   resumen: <><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" /></>,
@@ -15,6 +15,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   correos: <><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /><circle cx="19" cy="6" r="2.5" fill="currentColor" stroke="none" /></>,
   admins: <><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></>,
   legal: <><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0zM8 21h8" /></>,
+  comercial: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3M9 11h6M9 15h6M9 19h3" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
@@ -54,6 +55,7 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     { href: "/plataforma/correos", texto: "Correos", icono: "correos", activo: ruta.startsWith("/plataforma/correos") },
     { href: "/plataforma/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/plataforma/soporte"), n: cont?.tickets_sin_leer },
     { href: "/plataforma/legal", texto: "Legal", icono: "legal", activo: ruta.startsWith("/plataforma/legal"), n: cont?.arco_pendientes },
+    ...(esSuperadmin(sesion) ? [{ href: "/plataforma/comercial", texto: "Comercial", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial") }] : []),
     { href: "/plataforma/admins", texto: "Administradores", icono: "admins", activo: ruta.startsWith("/plataforma/admins") },
   ];
   const salir = () => { guardarSesionP(null); router.replace("/plataforma/login"); };
