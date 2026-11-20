@@ -309,7 +309,7 @@ def test_stripe_modo_prueba_firma_e_idempotencia(plataforma, buzon, cliente, mon
     assert webhook(ev).json().get("duplicado") is True  # el mismo evento no se aplica dos veces
     assert db.query(m.CmPago).filter_by(cotizacion_id=c["id"], estado="confirmado").count() == 1
     # los eventos en modo real se ignoran
-    assert webhook({**ev, "id": "evt_live", "livemode": True}).json().get("ignorado") == "modo_real"
+    assert webhook({**ev, "id": "evt_live", "livemode": True}).json().get("ignorado") == "modo_distinto"
 
 
 def test_precios_publicos(plataforma, cliente):
@@ -331,3 +331,46 @@ def test_promocional_requiere_motivo(plataforma, buzon, org, db):
                           json={"organizacion_id": oid, "promocional": True, "motivo": "Piloto aprobado por dirección", "confirmo": True})
     assert r.status_code == 200 and r.json()["asignacion"]["origen"] == "promocional"
     assert not db.query(m.PeriodoSuscripcion).filter_by(organizacion_id=oid).order_by(m.PeriodoSuscripcion.id.desc()).first().pagado
+
+
+def test_stripe_modo_real_solo_con_llave_real(plataforma, buzon, cliente, monkeypatch, db):
+    monkeypatch.setattr(ajustes(), "stripe_webhook_secret", "whsec_ficticio")
+    # modo real con llave de prueba: desconectado (no se cobra)
+    monkeypatch.setattr(ajustes(), "stripe_modo", "real")
+    monkeypatch.setattr(ajustes(), "stripe_secret_key", "sk_test_ficticia")
+    e = cm.stripe_estado()
+    assert e["conectado"] is False and "reales" in e["motivo"]
+    # modo de prueba con llave real: desconectado
+    monkeypatch.setattr(ajustes(), "stripe_modo", "prueba")
+    monkeypatch.setattr(ajustes(), "stripe_secret_key", "rk_live_ficticia")
+    assert cm.stripe_estado()["conectado"] is False
+    # modo inválido: desconectado
+    monkeypatch.setattr(ajustes(), "stripe_modo", "produccion")
+    assert cm.stripe_estado()["conectado"] is False
+    # modo real con llave restringida real: conectado en REAL
+    monkeypatch.setattr(ajustes(), "stripe_modo", "real")
+    assert cm.stripe_estado() == {"conectado": True, "modo": "real", "motivo": None}
+    conf = catalogo(plataforma)["config"]
+    r = plataforma.c.put(f"{R}/config", headers=plataforma.h, json={**conf, "pago_tarjeta": True})
+    assert r.json()["integraciones"]["stripe"]["modo"] == "real"
+    c = nueva(plataforma)
+    tok = token_de(enviar(plataforma, c["id"]).json())
+    h = {"X-Enlace": tok}
+    cliente.post("/api/propuesta/aceptar", headers=h, json={"nombre": "Ana Prospecto", "version": 1, "acepto": True})
+    monkeypatch.setattr(st, "crear_sesion", lambda **kw: {"id": "cs_live_9", "url": "https://checkout.stripe.com/c/pay/cs_live_9"})
+    assert cliente.post("/api/propuesta/pagar", headers=h, json={"metodo": "tarjeta"}).status_code == 200
+
+    def webhook(evento):
+        cuerpo = json.dumps(evento).encode()
+        t = int(time.time())
+        firma = hmac.new(b"whsec_ficticio", f"{t}.".encode() + cuerpo, hashlib.sha256).hexdigest()
+        return cliente.post("/api/comercial/stripe/webhook", content=cuerpo, headers={"Stripe-Signature": f"t={t},v1={firma}"})
+
+    obj = {"id": "cs_live_9", "payment_status": "paid", "amount_total": 207640, "currency": "mxn", "payment_intent": "pi_live"}
+    # un evento de PRUEBA no puede marcar pagado un cobro en modo real
+    assert webhook({"id": "evt_t", "type": "checkout.session.completed", "livemode": False, "data": {"object": obj}}).json()["ignorado"] == "modo_distinto"
+    assert plataforma.c.get(f"{R}/cotizaciones/{c['id']}", headers=plataforma.h).json()["estado"] == "pendiente_pago"
+    assert webhook({"id": "evt_l", "type": "checkout.session.completed", "livemode": True, "data": {"object": obj}}).status_code == 200
+    det = plataforma.c.get(f"{R}/cotizaciones/{c['id']}", headers=plataforma.h).json()
+    assert det["estado"] == "pagada"
+    assert next(e for e in det["eventos"] if e["tipo"] == "pago_registrado")["detalle"]["modo"] == "real"

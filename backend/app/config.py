@@ -58,8 +58,11 @@ class Ajustes(BaseSettings):
     # API oficial de CURP (opcional, deshabilitada sin credenciales y sin autorización por organización)
     curp_api_url: str = ""
     curp_api_key: str = ""
-    # Stripe Checkout para cotizaciones (módulo Comercial). SOLO llaves de prueba (sk_test_…): una llave
-    # real se rechaza mientras el flujo no se habilite formalmente para producción.
+    # Stripe Checkout para cotizaciones (módulo Comercial).
+    # STRIPE_MODO=prueba (por defecto): solo llaves de prueba (sk_test_/rk_test_), sin dinero real.
+    # STRIPE_MODO=real: solo llaves reales (rk_live_ recomendada, o sk_live_) y cobros REALES.
+    # Si la llave no corresponde al modo, Stripe queda desconectado: nunca se cobra por error.
+    stripe_modo: str = "prueba"
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     plataforma_admin_email: str = ""

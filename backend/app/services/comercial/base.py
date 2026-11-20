@@ -104,18 +104,33 @@ def asegurar_catalogo(db: Session) -> None:
     db.flush()
 
 
-# ------------------------------------------------------------------ Stripe (solo modo de prueba)
+# ------------------------------------------------------------------ Stripe (modo de prueba o real)
+
+PREFIJOS_STRIPE = {"prueba": ("sk_test_", "rk_test_"), "real": ("rk_live_", "sk_live_")}
+
+
+def stripe_modo() -> str:
+    m = (ajustes().stripe_modo or "prueba").strip().lower()
+    return m if m in PREFIJOS_STRIPE else "invalido"
+
 
 def stripe_estado() -> dict:
+    """Stripe solo queda conectado si el MODO elegido y el tipo de LLAVE coinciden."""
     a = ajustes()
-    llave, secreto = a.stripe_secret_key.strip(), a.stripe_webhook_secret.strip()
+    llave, secreto, modo = a.stripe_secret_key.strip(), a.stripe_webhook_secret.strip(), stripe_modo()
+    if modo == "invalido":
+        return {"conectado": False, "modo": None, "motivo": "STRIPE_MODO debe ser «prueba» o «real»."}
     if not llave:
-        return {"conectado": False, "motivo": "Pago en línea pendiente de configuración."}
-    if not llave.startswith("sk_test_"):
-        return {"conectado": False, "motivo": "Se rechazó la llave de Stripe: solo se aceptan llaves de prueba (sk_test_…)."}
+        return {"conectado": False, "modo": modo, "motivo": "Pago en línea pendiente de configuración."}
+    if not llave.startswith(PREFIJOS_STRIPE[modo]):
+        if modo == "prueba":
+            motivo = "Se rechazó la llave: STRIPE_MODO=prueba solo acepta llaves de prueba (sk_test_ o rk_test_)."
+        else:
+            motivo = "Se rechazó la llave: STRIPE_MODO=real solo acepta llaves reales (rk_live_ o sk_live_)."
+        return {"conectado": False, "modo": modo, "motivo": motivo}
     if not secreto.startswith("whsec_"):
-        return {"conectado": False, "motivo": "Falta el secreto del webhook de Stripe (STRIPE_WEBHOOK_SECRET)."}
-    return {"conectado": True, "modo": "prueba", "motivo": None}
+        return {"conectado": False, "modo": modo, "motivo": "Falta el secreto del webhook de Stripe (STRIPE_WEBHOOK_SECRET)."}
+    return {"conectado": True, "modo": modo, "motivo": None}
 
 
 def formas_pago(c: m.CmConfig) -> list[dict]:

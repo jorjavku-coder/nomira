@@ -76,8 +76,10 @@ services:
         value: "false"
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Módulo Comercial: pago con tarjeta por Stripe Checkout. SOLO llaves de PRUEBA (sk_test_… y whsec_…);
-      # una llave real se rechaza. Vacío = «Pago en línea pendiente de configuración».
+      # Módulo Comercial: pago con tarjeta por Stripe Checkout. STRIPE_MODO=prueba (sk_test_/rk_test_) o
+      # real (rk_live_/sk_live_); si la llave no coincide con el modo, no se cobra. Vacío = pendiente.
+      - key: STRIPE_MODO  # prueba (por defecto) | real
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET

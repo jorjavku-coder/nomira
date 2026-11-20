@@ -221,9 +221,10 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
         ev = json.loads(cuerpo)
     except ValueError:
         raise HTTPException(400, "Cuerpo inválido.")
-    if ev.get("livemode"):
-        log.warning("Se ignoró un evento de Stripe en modo real: el flujo está en modo de prueba.")
-        return {"ok": True, "ignorado": "modo_real"}
+    real = cm.stripe_modo() == "real"
+    if bool(ev.get("livemode")) != real:  # un evento de prueba nunca marca pagos reales, ni al revés
+        log.warning("Se ignoró un evento de Stripe de otro modo (livemode=%s, STRIPE_MODO=%s).", bool(ev.get("livemode")), cm.stripe_modo())
+        return {"ok": True, "ignorado": "modo_distinto"}
     try:
         with db.begin_nested():
             db.add(m.CmEventoStripe(evento_id=str(ev.get("id"))[:120], tipo=str(ev.get("type"))[:80]))
@@ -243,7 +244,8 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
                 p.referencia = str(obj.get("payment_intent") or obj.get("id"))[:120]
                 p.fecha_pago = cm.ahora().date()
                 v = cm.version(db, c, p.version)
-                cm.evento(db, c, "pago_registrado", actor="stripe", version_num=p.version, detalle={"metodo": "tarjeta", "monto": cm.txt(p.monto)})
+                cm.evento(db, c, "pago_registrado", actor="stripe", version_num=p.version,
+                          detalle={"metodo": "tarjeta", "monto": cm.txt(p.monto), "modo": "real" if real else "prueba"})
                 _aplicar_pagos(db, c, v, actor="stripe")
     db.commit()
     return {"ok": True}

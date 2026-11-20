@@ -1,4 +1,4 @@
-"""Stripe Checkout para cotizaciones, SOLO en modo de prueba (llaves sk_test_…).
+"""Stripe Checkout para cotizaciones, en modo de prueba o real según STRIPE_MODO.
 
 - La sesión de pago se crea en el servidor con el total calculado aquí; el navegador nunca manda importes.
 - Nomira no recibe ni guarda datos de tarjeta: el cliente paga en la página de Stripe.
@@ -29,9 +29,12 @@ def centavos(v: Decimal) -> int:
 
 def crear_sesion(*, folio: str, version: int, cotizacion_id: int, pago_id: int, total: Decimal, email: str, url_exito: str,
                  url_cancelar: str, idempotencia: str) -> dict:
+    from .base import stripe_estado
+
+    estado = stripe_estado()
+    if not estado["conectado"]:
+        raise StripeError(estado["motivo"] or "Pago en línea pendiente de configuración.")
     llave = ajustes().stripe_secret_key.strip()
-    if not llave.startswith("sk_test_"):
-        raise StripeError("Pago en línea pendiente de configuración.")
     datos = {
         "mode": "payment", "client_reference_id": folio, "customer_email": email, "success_url": url_exito, "cancel_url": url_cancelar,
         "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "mxn",
