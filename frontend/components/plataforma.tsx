@@ -264,6 +264,8 @@ const MODULOS_ALTA = [
   ["nomina", "Nómina y prestaciones", "Desglose de prestaciones por quincena."],
   ["evidencia", "Nomira Evidencia", "Expediente probatorio con hechos, cronología y matriz."],
   ["afore", "Nomira AFORE", "Casos AFORE/SAR, portal del cliente y mensajes con aprobación."],
+  ["leads", "Nomira Leads", "Prospectos, seguimiento, campañas y origen de los clientes."],
+  ["academia", "Nomira Academia", "Cursos para el equipo, avance y constancias de participación."],
 ];
 
 /** Módulos que el cliente contrata desde el alta (al menos uno). */

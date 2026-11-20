@@ -17,6 +17,8 @@ const ICONOS: Record<string, React.ReactNode> = {
   evidencia: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13l2 2 4-4" /></>,
   perfil: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   afore: <><path d="M12 3l8 4v2H4V7z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7M3 20h18" /></>,
+  leads: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
+  academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
@@ -70,10 +72,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const deNomina = ruta === "/app" || ruta.startsWith("/expedientes") || ruta.startsWith("/catalogos");
   const deEvidencia = ruta.startsWith("/evidencia");
   const deAfore = ruta.startsWith("/afore");
+  const deLeads = ruta.startsWith("/leads");
+  const deAcademia = ruta.startsWith("/academia");
   useEffect(() => {
     if (modulos && ruta === "/app" && !modulos.includes("nomina")) {
       if (modulos.includes("evidencia")) router.replace("/evidencia");
       else if (modulos.includes("afore")) router.replace("/afore");
+      else if (modulos.includes("leads")) router.replace("/leads");
+      else if (modulos.includes("academia")) router.replace("/academia");
     }
   }, [modulos, ruta, router]);
   const [sinLeer, setSinLeer] = useState(0);
@@ -86,8 +92,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return () => { clearInterval(t); window.removeEventListener("nomira:soporte", cargar); };
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
-  const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore" : "/perfil";
-  const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"));
+  const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
+    : activos.includes("leads") ? "/leads" : activos.includes("academia") ? "/academia" : "/perfil";
+  const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
+    || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia"));
   const enlaces = [
     ...(activos.includes("nomina") ? [
       { href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
@@ -96,6 +104,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
     ...(activos.includes("afore") ? [
       { href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
+    ...(activos.includes("leads") ? [
+      { href: "/leads", texto: "Leads", icono: "leads", activo: deLeads }] : []),
+    ...(activos.includes("academia") ? [
+      { href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
     ...(sesion.usuario.rol === "administrador" ? [
       { href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
       { href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),

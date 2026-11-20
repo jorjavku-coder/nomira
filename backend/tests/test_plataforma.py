@@ -21,7 +21,10 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET",
             # Nomira AFORE: portal del cliente (enlace) y webhook de WhatsApp (firma de Meta)
             ("POST", "/api/portal-afore/estado"), ("POST", "/api/portal-afore/codigo"), ("POST", "/api/portal-afore/verificar"),
             ("POST", "/api/portal-afore/documentos"), ("POST", "/api/portal-afore/preferencias"),
-            ("GET", "/api/whatsapp/webhook"), ("POST", "/api/whatsapp/webhook")}
+            ("GET", "/api/whatsapp/webhook"), ("POST", "/api/whatsapp/webhook"),
+            # Nomira Leads: formulario de contacto (enlace), entrada de otros sistemas (clave) y anuncios de Meta (firma)
+            ("POST", "/api/leads-publico/formulario/info"), ("POST", "/api/leads-publico/formulario"), ("POST", "/api/leads-entrada"),
+            ("GET", "/api/meta/webhook"), ("POST", "/api/meta/webhook")}
 
 
 def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):
