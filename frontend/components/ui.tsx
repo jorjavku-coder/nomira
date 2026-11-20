@@ -18,13 +18,13 @@ export function Aviso({ tipo = "error", children }: { tipo?: "error" | "ok" | "i
   return <div role={tipo === "error" ? "alert" : "status"} className={`rounded-xl border px-3.5 py-2.5 text-sm ${clase}`}>{children}</div>;
 }
 
-export function Modal({ titulo, onCerrar, children, ancho = "max-w-lg" }: { titulo: string; onCerrar: () => void; children: React.ReactNode; ancho?: string }) {
+export function Modal({ titulo, onCerrar, children, ancho = "max-w-lg", sinCerrar = false }: { titulo: string; onCerrar: () => void; children: React.ReactNode; ancho?: string; sinCerrar?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-marino-900/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={titulo}>
       <div className={`tarjeta mt-8 w-full shadow-flotante ${ancho}`}>
         <div className="flex items-center justify-between border-b border-crema-300 px-5 py-3.5">
           <h2 className="font-semibold text-marino">{titulo}</h2>
-          <button onClick={onCerrar} className="btn-sec" aria-label="Cerrar">Cerrar</button>
+          {!sinCerrar && <button onClick={onCerrar} className="btn-sec" aria-label="Cerrar">Cerrar</button>}
         </div>
         <div className="p-5">{children}</div>
       </div>

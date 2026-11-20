@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, guardarSesion } from "@/lib/api";
 import { Aviso } from "@/components/ui";
@@ -98,7 +99,10 @@ export default function Login() {
       </section>
     </div>
 
-    <footer className="bg-marino-700 px-6 py-6 text-center text-xs text-white/60">© {new Date().getFullYear()} Nomira · Cada prestación, en claro · Desarrollado por IMA</footer>
+    <footer className="space-y-2 bg-marino-700 px-6 py-6 text-center text-xs text-white/60">
+      <EnlacesLegales claro />
+      <p>© {new Date().getFullYear()} Nomira · Cada prestación, en claro · Desarrollado por IMA</p>
+    </footer>
     </>
   );
 }

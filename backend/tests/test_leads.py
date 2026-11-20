@@ -362,3 +362,23 @@ def test_eliminar_organizacion_borra_leads_y_academia(ld, plataforma, db):
     db.expire_all()
     assert db.query(m.LdProspecto).count() == 0 and db.get(m.AcCurso, cid) is None
     assert db.query(m.AcCurso).filter(m.AcCurso.organizacion_id.is_(None)).count() >= 1  # los cursos de Nomira se conservan
+
+
+def test_aviso_de_privacidad_del_despacho(ld, cliente, db):
+    assert ld.c.get("/api/leads/catalogos", headers=ld.h).json()["falta_aviso_privacidad"] is True
+    cfg = ld.c.get("/api/leads/config", headers=ld.h).json()
+    token = cfg["formulario"]["enlace"].split("#")[1]
+    assert cliente.post("/api/leads-publico/formulario/info", headers={"X-Enlace": token}).json()["aviso_privacidad_url"] is None
+    # solo direcciones https completas; nada de javascript: ni texto suelto
+    for malo in ("javascript:alert(1)", "http://despacho.test/aviso", "aviso de privacidad", "https://sin-punto"):
+        assert ld.c.patch("/api/leads/config", headers=ld.h, json={"aviso_privacidad_url": malo}).status_code == 422, malo
+    consulta = ld.usuario("consulta", "consulta.aviso@org1.test")
+    assert ld.c.patch("/api/leads/config", headers=consulta, json={"aviso_privacidad_url": "https://despacho.test/aviso"}).status_code == 403
+    r = ld.c.patch("/api/leads/config", headers=ld.h, json={"aviso_privacidad_url": " https://despacho.test/aviso-de-privacidad "})
+    assert r.status_code == 200 and r.json()["aviso_privacidad_url"] == "https://despacho.test/aviso-de-privacidad"
+    assert cliente.post("/api/leads-publico/formulario/info", headers={"X-Enlace": token}).json()["aviso_privacidad_url"] == "https://despacho.test/aviso-de-privacidad"
+    assert ld.c.get("/api/leads/catalogos", headers=ld.h).json()["falta_aviso_privacidad"] is False
+    # la bitácora registra qué campo cambió, no el valor
+    ult = db.query(m.Auditoria).filter_by(accion="ld_config_actualizada").order_by(m.Auditoria.id.desc()).first()
+    assert "despacho.test" not in json.dumps(ult.detalle, default=str)
+    assert ld.c.patch("/api/leads/config", headers=ld.h, json={"aviso_privacidad_url": ""}).json()["aviso_privacidad_url"] is None

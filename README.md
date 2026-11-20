@@ -319,6 +319,22 @@ ni crea reuniones).
 Ambos módulos se activan por organización en el panel de plataforma (**Clientes → cliente → Módulos
 contratados**) y el administrador del despacho puede encenderlos o apagarlos en **Mi empresa**.
 
+## 4 septies. Centro Legal
+
+- Páginas públicas en `/legal`: Términos y condiciones, Aviso de privacidad (integral y simplificado), Cookies y tecnologías
+  similares, Anexo de tratamiento de datos para despachos y Subencargados, cada uno con historial de versiones y huella SHA-256.
+- Los textos **no** están en el código: quien opera Nomira pega en **Panel → Legal** el texto ya aprobado por el responsable de
+  Nomira y su abogado, lo guarda como borrador y lo publica confirmando la aprobación. Una versión publicada no se modifica.
+  Sin versión publicada, el documento aparece «en preparación» y no se pide aceptarlo.
+- Al entrar a la app se piden (si hay versión vigente no aceptada) los Términos y la lectura del Aviso, con casillas separadas
+  y sin premarcar. Solo se vuelve a pedir cuando una versión nueva se marca «requiere nueva aceptación».
+- Evidencia mínima en `lg_eventos`: usuario u organización, documento, versión, evento y fecha (sin IP ni contenido).
+- El anexo de tratamiento lo acepta el administrador de cada despacho en **Mi empresa**.
+- Solicitudes ARCO en `/legal/solicitudes` con folio; se atienden en **Panel → Legal → Solicitudes ARCO** (nunca se marcan
+  atendidas solas). No se envían correos automáticos.
+- Cookies: Nomira no crea cookies ni usa analítica; por eso no hay banner de preferencias.
+- Auditoría de datos para el abogado: `AUDITORIA_LEGAL_NOMIRA.md`.
+
 ## 5. Reglas de cálculo implementadas
 
 | Regla | Comportamiento |

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnexoTratamiento } from "@/components/legal";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -100,6 +101,7 @@ export default function MiEmpresa() {
           </div>
         </section>
       )}
+      <AnexoTratamiento />
     </Shell>
   );
 }

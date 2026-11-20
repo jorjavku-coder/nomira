@@ -822,6 +822,8 @@ class LdConfig(Base):
     materias: Mapped[list | None] = mapped_column(JSON)  # materias o servicios que ofrece el despacho
     motivos_perdida: Mapped[list | None] = mapped_column(JSON)
     dias_sin_actividad: Mapped[int] = mapped_column(Integer, default=7)
+    # Enlace al aviso de privacidad PROPIO del despacho (responsable de los datos de sus prospectos)
+    aviso_privacidad_url: Mapped[str | None] = mapped_column(String(500))
     # Enlace público del formulario general (no es secreto: se publica en el sitio o en redes)
     formulario_token: Mapped[str | None] = mapped_column(String(40), unique=True)
     formulario_activo: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -1167,4 +1169,85 @@ class AcIntento(Base):
     total: Mapped[int] = mapped_column(Integer)
     calificacion: Mapped[int] = mapped_column(Integer)
     aprobado: Mapped[bool] = mapped_column(Boolean)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------------------------
+# Centro Legal: documentos aprobados y versionados, evidencia de aceptación y solicitudes ARCO
+# ---------------------------------------------------------------------------------------------
+
+class LgVersion(Base):
+    """Versión de un documento legal. El texto lo aprueban el responsable de Nomira y su abogado; aquí
+    solo se publica. Una versión publicada NO se modifica: un cambio es una versión nueva."""
+    __tablename__ = "lg_versiones"
+    __table_args__ = (UniqueConstraint("documento", "numero"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    documento: Mapped[str] = mapped_column(String(40), index=True)  # claves de services/legal.py DOCUMENTOS
+    numero: Mapped[int] = mapped_column(Integer)  # consecutivo interno por documento
+    version: Mapped[str] = mapped_column(String(30))  # etiqueta visible, p. ej. «1.0»
+    titulo: Mapped[str] = mapped_column(String(200))
+    contenido: Mapped[str] = mapped_column(Text)  # texto aprobado (Markdown sencillo)
+    sha256: Mapped[str | None] = mapped_column(String(64))  # huella del contenido al publicar
+    resumen_cambios: Mapped[str | None] = mapped_column(String(1000))
+    requiere_aceptacion: Mapped[bool] = mapped_column(Boolean, default=False)  # pide aceptar de nuevo a quien aceptó una anterior
+    vigente_desde: Mapped[date | None] = mapped_column(Date)
+    estado: Mapped[str] = mapped_column(String(12), default="borrador")  # borrador | publicada | retirada
+    aprobado_por: Mapped[str | None] = mapped_column(String(300))  # quiénes aprobaron el texto (declarado al publicar)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    publicado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    publicado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retirado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LgEvento(Base):
+    """Evidencia mínima: quién (usuario u organización), qué versión, qué evento y cuándo. Sin IP,
+    sin contenido de expedientes y sin datos que no hagan falta para probar la aceptación."""
+    __tablename__ = "lg_eventos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    version_id: Mapped[int | None] = mapped_column(ForeignKey("lg_versiones.id"), index=True)
+    documento: Mapped[str] = mapped_column(String(40), index=True)
+    evento: Mapped[str] = mapped_column(String(30))  # aceptacion | lectura | marketing_otorgado | marketing_revocado | aviso_mostrado
+    contexto: Mapped[str] = mapped_column(String(30))  # inicio_sesion | perfil | organizacion | formulario_informes
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    solicitud_id: Mapped[int | None] = mapped_column(ForeignKey("solicitudes.id", ondelete="CASCADE"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class LgConfig(Base):
+    """Datos de contacto de privacidad que muestra el Centro Legal (una sola fila)."""
+    __tablename__ = "lg_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    correo_privacidad: Mapped[str | None] = mapped_column(String(254))
+    responsable_datos: Mapped[str | None] = mapped_column(String(200))  # persona o departamento de datos personales
+    marketing_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)  # solo si Nomira hace marketing y el aviso lo prevé
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class LgSolicitud(Base):
+    """Solicitud de derechos ARCO (o revocación / limitación). Nunca se marca atendida sola."""
+    __tablename__ = "lg_solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    folio: Mapped[str] = mapped_column(String(20), unique=True)
+    tipo: Mapped[str] = mapped_column(String(20))  # acceso | rectificacion | cancelacion | oposicion | revocacion | limitacion
+    relacion: Mapped[str] = mapped_column(String(20))  # usuario | cliente_despacho | prospecto | otro
+    despacho: Mapped[str | None] = mapped_column(String(200))
+    nombre: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str] = mapped_column(String(254))
+    descripcion: Mapped[str] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(25), default="recibida")
+    recibida_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    vence_en: Mapped[date | None] = mapped_column(Date)  # referencia: 20 días hábiles (sin contar días festivos)
+    atendida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class LgSolicitudNota(Base):
+    __tablename__ = "lg_solicitud_notas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    solicitud_id: Mapped[int] = mapped_column(ForeignKey("lg_solicitudes.id", ondelete="CASCADE"), index=True)
+    estado: Mapped[str] = mapped_column(String(25))
+    nota: Mapped[str | None] = mapped_column(Text)
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

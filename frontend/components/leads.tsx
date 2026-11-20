@@ -14,6 +14,7 @@ export function LeadsShell({ children }: { children: React.ReactNode }) {
     ["/leads/tablero", "Seguimiento", ruta.startsWith("/leads/tablero")], ["/leads/campanas", "Campañas y fuentes", ruta.startsWith("/leads/campanas")],
     ["/leads/reportes", "Resultados", ruta.startsWith("/leads/reportes")], ["/leads/configuracion", "Configuración", ruta.startsWith("/leads/configuracion")],
   ];
+  const cat = useCatalogosLeads();
   return (
     <Shell>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Leads</p>
@@ -23,6 +24,13 @@ export function LeadsShell({ children }: { children: React.ReactNode }) {
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold ${activo ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</Link>
         ))}
       </nav>
+      {cat?.falta_aviso_privacidad && (
+        <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <b>Falta el aviso de privacidad de su despacho.</b> Su despacho es responsable de los datos de sus prospectos y necesita su propio aviso;
+          el de Nomira no lo sustituye.{" "}
+          {cat.es_admin ? <Link className="font-semibold underline" href="/leads/configuracion">Agregue el enlace en Configuración</Link>
+            : "Pida a un administrador que agregue el enlace en Configuración."}
+        </div>)}
       {children}
       <p className="mt-10 text-center text-xs text-slate-400">Nomira organiza la atención de prospectos. No da asesoría jurídica ni promete resultados: el abogado evalúa cada caso.</p>
     </Shell>

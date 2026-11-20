@@ -24,7 +24,9 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET",
             ("GET", "/api/whatsapp/webhook"), ("POST", "/api/whatsapp/webhook"),
             # Nomira Leads: formulario de contacto (enlace), entrada de otros sistemas (clave) y anuncios de Meta (firma)
             ("POST", "/api/leads-publico/formulario/info"), ("POST", "/api/leads-publico/formulario"), ("POST", "/api/leads-entrada"),
-            ("GET", "/api/meta/webhook"), ("POST", "/api/meta/webhook")}
+            ("GET", "/api/meta/webhook"), ("POST", "/api/meta/webhook"),
+            # Centro Legal: documentos publicados y solicitudes ARCO (sin sesión)
+            ("GET", "/api/legal/documentos"), ("GET", "/api/legal/documentos/{clave}"), ("POST", "/api/legal/arco")}
 
 
 def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):
