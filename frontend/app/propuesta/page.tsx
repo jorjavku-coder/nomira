@@ -70,8 +70,8 @@ export default function Propuesta() {
             <Contacto c={p.contacto} />
           </div>)}
         {p?.disponible && c && <>
-          {pago === "procesando" && <Nota tipo="info">Estamos esperando la confirmación de su pago con tarjeta. Puede tardar unos minutos; recargue esta página más tarde.</Nota>}
-          {pago === "cancelado" && <Nota tipo="alerta">El pago con tarjeta no se completó. Puede intentarlo de nuevo.</Nota>}
+          {pago === "procesando" && !p.pagada && <Nota tipo="info">Estamos esperando la confirmación de su pago con tarjeta. Puede tardar unos minutos; recargue esta página más tarde.</Nota>}
+          {pago === "cancelado" && !p.pagada && p.estado !== "pagada" && <Nota tipo="alerta">El pago con tarjeta no se completó. Puede intentarlo de nuevo.</Nota>}
           {p.pagada && <Nota tipo="ok"><b>Pago confirmado.</b> Gracias. El equipo de Nomira se pondrá en contacto para activar su cuenta.</Nota>}
           {p.estado === "aceptada" && !p.pagada && <Nota tipo="ok">Registramos su aceptación de la versión {p.version}{p.aceptada_en ? ` el ${fechaHora(p.aceptada_en)}` : ""}.</Nota>}
           {p.estado === "pendiente_pago" && !p.pagada && <Nota tipo="info">Su pago está pendiente de confirmación por parte de Nomira.</Nota>}
