@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import FormularioInformes from "@/components/FormularioInformes";
 import Logo from "@/components/Logo";
 import { api, leerSesion } from "@/lib/api";
@@ -61,6 +61,52 @@ const PREGUNTAS = [
   ["¿Cómo empiezo?", "Llene el formulario de informes o escríbanos. Le damos de alta, activamos los módulos que necesite y le acompañamos en su primer caso."],
 ];
 
+const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
+
+const CINTA = ["Nómina y prestaciones", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
+  "WhatsApp oficial de Meta", "Bitácora completa", "Datos cifrados", "Excel y PDF con su logotipo", "Constancias de participación", "Campañas y resultados"];
+
+/** Animaciones del sitio: aparición al desplazarse, encabezado compacto y barra de lectura. */
+function useAnimaciones(raiz: React.RefObject<HTMLDivElement>) {
+  const [desplazado, setDesplazado] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  useEffect(() => {
+    const el = raiz.current;
+    if (!el) return;
+    el.classList.add("s-anim");
+    const obs = new IntersectionObserver((xs) => xs.forEach((x) => {
+      if (x.isIntersecting) { x.target.classList.add("s-visto"); obs.unobserve(x.target); }
+    }), { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    el.querySelectorAll(".s-revelar, .s-revelar-lado").forEach((x) => obs.observe(x));
+    let cuadro = 0;
+    const alMover = () => {
+      cancelAnimationFrame(cuadro);
+      cuadro = requestAnimationFrame(() => {
+        const alto = document.documentElement.scrollHeight - window.innerHeight;
+        setDesplazado(window.scrollY > 12);
+        setProgreso(alto > 0 ? Math.min(1, window.scrollY / alto) : 0);
+      });
+    };
+    alMover();
+    window.addEventListener("scroll", alMover, { passive: true });
+    return () => { obs.disconnect(); window.removeEventListener("scroll", alMover); cancelAnimationFrame(cuadro); };
+  }, [raiz]);
+  return { desplazado, progreso };
+}
+
+/** Imagen de portada que se inclina un poco siguiendo el mouse (solo en escritorio). */
+function Inclinable({ children }: { children: React.ReactNode }) {
+  const reposo = "perspective(1400px) rotateX(0deg) rotateY(0deg)";
+  const [t, setT] = useState(reposo);
+  const mover = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+    setT(`perspective(1400px) rotateX(${(-y * 5).toFixed(2)}deg) rotateY(${(x * 7).toFixed(2)}deg)`);
+  };
+  return <div onMouseMove={mover} onMouseLeave={() => setT(reposo)} style={{ transform: t, transition: "transform .5s cubic-bezier(.2,.7,.2,1)" }}>{children}</div>;
+}
+
 function Palomita({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return <svg viewBox="0 0 20 20" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10.5l4 4 8-9" /></svg>;
 }
@@ -82,6 +128,8 @@ export default function SitioPublico() {
   const [whatsapp, setWhatsapp] = useState<string | null>(null);
   const [conSesion, setConSesion] = useState(false);
   const [menu, setMenu] = useState(false);
+  const raiz = useRef<HTMLDivElement>(null);
+  const { desplazado, progreso } = useAnimaciones(raiz);
   useEffect(() => {
     setConSesion(!!leerSesion());
     api.get("/publico").then((p) => setWhatsapp(p.whatsapp || null)).catch(() => {});
@@ -91,13 +139,15 @@ export default function SitioPublico() {
     : <Link href="/login" className="btn-sec">Iniciar sesión</Link>;
 
   return (
-    <div className="bg-crema text-slate-800">
+    <div ref={raiz} className="bg-crema text-slate-800">
       {/* Encabezado */}
-      <header className="sticky top-0 z-40 border-b border-crema-300/70 bg-crema/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
+      <header className={`sticky top-0 z-40 border-b backdrop-blur-md transition-all duration-300 ${desplazado ? "border-crema-300/80 bg-crema/90 shadow-[0_8px_30px_-18px_rgba(10,27,43,.35)]" : "border-transparent bg-crema/40"}`}>
+        <div className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-gradient-to-r from-turquesa to-turquesa-brillante" style={{ transform: `scaleX(${progreso})` }} aria-hidden />
+        <div className={`mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 transition-all duration-300 ${desplazado ? "py-2.5" : "py-4"}`}>
           <Link href="/" aria-label="Nomira, inicio"><Logo /></Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex" aria-label="Secciones">
-            {NAV.map(([h, t]) => <a key={h} href={h} className="transition hover:text-marino">{t}</a>)}
+            {NAV.map(([h, t]) => <a key={h} href={h} className="group relative transition hover:text-marino">{t}
+              <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 rounded-full bg-turquesa transition-transform duration-300 group-hover:scale-x-100" aria-hidden /></a>)}
           </nav>
           <div className="flex items-center gap-2">
             <a href="#informes" className="btn-primario hidden sm:inline-flex">Solicitar informes</a>
@@ -117,43 +167,72 @@ export default function SitioPublico() {
       <main>
         {/* Portada */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-turquesa/15 blur-3xl" aria-hidden />
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
+          <div className="s-cuadricula pointer-events-none absolute inset-0" aria-hidden />
+          <div className="s-aurora pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-turquesa/20 blur-3xl" aria-hidden />
+          <div className="s-aurora pointer-events-none absolute -left-32 top-40 h-[26rem] w-[26rem] rounded-full bg-turquesa-brillante/10 blur-3xl" style={d(-6000)} aria-hidden />
+          <div className="s-aurora pointer-events-none absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-marino/10 blur-3xl" style={d(-11000)} aria-hidden />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
             <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Software para despachos y áreas jurídicas</span>
-              <h1 className="mt-5 font-marca text-4xl font-extrabold leading-[1.08] text-marino sm:text-5xl lg:text-[3.4rem]">
-                Cada prestación,<br /><span className="text-turquesa">en claro.</span></h1>
-              <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
+              <span className="s-entrada inline-flex items-center gap-2 rounded-full border border-turquesa/20 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700 backdrop-blur">
+                <span className="s-pulso h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Software para despachos y áreas jurídicas</span>
+              <h1 style={d(100)} className="s-entrada mt-5 font-marca text-4xl font-extrabold leading-[1.08] text-marino sm:text-5xl lg:text-[3.4rem]">
+                Cada prestación,<br /><span className="s-degradado">en claro.</span></h1>
+              <p style={d(200)} className="s-entrada mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
                 Nomira lee sus documentos, ordena la información y le muestra de dónde sale cada dato, para que usted dedique su tiempo a
                 <b className="text-marino"> decidir</b>, no a copiar y pegar. Contrate solo los módulos que necesita.</p>
               <div className="mt-5 flex flex-wrap gap-2">
-                {MODULOS.map((m) => <a key={m.clave} href="#modulos" className="rounded-full border border-turquesa/40 bg-white px-3 py-1 text-sm font-semibold text-marino transition hover:border-turquesa">{m.nombre}</a>)}
+                {MODULOS.map((m, i) => <a key={m.clave} href="#modulos" style={d(300 + i * 70)} className="s-entrada rounded-full border border-turquesa/40 bg-white/80 px-3 py-1 text-sm font-semibold text-marino backdrop-blur transition hover:-translate-y-0.5 hover:border-turquesa hover:shadow-suave">{m.nombre}</a>)}
               </div>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#informes" className="btn-turquesa px-5 py-3 text-base">Solicitar informes</a>
-                <a href="#como-funciona" className="btn-sec px-5 py-3 text-base">Ver cómo funciona</a>
+              <div style={d(650)} className="s-entrada mt-8 flex flex-wrap gap-3">
+                <a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Solicitar informes →</a>
+                <a href="#como-funciona" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Ver cómo funciona</a>
               </div>
-              <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
+              <ul style={d(800)} className="s-entrada mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
                 {["Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
                   <li key={t} className="flex items-center gap-2"><span className="text-turquesa-700"><Palomita /></span>{t}</li>))}
               </ul>
             </div>
-            <div className="relative">
-              <div className="absolute -inset-3 rotate-1 rounded-[2rem] bg-marino/5" aria-hidden />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/sitio/visor.webp" width={1600} height={1034} alt="Nomira muestra el comprobante original junto a lo que leyó: cada percepción con su clave, importe y si se incluye o queda pendiente."
-                className="relative w-full rounded-3xl border border-crema-300 bg-white shadow-flotante" />
-              <p className="relative mt-3 text-center text-xs text-slate-500">Datos ficticios de demostración.</p>
+            <div style={d(350)} className="s-entrada relative">
+              <div className="absolute -inset-3 rotate-1 rounded-[2rem] bg-gradient-to-br from-turquesa/15 via-transparent to-marino/10" aria-hidden />
+              <Inclinable>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/sitio/visor.webp" width={1600} height={1034} alt="Nomira muestra el comprobante original junto a lo que leyó: cada percepción con su clave, importe y si se incluye o queda pendiente."
+                  className="relative w-full rounded-3xl border border-crema-300 bg-white shadow-flotante" />
+              </Inclinable>
+              <div aria-hidden className="pointer-events-none absolute -left-6 top-8 hidden sm:block">
+                <div className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Palomita /></span>Cifra ligada a su página</div>
+              </div>
+              <div aria-hidden className="pointer-events-none absolute -right-4 top-1/2 hidden sm:block">
+                <div style={d(-2000)} className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
+                  <span className="s-pulso h-2 w-2 rounded-full bg-turquesa" />Nuevo prospecto · WhatsApp</div>
+              </div>
+              <div aria-hidden className="pointer-events-none absolute left-10 top-[74%] hidden sm:block">
+                <div style={d(-4000)} className="s-flotar flex items-center gap-2 rounded-2xl bg-marino px-3 py-2 text-xs font-semibold text-white shadow-flotante">
+                  <span className="text-turquesa-brillante">★</span>Constancia emitida</div>
+              </div>
+              <p className="relative mt-8 text-center text-xs text-slate-500">Datos ficticios de demostración.</p>
             </div>
+
           </div>
         </section>
 
+        {/* Cinta de módulos y funciones */}
+        <div className="s-cinta-marco relative overflow-hidden border-y border-crema-300 bg-white/70 py-4" aria-hidden>
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" />
+          <div className="s-cinta flex w-max gap-10 whitespace-nowrap">
+            {[...CINTA, ...CINTA].map((t, i) => (
+              <span key={i} className="flex items-center gap-10 font-marca text-sm font-bold uppercase tracking-wider text-marino/70">{t}<span className="h-1.5 w-1.5 rounded-full bg-turquesa" /></span>))}
+          </div>
+        </div>
+
         {/* El problema */}
-        <section className="bg-marino-700 text-white">
-          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[1fr_1.4fr] md:items-center">
-            <h2 className="font-marca text-3xl font-extrabold leading-tight">El trabajo repetitivo<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
-            <p className="text-lg leading-relaxed text-white/75">
+        <section className="relative overflow-hidden bg-marino-700 text-white">
+          <div className="s-aurora pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-turquesa-brillante/15 blur-3xl" aria-hidden />
+          <div className="relative mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[1fr_1.4fr] md:items-center">
+            <h2 className="s-revelar-lado font-marca text-3xl font-extrabold leading-tight">El trabajo repetitivo<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
+            <p style={d(150)} className="s-revelar text-lg leading-relaxed text-white/75">
               Sumar quincenas a mano, buscar una fecha entre decenas de documentos, perseguir al cliente por un acta o recordar en qué va
               cada folio con la AFORE, dar seguimiento a cada prospecto o capacitar al equipo. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
           </div>
@@ -162,19 +241,19 @@ export default function SitioPublico() {
         {/* Módulos */}
         <section id="modulos" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-5 pt-20">
-            <div className="max-w-2xl">
+            <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Módulos</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Cinco módulos, una sola plataforma</h2>
               <p className="mt-3 text-slate-600">Cada uno funciona por separado y comparte los mismos usuarios, la bitácora y la seguridad de su despacho.</p>
             </div>
             <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
               {MODULOS.map((m, i) => (
-                <article key={m.clave} className={`tarjeta flex flex-col overflow-hidden lg:col-span-2 ${i === 3 ? "lg:col-start-2" : ""}`}>
+                <article key={m.clave} style={d((i % 3) * 120)} className={`s-revelar s-tarjeta tarjeta group flex flex-col overflow-hidden lg:col-span-2 ${i === 3 ? "lg:col-start-2" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={m.imagen} alt={m.alt} loading="lazy" className="aspect-[16/10] w-full border-b border-crema-300 bg-crema object-cover object-left-top" />
+                  <div className="overflow-hidden border-b border-crema-300"><img src={m.imagen} alt={m.alt} loading="lazy" className="aspect-[16/10] w-full bg-crema object-cover object-left-top" /></div>
                   <div className="flex flex-1 flex-col p-6">
                     <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">{m.lema}</span>
-                    <h3 className="mt-1 font-marca text-xl font-extrabold text-marino">{m.nombre}</h3>
+                    <h3 className="mt-1 font-marca text-xl font-extrabold text-marino transition group-hover:text-turquesa-700">{m.nombre}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{m.texto}</p>
                     <ul className="mt-4 space-y-1.5 text-sm">
                       {m.puntos.map((p) => <li key={p} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>{p}</li>)}
@@ -189,16 +268,17 @@ export default function SitioPublico() {
         {/* Cómo funciona */}
         <section id="como-funciona" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-5 py-20">
-            <div className="max-w-2xl">
+            <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Cómo funciona</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Nómina y prestaciones: de los PDF al desglose en cuatro pasos</h2>
             </div>
-            <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {PASOS.map(([t, d], i) => (
-                <li key={t} className="tarjeta relative p-6">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-marino font-marca text-lg font-extrabold text-white">{i + 1}</span>
+            <ol className="s-revelar relative mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <span className="s-trazo absolute left-6 right-6 top-11 hidden h-0.5 rounded-full bg-gradient-to-r from-turquesa via-turquesa-brillante to-marino lg:block" aria-hidden />
+              {PASOS.map(([t, dd], i) => (
+                <li key={t} style={d(i * 130)} className="s-revelar s-tarjeta tarjeta relative p-6">
+                  <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-marino font-marca text-lg font-extrabold text-white">{i + 1}</span>
                   <h3 className="mt-4 text-lg font-bold text-marino">{t}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{d}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{dd}</p>
                 </li>
               ))}
             </ol>
@@ -208,20 +288,20 @@ export default function SitioPublico() {
         {/* Beneficios */}
         <section id="beneficios" className="scroll-mt-20 border-y border-crema-300 bg-white">
           <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 lg:grid-cols-[1.25fr_1fr] lg:items-start">
-            <div>
+            <div className="s-revelar">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Nómina y prestaciones · Beneficios</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Un resultado que puede defender</h2>
               <p className="mt-3 max-w-xl text-slate-600">Nomira no adivina: aplica reglas claras y le muestra de dónde sale cada número.</p>
               <ul className="mt-8 grid gap-6 sm:grid-cols-2">
-                {BENEFICIOS.map(([t, d]) => (
-                  <li key={t} className="flex gap-3">
+                {BENEFICIOS.map(([t, dd], i) => (
+                  <li key={t} style={d((i % 2) * 120)} className="s-revelar flex gap-3">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-turquesa-50 text-turquesa-700"><Palomita /></span>
-                    <span><span className="block font-bold text-marino">{t}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{d}</span></span>
+                    <span><span className="block font-bold text-marino">{t}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{dd}</span></span>
                   </li>
                 ))}
               </ul>
             </div>
-            <figure className="lg:sticky lg:top-24">
+            <figure style={d(200)} className="s-revelar lg:sticky lg:top-24">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/sitio/resultados.webp" width={1099} height={1076} loading="lazy" alt="Tabla de Nomira con el total por clave de prestación: clave, concepto del catálogo, veces que aparece y total."
                 className="w-full rounded-3xl border border-crema-300 shadow-flotante" />
@@ -233,7 +313,7 @@ export default function SitioPublico() {
         {/* Portal del cliente */}
         <section id="clientes" className="scroll-mt-20">
           <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 lg:grid-cols-[1fr_1fr] lg:items-center">
-            <div>
+            <div className="s-revelar-lado">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Su cliente, conectado</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Menos llamadas de «¿cómo va mi asunto?»</h2>
               <p className="mt-3 text-slate-600">Su cliente recibe un enlace seguro desde su celular: ve solo lo que usted decide compartir, sabe qué documentos faltan y los envía en un minuto.</p>
@@ -248,10 +328,11 @@ export default function SitioPublico() {
                   </li>))}
               </ul>
             </div>
-            <figure className="mx-auto w-full max-w-sm">
+            <figure style={d(200)} className="s-revelar relative mx-auto w-full max-w-sm">
+              <div className="s-aurora pointer-events-none absolute -inset-10 -z-10 rounded-full bg-turquesa/20 blur-3xl" aria-hidden />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/sitio/portal.webp" alt="Página del cliente en el celular para enviar sus documentos de forma segura (datos ficticios)." loading="lazy"
-                className="w-full rounded-[2rem] border-8 border-marino-900 shadow-flotante" />
+                className="s-flotar w-full rounded-[2rem] border-8 border-marino-900 shadow-flotante" />
               <figcaption className="mt-3 text-center text-xs text-slate-500">Lo que ve su cliente en el celular (datos ficticios).</figcaption>
             </figure>
           </div>
@@ -260,16 +341,16 @@ export default function SitioPublico() {
         {/* Para quién */}
         <section>
           <div className="mx-auto max-w-6xl px-5 py-16">
-            <h2 className="text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien trabaja con documentos y plazos</h2>
+            <h2 className="s-revelar text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien trabaja con documentos y plazos</h2>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[["Despachos laborales", "Integre prestaciones con el respaldo de cada comprobante y arme el expediente probatorio."],
                 ["Familiar, civil y mercantil", "Ordene documentos, hechos y fechas de cada asunto, y detecte versiones distintas entre fuentes."],
                 ["Seguridad social y AFORE", "Lleve cada caso AFORE/SAR con su checklist, folios, respuestas y seguimientos al día."],
                 ["Despachos que quieren crecer", "Atienda cada consulta a tiempo y sepa qué campañas le traen clientes, sin depender de la memoria de nadie."],
                 ["Equipos en formación", "Capacite a abogados y personal de apoyo con cursos breves, y compruebe quién ya los terminó."],
-                ["Recursos humanos y áreas jurídicas", "Verifique pagos de varios periodos con trazabilidad completa, lista para un expediente."]].map(([t, d]) => (
-                <div key={t} className="rounded-3xl border border-crema-300 bg-white/60 p-6">
-                  <h3 className="font-bold text-marino">{t}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{d}</p>
+                ["Recursos humanos y áreas jurídicas", "Verifique pagos de varios periodos con trazabilidad completa, lista para un expediente."]].map(([t, dd], i) => (
+                <div key={t} style={d((i % 3) * 110)} className="s-revelar s-tarjeta rounded-3xl border border-crema-300 bg-white/60 p-6">
+                  <h3 className="font-bold text-marino">{t}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{dd}</p>
                 </div>
               ))}
             </div>
@@ -277,9 +358,10 @@ export default function SitioPublico() {
         </section>
 
         {/* Seguridad */}
-        <section id="seguridad" className="scroll-mt-20 bg-marino-900 text-white">
-          <div className="mx-auto max-w-6xl px-5 py-20">
-            <div className="max-w-2xl">
+        <section id="seguridad" className="relative scroll-mt-20 overflow-hidden bg-marino-900 text-white">
+          <div className="s-aurora pointer-events-none absolute -left-24 top-10 h-96 w-96 rounded-full bg-turquesa/15 blur-3xl" aria-hidden />
+          <div className="relative mx-auto max-w-6xl px-5 py-20">
+            <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-brillante">Seguridad y privacidad</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold sm:text-4xl">Sus expedientes son solo suyos</h2>
               <p className="mt-3 text-white/70">Sus documentos contienen datos personales y secreto profesional. Nomira está construido para tratarlos con ese cuidado.</p>
@@ -290,12 +372,12 @@ export default function SitioPublico() {
                 ["Accesos protegidos", "Conexión cifrada (HTTPS), contraseñas protegidas, bloqueo ante intentos repetidos y documentos restringidos por usuario."],
                 ["Datos sensibles cifrados", "CURP, NSS y credenciales se guardan cifrados y se muestran enmascarados; verlos completos queda registrado."],
                 ["Enlaces que vencen", "Los enlaces para sus clientes caducan, se pueden cancelar, piden código y no contienen información del caso."],
-                ["Todo queda registrado", "Bitácora de quién creó, editó, validó, envió o descargó cada cosa y cuándo."]].map(([t, d]) => (
-                <div key={t} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+                ["Todo queda registrado", "Bitácora de quién creó, editó, validó, envió o descargó cada cosa y cuándo."]].map(([t, dd], i) => (
+                <div key={t} style={d((i % 3) * 110)} className="s-revelar s-oscura rounded-3xl border border-white/10 bg-white/[0.04] p-6">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-turquesa-brillante/15 text-turquesa-brillante">
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></svg>
                   </span>
-                  <h3 className="mt-4 font-bold">{t}</h3><p className="mt-2 text-sm leading-relaxed text-white/65">{d}</p>
+                  <h3 className="mt-4 font-bold">{t}</h3><p className="mt-2 text-sm leading-relaxed text-white/65">{dd}</p>
                 </div>
               ))}
             </div>
@@ -305,12 +387,12 @@ export default function SitioPublico() {
         {/* Preguntas */}
         <section id="preguntas" className="scroll-mt-20">
           <div className="mx-auto max-w-3xl px-5 py-20">
-            <h2 className="text-center font-marca text-3xl font-extrabold text-marino sm:text-4xl">Preguntas frecuentes</h2>
+            <h2 className="s-revelar text-center font-marca text-3xl font-extrabold text-marino sm:text-4xl">Preguntas frecuentes</h2>
             <div className="mt-10 space-y-3">
-              {PREGUNTAS.map(([p, r]) => (
-                <details key={p} className="group tarjeta px-5 py-4 open:shadow-sm">
+              {PREGUNTAS.map(([p, r], i) => (
+                <details key={p} style={d(Math.min(i, 6) * 60)} className="s-revelar group tarjeta px-5 py-4 transition hover:border-turquesa/40 open:border-turquesa/40 open:shadow-sm">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-marino">
-                    {p}<span className="text-xl text-turquesa-700 transition group-open:rotate-45" aria-hidden>+</span></summary>
+                    {p}<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-turquesa-50 text-xl text-turquesa-700 transition duration-300 group-open:rotate-45 group-open:bg-turquesa group-open:text-white" aria-hidden>+</span></summary>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">{r}</p>
                 </details>
               ))}
@@ -321,7 +403,7 @@ export default function SitioPublico() {
         {/* Informes */}
         <section id="informes" className="scroll-mt-20 border-t border-crema-300 bg-white">
           <div className="mx-auto grid max-w-6xl items-start gap-10 px-5 py-20 lg:grid-cols-[1fr_1.15fr]">
-            <div>
+            <div className="s-revelar-lado">
               <span className="rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">Informes y suscripción</span>
               <h2 className="mt-4 font-marca text-3xl font-extrabold leading-tight text-marino sm:text-4xl">Hablemos de su operación</h2>
               <p className="mt-3 text-slate-600">Cuéntenos qué módulos le interesan, cuántos asuntos lleva y cómo trabaja hoy. Le respondemos para explicarle cómo empezar.</p>
@@ -332,7 +414,7 @@ export default function SitioPublico() {
               )}
               <p className="mt-6 text-sm text-slate-500">¿Ya es cliente? <Link href="/login" className="font-semibold text-turquesa-700 hover:underline">Inicie sesión aquí</Link>.</p>
             </div>
-            <FormularioInformes />
+            <div style={d(150)} className="s-revelar"><FormularioInformes /></div>
           </div>
         </section>
       </main>
