@@ -39,7 +39,7 @@ export default function AcademiaPlataforma() {
             <label><span className="etiqueta">Cuenta editora del catálogo</span><select className="campo" value={conf.org_editora_id || ""} onChange={(e) => setConf({ ...conf, org_editora_id: e.target.value ? Number(e.target.value) : null })}>
               <option value="">Sin elegir</option>{r.organizaciones.map((o: any) => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>
           </div>
-          <p className="mt-2 text-xs text-slate-500">La cuenta editora es una organización de Nomira (por ejemplo, un cliente llamado «Nomira catálogo») donde armas los cursos con el editor normal de Academia: enlaces, Excel, SCORM o videos subidos. ⚠️ El disco del servidor es compartido: cuida el espacio por despacho.</p>
+          <p className="mt-2 text-xs text-slate-500">La cuenta editora es una organización de Nomira (por ejemplo, un cliente llamado «Nomira catálogo») donde armas los cursos con el editor normal de Academia: enlaces, Excel, SCORM o videos subidos. Si el despacho tiene un plan asignado en Comercial, Academia usa el almacenamiento de ese plan.</p>
           <button className="btn-turquesa mt-3" onClick={() => hacer(() => apiP.put("/academia/config", conf), "Configuración guardada.")}>Guardar</button>
         </section>
 
@@ -121,10 +121,10 @@ function PorDespacho({ oid, pago }: { oid: number; pago: any[] }) {
     <div className="mt-4 grid gap-5 lg:grid-cols-2">
       <div>
         <p className="text-sm">Cursos propios: <b>{o.limite.usados} de {o.limite.limite}</b> ({o.limite.incluidos} incluidos + {o.limite.adicionales} adicionales)</p>
-        <p className="text-sm">Espacio para videos y SCORM: <b>{o.espacio.usado_mb} de {o.espacio.cuota_mb} MB</b></p>
+        <p className="text-sm">{o.espacio.alcance === "despacho" ? "Almacenamiento de su plan (todo el despacho)" : "Espacio para videos y SCORM"}: <b>{o.espacio.usado_mb} de {o.espacio.cuota_mb} MB</b></p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label><span className="etiqueta">Cursos adicionales</span><input className="campo" type="number" min={0} value={d.ac_cursos_extra} onChange={(e) => setD({ ...d, ac_cursos_extra: Number(e.target.value) })} /></label>
-          <label><span className="etiqueta">Espacio propio (MB, vacío = general)</span><input className="campo" type="number" min={0} value={d.ac_cuota_medios_mb} onChange={(e) => setD({ ...d, ac_cuota_medios_mb: e.target.value })} /></label>
+          <label><span className="etiqueta">Espacio fijo para Academia (MB, vacío = el de su plan)</span><input className="campo" type="number" min={0} value={d.ac_cuota_medios_mb} onChange={(e) => setD({ ...d, ac_cuota_medios_mb: e.target.value })} /></label>
         </div>
         <button className="btn-sec mt-2" onClick={() => hacer(() => apiP.patch(`/academia/organizaciones/${oid}`, { ac_cursos_extra: d.ac_cursos_extra, ac_cuota_medios_mb: d.ac_cuota_medios_mb === "" ? null : Number(d.ac_cuota_medios_mb) }), "Ajustes guardados.")}>Guardar ajustes</button>
         <p className="mt-1 text-xs text-slate-500">Para cobrar cursos adicionales, inclúyelos en una cotización de Comercial: al asignarla se actualiza solo.</p>

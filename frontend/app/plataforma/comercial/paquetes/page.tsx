@@ -16,7 +16,8 @@ export default function Paquetes() {
   const [ok, setOk] = useState("");
   const [edit, setEdit] = useState<any>(null);
   const [precios, setPrecios] = useState<Record<number, any>>({});
-  const cargarHist = () => apiP.get("/comercial/historial-precios").then(setHist).catch(() => {});
+  const [alm, setAlm] = useState<any>(null);
+  const cargarHist = () => { apiP.get("/comercial/historial-precios").then(setHist).catch(() => {}); apiP.get("/comercial/almacenamiento").then(setAlm).catch(() => {}); };
   useEffect(() => { cargarHist(); }, []);
   useEffect(() => { if (cat) setPrecios(Object.fromEntries(cat.precios.map((p: any) => [p.id, { ...p }]))); }, [cat]);
   async function hacer(fn: () => Promise<any>, msg: string) {
@@ -38,7 +39,7 @@ export default function Paquetes() {
               <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-marino">{p.nombre}</h2>
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ESTADO[p.estado]}`}>{p.estado}</span></div>
               <div className="mt-1 text-2xl font-extrabold text-marino">{mxn(p.precio_mensual)} <span className="text-xs font-medium text-slate-500">/mes + IVA</span></div>
-              <ul className="mt-2 text-sm text-slate-600"><li>{p.modulos_incluidos} módulo(s) incluidos</li><li>{p.usuarios} usuarios internos</li><li>{p.almacenamiento_gb} GB</li>
+              <ul className="mt-2 text-sm text-slate-600"><li>{p.modulos_incluidos} módulo(s) incluidos</li><li>{p.usuarios} usuarios internos</li><li>{p.almacenamiento_gb} GB{(() => { const c = alm?.paquetes.find((x: any) => x.id === p.id); return c ? <span className="block text-xs text-slate-500">te cuestan {mxn(c.costo_mxn)}/mes en Render ({c.pct_del_precio}% del precio)</span> : null; })()}</li>
                 <li>IVA {p.iva_pct ? `${Number(p.iva_pct)}% (propio)` : `${Number(cat.config.iva_pct)}% (general)`}</li></ul>
               <div className="mt-3 flex flex-wrap gap-2">
                 {p.estado !== "archivado" && <button className="btn-sec py-1 text-xs" onClick={() => setEdit(p)}>Editar</button>}
@@ -67,6 +68,7 @@ export default function Paquetes() {
             })}
           </div>
         </section>
+        {alm && <Almacenamiento alm={alm} hacer={hacer} onCambio={setAlm} />}
         <section className="tarjeta mt-6 p-5">
           <h2 className="font-semibold text-marino">Historial de cambios de precios</h2>
           {!hist.length ? <p className="mt-2 text-sm text-slate-500">Sin cambios registrados.</p> : (
@@ -100,4 +102,51 @@ function EditarPaquete({ p, onCerrar, onGuardar }: { p: any; onCerrar: () => voi
       <button className="btn-turquesa" onClick={() => onGuardar({ nombre: f.nombre, descripcion: f.descripcion || null, precio_mensual: f.precio_mensual, modulos_incluidos: Number(f.modulos_incluidos),
         usuarios: Number(f.usuarios), almacenamiento_gb: Number(f.almacenamiento_gb), ciclo: f.ciclo, iva_pct: f.iva_pct === "" ? null : f.iva_pct, orden: Number(f.orden) || 0 })}>Guardar</button></div>
   </Modal>;
+}
+
+/** Lo que cuesta el disco en Render y cómo se traslada al precio del almacenamiento adicional. */
+function Almacenamiento({ alm, hacer, onCambio }: { alm: any; hacer: (fn: () => Promise<any>, msg: string) => Promise<boolean>; onCambio: (x: any) => void }) {
+  const [f, setF] = useState({ ...alm.config });
+  useEffect(() => setF({ ...alm.config }), [alm]);
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+  const b = alm.bloque, d = alm.disco;
+  const distinto = b.precio_actual !== null && Number(b.precio_actual) !== Number(b.precio_sugerido);
+  return (
+    <section className="tarjeta mt-6 p-5">
+      <h2 className="font-semibold text-marino">Almacenamiento: lo que te cobra Render y lo que paga tu cliente</h2>
+      <p className="mt-1 text-sm text-slate-500">Render cobra el disco por GB al mes, en dólares, aunque no esté lleno. Aquí calculas el precio del bloque de almacenamiento para que ese costo lo pague el cliente.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label><span className="etiqueta">Costo de Render por GB al mes (USD)</span><input className="campo" inputMode="decimal" value={f.costo_gb_usd} onChange={set("costo_gb_usd")} /></label>
+        <label><span className="etiqueta">Tipo de cambio (MXN por dólar)</span><input className="campo" inputMode="decimal" value={f.tipo_cambio} onChange={set("tipo_cambio")} /></label>
+        <label><span className="etiqueta">Margen sobre el costo (%)</span><input className="campo" inputMode="decimal" value={f.margen_almacenamiento_pct} onChange={set("margen_almacenamiento_pct")} /></label>
+        <label><span className="etiqueta">Tamaño de tu disco en Render (GB)</span><input className="campo" type="number" min={1} value={f.disco_gb} onChange={set("disco_gb")} /></label>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">El margen cubre el espacio libre que pagas aunque no se use, las descargas de videos, la comisión de Stripe y la variación del dólar.</p>
+      <button className="btn-sec mt-2" onClick={async () => { let x: any; if (await hacer(async () => { x = await apiP.put("/comercial/almacenamiento", { ...f, disco_gb: Number(f.disco_gb) }); }, "Costos de almacenamiento guardados.")) onCambio(x); }}>Guardar y recalcular</button>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl bg-crema/60 p-4 text-sm">
+          <p>1 GB te cuesta <b>{mxn(alm.costo_gb_mxn)}</b> al mes.</p>
+          <p>Un bloque de {b.gb} GB te cuesta <b>{mxn(b.costo_mxn)}</b> al mes.</p>
+          <p className="mt-2 text-base">Precio sugerido del bloque: <b className="text-marino">{mxn(b.precio_sugerido)}</b> + IVA</p>
+          {b.precio_actual !== null && <p className="text-slate-600">Hoy lo cobras en {mxn(b.precio_actual)} (margen de {b.margen_actual_pct}%).</p>}
+          {distinto && b.id && <button className="btn-turquesa mt-2" onClick={() => hacer(() => apiP.patch(`/comercial/precios/${b.id}`, { precio_mensual: b.precio_sugerido, activo: true, unidad_gb: b.gb }), "Precio del bloque actualizado.")}>Usar {mxn(b.precio_sugerido)}</button>}
+        </div>
+        <div className={`rounded-xl p-4 text-sm ${d.ampliar ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900"}`}>
+          <p>Tu disco: <b>{d.disco_gb} GB</b> ({mxn(d.costo_disco_mxn)} al mes, {d.costo_disco_usd} USD).</p>
+          <p>Espacio que ya vendiste a tus clientes: <b>{d.contratado_gb} GB</b>. En uso real: <b>{d.usado_gb} GB</b>.</p>
+          {d.ampliar ? <p className="mt-2 font-semibold">Amplía tu disco en Render a {d.recomendado_gb} GB (unos {d.costo_recomendado_usd} USD al mes). En Render: tu servicio → Disks → cambia el tamaño. Se puede agrandar, pero no achicar.</p>
+            : <p className="mt-2">Tu disco alcanza para lo que has vendido.</p>}
+        </div>
+      </div>
+
+      {d.organizaciones.length > 0 && <div className="mt-4 overflow-x-auto"><table className="w-full text-sm">
+        <thead><tr className="text-left text-xs uppercase tracking-wider text-slate-500"><th className="py-2">Despacho</th><th>Contratado</th><th>En uso</th><th>%</th></tr></thead>
+        <tbody className="divide-y divide-crema-300">{d.organizaciones.map((o: any) => <tr key={o.id}>
+          <td className="py-1.5">{o.nombre}</td><td>{o.contratado_gb ? `${o.contratado_gb} GB` : <span className="text-slate-400">Sin plan asignado</span>}</td>
+          <td>{o.usado_mb >= 1024 ? `${(o.usado_mb / 1024).toFixed(1)} GB` : `${o.usado_mb} MB`}</td>
+          <td className={o.pct >= 90 ? "font-semibold text-red-700" : ""}>{o.pct ?? "—"}{o.pct !== null && "%"}</td></tr>)}</tbody></table>
+        <p className="mt-1 text-xs text-slate-500">Solo se mide el tamaño de los archivos; nunca su contenido. Cuando un despacho llega a su límite, Academia ya no le deja subir videos ni SCORM hasta que contrate más espacio; sus expedientes y evidencia no se bloquean.</p></div>}
+    </section>
+  );
 }

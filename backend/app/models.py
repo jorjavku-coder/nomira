@@ -1354,6 +1354,11 @@ class CmConfig(Base):
     otro_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)
     otro_nombre: Mapped[str | None] = mapped_column(String(80))
     otro_instrucciones: Mapped[str | None] = mapped_column(Text)
+    # Costo del almacenamiento del proveedor (Render cobra el disco por GB al mes, en dólares).
+    costo_gb_usd: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=Decimal("0.25"), server_default="0.25")
+    tipo_cambio: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=Decimal("19"), server_default="19")
+    margen_almacenamiento_pct: Mapped[Decimal] = mapped_column(Numeric(6, 2), default=Decimal("150"), server_default="150")
+    disco_gb: Mapped[int] = mapped_column(Integer, default=5, server_default="5")  # tamaño actual del disco en Render
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

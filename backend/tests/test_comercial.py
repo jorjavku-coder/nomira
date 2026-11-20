@@ -105,7 +105,7 @@ def test_calculo_en_el_servidor(plataforma):
     c = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": e}).json()
     # 3490 + Leads 690 + 2×119 + 1×299 = 4717 al mes; + capacitación 1500 única = 6217; IVA 16 % = 994.72
     assert c["mensual"] == "4717.00" and c["subtotal"] == "6217.00" and c["iva"] == "994.72" and c["total"] == "7211.72"
-    assert c["usuarios"]["total"] == 17 and c["almacenamiento"]["total_gb"] == 125 and c["asuntos_estimados"] is None
+    assert c["usuarios"]["total"] == 17 and c["almacenamiento"]["total_gb"] == 55 and c["asuntos_estimados"] is None
     anual = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": {**e, "periodicidad": "anual", "servicios": []}}).json()
     assert anual["subtotal"] == "56604.00"
     # descuentos: requieren motivo y respetan el máximo autorizado
@@ -123,7 +123,7 @@ def test_calculo_en_el_servidor(plataforma):
     conf = catalogo(plataforma)["config"]
     plataforma.c.put(f"{R}/config", headers=plataforma.h, json={**conf, "mb_promedio_por_asunto": 50})
     r = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": {"paquete_id": b["id"], "modulos": ["nomina"]}}).json()
-    assert r["asuntos_estimados"] == 409
+    assert r["asuntos_estimados"] == 204  # 10 GB × 1024 ÷ 50 MB
 
 
 def test_flujo_completo_transferencia(plataforma, buzon, cliente, org, db):
@@ -174,7 +174,7 @@ def test_flujo_completo_transferencia(plataforma, buzon, cliente, org, db):
     org.c.patch("/api/organizacion/modulos/nomina", headers=org.h, json={"activo": True})
     oid = org.org_id
     conv = plataforma.c.post(f"{R}/cotizaciones/{c['id']}/convertir", headers=plataforma.h, json={"organizacion_id": oid}).json()
-    assert conv["asignacion"]["usuarios"] == 5 and conv["asignacion"]["almacenamiento_gb"] == 20 and conv["asignacion"]["origen"] == "pago"
+    assert conv["asignacion"]["usuarios"] == 5 and conv["asignacion"]["almacenamiento_gb"] == 10 and conv["asignacion"]["origen"] == "pago"
     periodo = db.query(m.PeriodoSuscripcion).filter_by(organizacion_id=oid).order_by(m.PeriodoSuscripcion.id.desc()).first()
     assert periodo.plan == "mensual" and periodo.pagado and str(periodo.monto) == "2076.40"
     assert plataforma.c.post(f"{R}/cotizaciones/{c['id']}/convertir", headers=plataforma.h, json={"organizacion_id": oid}).status_code == 409

@@ -157,10 +157,11 @@ def test_cotizacion_con_cursos_de_academia(editora, org2, plataforma):
     assert [x["id"] for x in cat["cursos_academia"]] == [g["id"]]
     basico = next(x for x in cat["paquetes"] if x["clave"] == "basico")
     e = {"paquete_id": basico["id"], "modulos": ["academia"], "cursos_nomira": [g["id"]], "cursos_extra": 2}
-    r = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": e})
-    assert r.status_code == 422 and "precio activo" in r.json()["detail"]  # el curso adicional nace sin precio
     pc = next(x for x in cat["precios"] if x["clave"] == "curso_adicional")
-    assert pc["activo"] is False and pc["precio_mensual"] == "0.00"
+    assert pc["activo"] is True and pc["precio_mensual"] == "99.00"  # precio sugerido inicial
+    plataforma.c.patch(f"{R}/precios/{pc['id']}", headers=plataforma.h, json={"precio_mensual": "150", "activo": False})
+    r = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": e})
+    assert r.status_code == 422 and "precio activo" in r.json()["detail"]  # sin precio activo no se cotiza
     plataforma.c.patch(f"{R}/precios/{pc['id']}", headers=plataforma.h, json={"precio_mensual": "150", "activo": True})
     calc = plataforma.c.post(f"{R}/calcular", headers=plataforma.h, json={"entrada": e}).json()
     # 1790 + 2×150 al mes + curso 500 único = 2590 → IVA 414.40 → 3004.40

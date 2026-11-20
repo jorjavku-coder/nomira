@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..db import get_db
-from ..services import correo, envios, modulos, suscripciones as sus
+from ..services import almacenamiento as almacen, correo, envios, modulos, suscripciones as sus
 from ..services.comercial import base as cm
 from ..services.comercial import correo as cm_correo
 from ..services.comercial import pdf as cm_pdf
@@ -267,6 +267,44 @@ def editar_precio(pid: int, d: PrecioIn, request: Request, a: m.AdminPlataforma 
         _registrar(db, a, "comercial_precio_editado", request, entidad="cm_precio", entidad_id=p.id, detalle={"clave": p.clave, "campos": cambios})
     db.commit()
     return precio_dict(p)
+
+
+# ------------------------------------------------------------------ almacenamiento: costo del proveedor
+
+class AlmacenamientoIn(BaseModel):
+    costo_gb_usd: Decimal = Field(gt=0, le=100)
+    tipo_cambio: Decimal = Field(gt=0, le=1000)
+    margen_almacenamiento_pct: Decimal = Field(ge=0, le=1000)
+    disco_gb: int = Field(ge=1, le=100_000)
+
+
+def _almacenamiento(db: Session) -> dict:
+    cm.asegurar_catalogo(db)
+    c = cm.config(db)
+    return {"config": {"costo_gb_usd": f"{Decimal(c.costo_gb_usd):.4f}".rstrip("0").rstrip("."), "tipo_cambio": f"{Decimal(c.tipo_cambio):.2f}",
+                       "margen_almacenamiento_pct": f"{Decimal(c.margen_almacenamiento_pct):.0f}", "disco_gb": c.disco_gb},
+            **almacen.costos(db, c), "disco": almacen.resumen_disco(db, c)}
+
+
+@router.get("/almacenamiento")
+def almacenamiento(db: Session = Depends(get_db)):
+    """Lo que cuesta el disco en Render, el precio sugerido al cliente y cuánto usa cada despacho (solo tamaños, nunca contenido)."""
+    r = _almacenamiento(db)
+    db.commit()
+    return r
+
+
+@router.put("/almacenamiento")
+def guardar_almacenamiento(d: AlmacenamientoIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+    c = cm.config(db)
+    antes = {k: str(getattr(c, k)) for k in d.model_dump()}
+    for k, v in d.model_dump().items():
+        setattr(c, k, v)
+    c.actualizado_en = cm.ahora()
+    _registrar(db, a, "comercial_costo_almacenamiento", request, entidad="cm_config", entidad_id=c.id,
+               detalle={"antes": antes, "despues": {k: str(v) for k, v in d.model_dump().items()}})
+    db.commit()
+    return _almacenamiento(db)
 
 
 @router.get("/historial-precios")

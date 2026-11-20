@@ -48,20 +48,19 @@ EVENTOS = {
 
 # Valores INICIALES (editables desde el panel); se crean solo si el catálogo está vacío.
 PAQUETES_INICIALES = [
-    {"clave": "basico", "nombre": "Básico", "precio_mensual": "1790", "modulos_incluidos": 1, "usuarios": 5, "almacenamiento_gb": 20, "orden": 1},
-    {"clave": "medio", "nombre": "Medio", "precio_mensual": "3490", "modulos_incluidos": 3, "usuarios": 15, "almacenamiento_gb": 100, "orden": 2},
-    {"clave": "premium", "nombre": "Premium", "precio_mensual": "5990", "modulos_incluidos": 5, "usuarios": 30, "almacenamiento_gb": 250, "orden": 3},
+    {"clave": "basico", "nombre": "Básico", "precio_mensual": "1790", "modulos_incluidos": 1, "usuarios": 5, "almacenamiento_gb": 10, "orden": 1},
+    {"clave": "medio", "nombre": "Medio", "precio_mensual": "3490", "modulos_incluidos": 3, "usuarios": 15, "almacenamiento_gb": 30, "orden": 2},
+    {"clave": "premium", "nombre": "Premium", "precio_mensual": "5990", "modulos_incluidos": 5, "usuarios": 30, "almacenamiento_gb": 75, "orden": 3},
 ]
 PRECIOS_INICIALES = [
     {"clave": "modulo:nomina", "nombre": "Nómina y prestaciones", "precio_mensual": "950"},
     {"clave": "modulo:evidencia", "nombre": "Nomira Evidencia", "precio_mensual": "950"},
     {"clave": "modulo:afore", "nombre": "Nomira AFORE", "precio_mensual": "1190"},
     {"clave": "modulo:leads", "nombre": "Nomira Leads", "precio_mensual": "690"},
-    {"clave": "modulo:academia", "nombre": "Nomira Academia", "precio_mensual": "470"},
+    {"clave": "modulo:academia", "nombre": "Nomira Academia", "precio_mensual": "590"},
     {"clave": "usuario", "nombre": "Usuario interno adicional", "precio_mensual": "119"},
     {"clave": "almacenamiento", "nombre": "Almacenamiento adicional (bloque)", "precio_mensual": "299", "unidad_gb": 25},
-    # Sin precio inicial: queda INACTIVO hasta que Nomira le ponga precio en «Paquetes y precios».
-    {"clave": "curso_adicional", "nombre": "Curso propio adicional (Academia)", "precio_mensual": "0", "activo": False},
+    {"clave": "curso_adicional", "nombre": "Curso propio adicional (Academia)", "precio_mensual": "99"},
 ]
 
 
