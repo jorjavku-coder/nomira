@@ -60,6 +60,8 @@ PRECIOS_INICIALES = [
     {"clave": "modulo:academia", "nombre": "Nomira Academia", "precio_mensual": "470"},
     {"clave": "usuario", "nombre": "Usuario interno adicional", "precio_mensual": "119"},
     {"clave": "almacenamiento", "nombre": "Almacenamiento adicional (bloque)", "precio_mensual": "299", "unidad_gb": 25},
+    # Sin precio inicial: queda INACTIVO hasta que Nomira le ponga precio en «Paquetes y precios».
+    {"clave": "curso_adicional", "nombre": "Curso propio adicional (Academia)", "precio_mensual": "0", "activo": False},
 ]
 
 
@@ -100,7 +102,7 @@ def asegurar_catalogo(db: Session) -> None:
     existentes = set(db.scalars(select(m.CmPrecio.clave)))
     for p in PRECIOS_INICIALES:
         if p["clave"] not in existentes:
-            db.add(m.CmPrecio(**{**p, "precio_mensual": Decimal(p["precio_mensual"])}, activo=True))
+            db.add(m.CmPrecio(**{**p, "precio_mensual": Decimal(p["precio_mensual"]), "activo": p.get("activo", True)}))
     db.flush()
 
 
@@ -211,8 +213,10 @@ def calcular(db: Session, e: dict) -> dict:
             mensual += p.precio_mensual
             lineas.append({"concepto": f"Módulo adicional: {MODULOS[x]['nombre']}", "detalle": None, "cantidad": 1,
                            "unitario": txt(p.precio_mensual), "tipo": "recurrente"})
+    cursos_extra = _entero(e.get("cursos_extra"), "Cursos propios adicionales", 500)
     gb_bloque = 0
-    for clave, n, etiqueta in (("usuario", usuarios_extra, "Usuarios internos adicionales"), ("almacenamiento", bloques, "Almacenamiento adicional")):
+    for clave, n, etiqueta in (("usuario", usuarios_extra, "Usuarios internos adicionales"), ("almacenamiento", bloques, "Almacenamiento adicional"),
+                               ("curso_adicional", cursos_extra, "Cursos propios adicionales (Academia)")):
         if not n:
             continue
         p = precios.get(clave)
@@ -228,6 +232,15 @@ def calcular(db: Session, e: dict) -> dict:
         ln["importe"] = txt(Decimal(ln["unitario"]) * ln["cantidad"] * meses)
 
     unico = Decimal("0")
+    cursos = []
+    for cid in list(dict.fromkeys(e.get("cursos_nomira") or []))[:50]:
+        cur = db.get(m.AcCurso, int(cid)) if str(cid).isdigit() else None
+        if not cur or cur.organizacion_id is not None or cur.acceso != "pago" or cur.precio is None or cur.estado != "publicado":
+            raise HTTPException(422, "Uno de los cursos de Academia elegidos ya no está a la venta.")
+        cursos.append({"id": cur.id, "titulo": cur.titulo, "precio": txt(cur.precio)})
+        unico += cur.precio
+        lineas.append({"concepto": f"Curso de Nomira Academia: {cur.titulo}"[:200], "detalle": "Acceso para todo el despacho (pago único)",
+                       "cantidad": 1, "unitario": txt(cur.precio), "meses": None, "importe": txt(cur.precio), "tipo": "unico"})
     servicios = []
     for s in e.get("servicios") or []:
         if not isinstance(s, dict) or s.get("clave") not in SERVICIOS:
@@ -272,7 +285,7 @@ def calcular(db: Session, e: dict) -> dict:
         "usuarios": {"incluidos": paq.usuarios, "adicionales": usuarios_extra, "total": paq.usuarios + usuarios_extra},
         "almacenamiento": {"incluido_gb": paq.almacenamiento_gb, "bloques": bloques, "gb_bloque": gb_bloque, "total_gb": total_gb},
         "asuntos_estimados": asuntos,
-        "servicios": servicios,
+        "servicios": servicios, "cursos": cursos, "cursos_extra": cursos_extra,
         "lineas": lineas,
         "mensual": txt(mensual), "recurrente": txt(recurrente), "unico": txt(unico),
         "subtotal": txt(subtotal), "descuento": desc_info, "base_iva": txt(base), "iva_pct": txt(iva_pct), "iva": txt(iva),
@@ -286,6 +299,7 @@ def limpiar_entrada(e: dict) -> dict:
     return {
         "paquete_id": e.get("paquete_id"), "modulos": list(e.get("modulos") or [])[:10], "incluidos": list(e.get("incluidos") or [])[:10],
         "usuarios_extra": e.get("usuarios_extra") or 0, "bloques_extra": e.get("bloques_extra") or 0,
+        "cursos_nomira": [int(x) for x in (e.get("cursos_nomira") or []) if str(x).isdigit()][:50], "cursos_extra": e.get("cursos_extra") or 0,
         "periodicidad": e.get("periodicidad") or "mensual",
         "servicios": [{"clave": s.get("clave"), "descripcion": (s.get("descripcion") or "")[:300], "precio": str(s.get("precio") or 0)}
                       for s in (e.get("servicios") or [])[:4] if isinstance(s, dict)],
@@ -352,6 +366,8 @@ def _resumen_cambio(a: dict, b: dict) -> list[str]:
         res.append(f"Descuento: ${(a.get('descuento') or {}).get('importe') or '0.00'} → ${(b.get('descuento') or {}).get('importe') or '0.00'}")
     if [s["clave"] + s["precio"] for s in a.get("servicios", [])] != [s["clave"] + s["precio"] for s in b.get("servicios", [])]:
         res.append("Servicios adicionales modificados")
+    if [x["id"] for x in a.get("cursos", [])] != [x["id"] for x in b.get("cursos", [])] or a.get("cursos_extra", 0) != b.get("cursos_extra", 0):
+        res.append("Cursos de Academia modificados")
     if a["total"] != b["total"]:
         res.append(f"Total: ${a['total']} → ${b['total']}")
     return res

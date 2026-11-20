@@ -9,8 +9,8 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, afore, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
-                      evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_legal,
+from .routers import (academia, academia_medios, afore, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+                      evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
@@ -88,10 +88,12 @@ app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))
 # Formulario de contacto, entrada de otros sistemas y anuncios de Meta: validan su enlace, clave o firma.
 app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
+app.include_router(academia_medios.router)  # URL firmadas (video/SCORM) y verificación pública de diplomas
 # Centro Legal: documentos publicados (públicos), solicitudes ARCO y aceptación; y su administración en el panel
 app.include_router(legal.router)
 app.include_router(plataforma_legal.router)
 app.include_router(comercial.router)  # solo superadministrador (dependencia en el propio router)
+app.include_router(plataforma_academia.router)  # solo superadministrador (dependencia en el propio router)
 app.include_router(comercial_publico.router)
 
 

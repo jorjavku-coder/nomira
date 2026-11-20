@@ -6,6 +6,7 @@ curso nunca borra el avance ni las constancias de quienes ya lo tomaron."""
 from __future__ import annotations
 
 import hashlib
+from decimal import Decimal
 import io
 import os
 import re
@@ -21,7 +22,7 @@ from .. import models as m
 from ..config import ajustes
 from ..db import get_db
 from ..deps import auditar, solo_admin, usuario_actual
-from ..services.academia import base, constancia, nomira
+from ..services.academia import base, diploma, importar, lms, nomira, scorm, sesiones as ses
 
 router = APIRouter(prefix="/api/academia", tags=["Nomira Academia"])
 PRIVADO = {"Cache-Control": "no-store"}
@@ -92,7 +93,15 @@ def _leccion(db: Session, lid: int, u: m.Usuario, editar: bool = False) -> tuple
     if not x:
         raise HTTPException(404, "No encontrado.")
     c = _editable(db, x.curso_id, u) if editar else _curso(db, x.curso_id, u)
+    if not editar:
+        _exigir_acceso(db, u, c)
     return x, c
+
+
+def _exigir_acceso(db: Session, u: m.Usuario, c: m.AcCurso) -> None:
+    if not lms.tiene_acceso(db, u.organizacion_id, c):
+        raise HTTPException(402, {"codigo": "curso_de_pago", "mensaje": "Este curso de Nomira tiene costo. Un administrador del despacho puede "
+                                                                        "contratarlo desde el catálogo de Academia."})
 
 
 def _aud(db, u, accion, entidad, eid, request=None, **detalle):
@@ -117,6 +126,7 @@ def curso_tarjeta(c: m.AcCurso, db: Session, u: m.Usuario, asignacion: m.AcAsign
             "modalidad_texto": base.MODALIDADES.get(c.modalidad, c.modalidad), "estado": c.estado, "origen": "nomira" if c.organizacion_id is None else "despacho",
             "juridico": c.juridico, "actualizado_en": c.contenido_actualizado_en.isoformat(), "creado_en": c.creado_en.isoformat(),
             "aviso_vigencia": base.aviso_vigencia(c), "vigente": base.vigente(c), "version": c.version,
+            "acceso": _acceso_info(db, u, c), "reconocimiento": c.reconocimiento, "entregado_por_nomira": c.entregado_por_nomira,
             "asignacion": {"id": asignacion.id, "tipo": asignacion.tipo, "tipo_texto": base.TIPOS_ASIGNACION[asignacion.tipo],
                            "fecha_sugerida": asignacion.fecha_sugerida.isoformat() if asignacion.fecha_sugerida else None,
                            "vencida": bool(asignacion.fecha_sugerida and asignacion.fecha_sugerida < date.today() and p["estado"] != "completado")}
@@ -124,6 +134,12 @@ def curso_tarjeta(c: m.AcCurso, db: Session, u: m.Usuario, asignacion: m.AcAsign
             "progreso": {k: p[k] for k in ("estado", "texto", "porcentaje", "lecciones", "lecciones_hechas", "siguiente_leccion_id")},
             "avance_id": a.id if a else None, "completado_en": a.completado_en.isoformat() if a and a.completado_en else None,
             "ultima_leccion_id": a.ultima_leccion_id if a else None, "ultima_actividad_en": a.ultima_actividad_en.isoformat() if a else None}
+
+
+def _acceso_info(db: Session, u: m.Usuario, c: m.AcCurso) -> dict:
+    if not lms.es_de_pago(c):
+        return {"tipo": "incluido", "tiene_acceso": True}
+    return {"tipo": "pago", "tiene_acceso": lms.tiene_acceso(db, u.organizacion_id, c), "precio": lms.precio_con_iva(db, c)}
 
 
 def _cursos_visibles(db: Session, u: m.Usuario) -> list[m.AcCurso]:
@@ -135,7 +151,10 @@ def _cursos_visibles(db: Session, u: m.Usuario) -> list[m.AcCurso]:
 
 def sesion_dict(s: m.AcSesion, curso: m.AcCurso | None = None) -> dict:
     return {"id": s.id, "curso_id": s.curso_id, "curso": curso.titulo if curso else None, "titulo": s.titulo, "inicio": s.inicio.isoformat(),
-            "duracion_min": s.duracion_min, "enlace": s.enlace, "grabacion_url": s.grabacion_url, "notas": s.notas, "cancelada": s.cancelada}
+            "duracion_min": s.duracion_min, "enlace": s.enlace, "grabacion_url": s.grabacion_url, "notas": s.notas, "cancelada": s.cancelada,
+            "plataforma": ses.plataforma(s.enlace), **ses.ventana(s.inicio, s.duracion_min),
+            "google_calendar": ses.google_calendar(titulo=s.titulo, curso=curso.titulo if curso else "", inicio=s.inicio,
+                                                   duracion_min=s.duracion_min, enlace=s.enlace)}
 
 
 # ---------- mi aprendizaje ----------
@@ -218,6 +237,7 @@ def iniciar(cid: int, request: Request, u: m.Usuario = Depends(usuario_actual), 
     c = _curso(db, cid, u)
     if c.estado != "publicado":
         raise HTTPException(409, "Este curso no está publicado.")
+    _exigir_acceso(db, u, c)
     a = base.avance_de(db, u, c.id)
     if a is None:
         a = m.AcAvance(organizacion_id=u.organizacion_id, usuario_id=u.id, curso_id=c.id)
@@ -281,7 +301,12 @@ def ver_leccion(lid: int, u: m.Usuario = Depends(usuario_actual), db: Session = 
          "completada": bool(al and al.completada_en), "posicion": al.posicion if al else 0,
          "anterior_id": ids[i - 1] if i > 0 else None, "siguiente_id": ids[i + 1] if 0 <= i < len(ids) - 1 else None,
          "numero": i + 1, "total": len(ids), "progreso": {k: p[k] for k in ("porcentaje", "texto", "requiere_cuestionario", "cuestionario_aprobado")},
-         "vista_previa": vista_previa, "aviso_vigencia": base.aviso_vigencia(c), "actualizado_en": x.actualizado_en.isoformat()}
+         "vista_previa": vista_previa, "aviso_vigencia": base.aviso_vigencia(c), "actualizado_en": x.actualizado_en.isoformat(),
+         "video_subido": {"url": f"/api/academia-medios/video/{lms.firmar('video', x.id, u.id)}", "formato": x.video_formato,
+                          "nombre": x.video_nombre} if x.video_ruta else None,
+         "scorm": {"url": f"/api/academia-medios/scorm/{lms.firmar('scorm', x.id, u.id)}/{x.scorm_inicio}", "version": x.scorm_version,
+                   **scorm.resumen((al.scorm_datos if al else None) or {}, x.scorm_version or "1.2")} if x.scorm_dir else None,
+         "sesion_plataforma": ses.plataforma(x.sesion_url)}
     db.commit()
     return d
 
@@ -371,6 +396,7 @@ def descargar_material(lid: int, u: m.Usuario = Depends(usuario_actual), db: Ses
 @router.get("/cursos/{cid}/cuestionario")
 def ver_cuestionario(cid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     c = _curso(db, cid, u)
+    _exigir_acceso(db, u, c)
     pregs = base.preguntas(db, c.id)
     a = base.avance_de(db, u, c.id)
     intentos = db.scalars(select(m.AcIntento).where(m.AcIntento.avance_id == a.id).order_by(m.AcIntento.id.desc())).all() if a else []
@@ -387,6 +413,7 @@ class Respuestas(BaseModel):
 @router.post("/cursos/{cid}/cuestionario")
 def contestar(cid: int, d: Respuestas, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     c = _curso(db, cid, u)
+    _exigir_acceso(db, u, c)
     if c.estado != "publicado":
         raise HTTPException(409, "Este curso no está publicado.")
     pregs = base.preguntas(db, c.id)
@@ -423,15 +450,91 @@ def constancia_pdf(aid: int, request: Request, u: m.Usuario = Depends(usuario_ac
     if not a or a.organizacion_id != u.organizacion_id or (a.usuario_id != u.id and u.rol != "administrador"):
         raise HTTPException(404, "No encontrado.")
     if not a.completado_en or not a.constancia_folio:
-        raise HTTPException(409, "La constancia se emite al completar el curso.")
+        raise HTTPException(409, "El diploma se emite al completar el curso.")
     persona, org, c = db.get(m.Usuario, a.usuario_id), db.get(m.Organizacion, a.organizacion_id), db.get(m.AcCurso, a.curso_id)
-    datos = constancia.pdf(participante=persona.nombre, curso=a.curso_titulo or c.titulo, organizacion=org.nombre, fecha=a.completado_en,
-                           folio=a.constancia_folio, duracion_min=a.curso_duracion_min, instructor=c.instructor,
-                           calificacion=a.calificacion if c.calificacion_minima is not None else None)
+    datos = diploma.pdf(participante=persona.nombre, curso=a.curso_titulo or c.titulo, organizacion=org.nombre, fecha=a.completado_en,
+                        folio=a.constancia_folio, duracion_min=a.curso_duracion_min, instructor=c.instructor,
+                        calificacion=a.calificacion if c.calificacion_minima is not None else None,
+                        url_verificacion=f"{ajustes().url_publica.rstrip('/')}/verificar?folio={a.constancia_folio}",
+                        tipo=c.reconocimiento or "diploma", logo_png=org.logo)
     _aud(db, u, "ac_constancia_descargada", "ac_avance", a.id, request, folio=a.constancia_folio)
     db.commit()
-    return Response(datos, media_type="application/pdf", headers={**PRIVADO, "Content-Disposition": f'attachment; filename="constancia-{a.constancia_folio}.pdf"',
+    nombre = "diploma" if (c.reconocimiento or "diploma") == "diploma" else "constancia"
+    return Response(datos, media_type="application/pdf", headers={**PRIVADO, "Content-Disposition": f'attachment; filename="{nombre}-{a.constancia_folio}.pdf"',
                                                                   "Access-Control-Expose-Headers": "Content-Disposition"})
+
+
+@router.get("/sesiones/{sid}/calendario.ics")
+def calendario(sid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    s_ = db.get(m.AcSesion, sid)
+    if not s_ or s_.organizacion_id != u.organizacion_id or s_.cancelada:
+        raise HTTPException(404, "No encontrado.")
+    c = _curso(db, s_.curso_id, u)
+    org = db.get(m.Organizacion, u.organizacion_id)
+    texto = ses.ics(uid=f"sesion-{s_.id}@nomirasoft.com", titulo=s_.titulo, curso=c.titulo, inicio=s_.inicio, duracion_min=s_.duracion_min,
+                    enlace=s_.enlace, notas=s_.notas, organizacion=org.nombre)
+    return Response(texto, media_type="text/calendar; charset=utf-8",
+                    headers={**PRIVADO, "Content-Disposition": f'attachment; filename="sesion-{s_.id}.ics"', "Access-Control-Expose-Headers": "Content-Disposition"})
+
+
+# ---------- comprar o solicitar cursos de Nomira con costo ----------
+
+@router.post("/cursos/{cid}/comprar")
+def comprar(cid: int, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    from ..services.comercial import base as cm
+    from ..services.comercial import stripe as st
+
+    c = _curso(db, cid, u)
+    if not lms.es_de_pago(c) or c.estado != "publicado":
+        raise HTTPException(409, "Este curso no se vende por separado.")
+    if lms.tiene_acceso(db, u.organizacion_id, c):
+        raise HTTPException(409, "Su despacho ya tiene acceso a este curso.")
+    if not cm.stripe_estado()["conectado"]:
+        raise HTTPException(409, {"codigo": "pago_no_disponible", "mensaje": "El pago en línea no está disponible. Puede solicitar el curso a Nomira."})
+    pr = lms.precio_con_iva(db, c)
+    compra = m.AcCompra(organizacion_id=u.organizacion_id, curso_id=c.id, usuario_id=u.id, subtotal=Decimal(pr["subtotal"]), iva=Decimal(pr["iva"]),
+                        total=Decimal(pr["total"]), estado="iniciada")
+    db.add(compra)
+    db.flush()
+    base_url = ajustes().url_publica.rstrip("/")
+    try:
+        sesion = st.crear_checkout(nombre=f"Nomira Academia · {c.titulo}", total=compra.total, email=u.email,
+                                   url_exito=f"{base_url}/academia/cursos/{c.id}?compra=procesando", url_cancelar=f"{base_url}/academia/cursos/{c.id}?compra=cancelada",
+                                   idempotencia=f"nomira-curso-{compra.id}", referencia=f"curso-{c.id}-org-{u.organizacion_id}",
+                                   metadata={"tipo": "curso", "compra_id": str(compra.id), "curso_id": str(c.id), "organizacion_id": str(u.organizacion_id)})
+    except st.StripeError as e:
+        db.rollback()
+        raise HTTPException(502, str(e))
+    compra.stripe_sesion = sesion["id"]
+    _aud(db, u, "ac_compra_iniciada", "ac_curso", c.id, request, compra_id=compra.id, total=pr["total"])
+    db.commit()
+    return {"url": sesion["url"]}
+
+
+class Solicitud(BaseModel):
+    mensaje: str | None = Field(None, max_length=2000)
+
+
+def _ticket(db: Session, u: m.Usuario, asunto: str, texto: str) -> m.TicketSoporte:
+    t = m.TicketSoporte(organizacion_id=u.organizacion_id, asunto=asunto[:200], estado="abierto", creado_por_id=u.id, leido_cliente=True,
+                        leido_plataforma=False, actualizado_en=m.ahora())
+    db.add(t)
+    db.flush()
+    db.add(m.MensajeSoporte(ticket_id=t.id, autor_tipo="cliente", autor_nombre=u.nombre, usuario_id=u.id, texto=texto[:10000]))
+    return t
+
+
+@router.post("/cursos/{cid}/solicitar")
+def solicitar_curso(cid: int, d: Solicitud, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    c = _curso(db, cid, u)
+    if not lms.es_de_pago(c):
+        raise HTTPException(409, "Este curso ya está incluido.")
+    pr = lms.precio_con_iva(db, c)
+    t = _ticket(db, u, f"Academia: quiero contratar «{c.titulo}»",
+                f"Solicito contratar el curso «{c.titulo}» (precio de catálogo ${pr['subtotal']} + IVA).\n\n{(d.mensaje or '').strip()}")
+    _aud(db, u, "ac_curso_solicitado", "ac_curso", c.id, request, ticket_id=t.id)
+    db.commit()
+    return {"ok": True, "ticket_id": t.id, "mensaje": "Enviamos su solicitud a Nomira. Le responderán en Soporte con su cotización."}
 
 
 # ---------- administrar cursos ----------
@@ -451,7 +554,8 @@ def admin_cursos(u: m.Usuario = Depends(_instructor), db: Session = Depends(get_
                     "estado_texto": base.ESTADOS.get(c.estado, c.estado), "lecciones": len(base.lecciones(db, c.id)),
                     "iniciados": len(avs), "completados": sum(1 for a in avs if a.completado_en), "asignaciones": asig,
                     "creado_por": nombres.get(c.creado_por_id), "editable": base.puede_editar(db, u, c)})
-    return {"cursos": res, "es_admin": u.rol == "administrador"}
+    return {"cursos": res, "es_admin": u.rol == "administrador", "limite": lms.limite(db, u.organizacion_id),
+            "espacio": lms.espacio(db, u.organizacion_id)}
 
 
 class CursoIn(BaseModel):
@@ -466,13 +570,17 @@ class CursoIn(BaseModel):
     juridico: bool = False
     asistido_ia: bool = False
     calificacion_minima: int | None = Field(None, ge=1, le=100)
+    reconocimiento: str = "diploma"
 
 
 @router.post("/admin/cursos", status_code=201)
 def crear_curso(d: CursoIn, request: Request, u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
     if d.modalidad not in base.MODALIDADES:
         raise HTTPException(422, "Modalidad inválida.")
-    c = m.AcCurso(organizacion_id=u.organizacion_id, titulo=d.titulo.strip(), materia=d.materia.strip(), roles=[r.strip()[:60] for r in d.roles if r.strip()][:10],
+    if d.reconocimiento not in ("diploma", "constancia"):
+        raise HTTPException(422, "Reconocimiento inválido.")
+    lms.exigir_lugar(db, u.organizacion_id)
+    c = m.AcCurso(organizacion_id=u.organizacion_id, reconocimiento=d.reconocimiento, titulo=d.titulo.strip(), materia=d.materia.strip(), roles=[r.strip()[:60] for r in d.roles if r.strip()][:10],
                   instructor=_txt(d.instructor, 200) or u.nombre, institucion=_txt(d.institucion, 200), descripcion=_txt(d.descripcion, 3000),
                   duracion_min=d.duracion_min, modalidad=d.modalidad, estado="borrador", juridico=d.juridico, asistido_ia=d.asistido_ia,
                   calificacion_minima=d.calificacion_minima, creado_por_id=u.id, version=1)
@@ -497,6 +605,7 @@ def admin_curso(cid: int, u: m.Usuario = Depends(_instructor), db: Session = Dep
     return {**{k: v for k, v in curso_tarjeta(c, db, u).items() if k not in ("progreso", "asignacion")},
             "estado_texto": base.ESTADOS.get(c.estado, c.estado), "asistido_ia": c.asistido_ia, "requiere_revision": c.requiere_revision,
             "nota_revision": c.nota_revision, "calificacion_minima": c.calificacion_minima, "editable": base.puede_editar(db, u, c),
+            "espacio": lms.espacio(db, u.organizacion_id),
             "revisado_por": nombres.get(c.revisado_por_id), "revisado_en": c.revisado_en.isoformat() if c.revisado_en else None,
             "publicado_por": nombres.get(c.publicado_por_id), "publicado_en": c.publicado_en.isoformat() if c.publicado_en else None,
             "creado_por": nombres.get(c.creado_por_id),
@@ -511,7 +620,10 @@ def leccion_admin(x: m.AcLeccion) -> dict:
     return {"id": x.id, "modulo_id": x.modulo_id, "titulo": x.titulo, "orden": x.orden, "texto": x.texto, "video_url": x.video_url,
             "sesion_url": x.sesion_url, "transcripcion": x.transcripcion, "recursos": x.recursos or [], "actividad": x.actividad,
             "duracion_min": x.duracion_min, "archivo": {"nombre": x.archivo_nombre, "formato": x.archivo_formato, "tamano": x.archivo_tamano}
-            if x.archivo_ruta else None}
+            if x.archivo_ruta else None,
+            "video_subido": {"nombre": x.video_nombre, "formato": x.video_formato, "tamano": x.video_tamano} if x.video_ruta else None,
+            "scorm": {"inicio": x.scorm_inicio, "version": x.scorm_version, "tamano": x.scorm_tamano} if x.scorm_dir else None,
+            "sesion_plataforma": ses.plataforma(x.sesion_url)}
 
 
 class CursoCambio(BaseModel):
@@ -528,6 +640,7 @@ class CursoCambio(BaseModel):
     calificacion_minima: int | None = Field(None, ge=1, le=100)
     requiere_revision: bool | None = None
     nota_revision: str | None = Field(None, max_length=500)
+    reconocimiento: str | None = None
 
 
 @router.patch("/admin/cursos/{cid}")
@@ -536,6 +649,8 @@ def cambiar_curso(cid: int, d: CursoCambio, request: Request, u: m.Usuario = Dep
     datos = d.model_dump(exclude_unset=True)
     if "modalidad" in datos and datos["modalidad"] not in base.MODALIDADES:
         raise HTTPException(422, "Modalidad inválida.")
+    if "reconocimiento" in datos and datos["reconocimiento"] not in ("diploma", "constancia"):
+        raise HTTPException(422, "Reconocimiento inválido.")
     contenido = {"titulo", "materia", "descripcion", "calificacion_minima", "duracion_min", "modalidad", "instructor", "institucion"}
     for k, v in datos.items():
         if k == "roles":
@@ -582,7 +697,10 @@ def duplicar(cid: int, request: Request, u: m.Usuario, db: Session):
     c = db.get(m.AcCurso, cid)
     if not c or c.organizacion_id not in (None, u.organizacion_id):
         raise HTTPException(404, "No encontrado.")
-    n = m.AcCurso(organizacion_id=u.organizacion_id, titulo=(f"{c.titulo} (copia)")[:200], materia=c.materia, roles=c.roles,
+    if lms.es_de_pago(c):
+        raise HTTPException(409, "Los cursos de Nomira con costo no se pueden duplicar.")
+    lms.exigir_lugar(db, u.organizacion_id)
+    n = m.AcCurso(reconocimiento=c.reconocimiento, organizacion_id=u.organizacion_id, titulo=(f"{c.titulo} (copia)")[:200], materia=c.materia, roles=c.roles,
                   instructor=c.instructor, institucion=c.institucion, descripcion=c.descripcion, duracion_min=c.duracion_min, modalidad=c.modalidad,
                   estado="borrador", juridico=c.juridico, asistido_ia=c.asistido_ia, calificacion_minima=c.calificacion_minima, creado_por_id=u.id, version=1)
     db.add(n)
@@ -596,7 +714,10 @@ def duplicar(cid: int, request: Request, u: m.Usuario, db: Session):
                 db.add(m.AcLeccion(curso_id=n.id, modulo_id=nm.id, titulo=x.titulo, orden=x.orden, texto=x.texto, video_url=x.video_url,
                                    sesion_url=x.sesion_url, transcripcion=x.transcripcion, recursos=x.recursos, actividad=x.actividad,
                                    archivo_ruta=x.archivo_ruta, archivo_nombre=x.archivo_nombre, archivo_formato=x.archivo_formato,
-                                   archivo_tamano=x.archivo_tamano, duracion_min=x.duracion_min))
+                                   archivo_tamano=x.archivo_tamano, duracion_min=x.duracion_min, video_ruta=x.video_ruta,
+                                   video_nombre=x.video_nombre, video_formato=x.video_formato, video_tamano=x.video_tamano,
+                                   scorm_dir=x.scorm_dir, scorm_inicio=x.scorm_inicio, scorm_version=x.scorm_version,
+                                   scorm_tamano=x.scorm_tamano))
     for p in base.preguntas(db, c.id):
         db.add(m.AcPregunta(curso_id=n.id, texto=p.texto, opciones=p.opciones, correcta=p.correcta, explicacion=p.explicacion, orden=p.orden))
     _aud(db, u, "ac_curso_duplicado", "ac_curso", n.id, request, origen=c.id)
@@ -1131,6 +1252,213 @@ def reporte(request: Request, u: m.Usuario = Depends(solo_admin), db: Session = 
                     headers={**PRIVADO, "Content-Disposition": 'attachment; filename="academia-finalizacion.xlsx"', "Access-Control-Expose-Headers": "Content-Disposition"})
 
 
+# ---------- importar cursos, videos y SCORM ----------
+
+VIDEO_FORMATOS = {"mp4": "video/mp4", "m4v": "video/mp4", "webm": "video/webm", "mov": "video/quicktime"}
+
+
+def _guardar_subida(archivo: UploadFile, destino: Path, maximo: int) -> int:
+    """Copia la subida al disco por partes, sin cargarla completa en memoria. Devuelve los bytes."""
+    destino.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    total = 0
+    with open(destino, "wb") as f:
+        while True:
+            parte = archivo.file.read(1024 * 1024)
+            if not parte:
+                break
+            total += len(parte)
+            if total > maximo:
+                f.close()
+                destino.unlink(missing_ok=True)
+                raise HTTPException(413, f"El archivo supera {maximo // 1048576} MB.")
+            f.write(parte)
+    os.chmod(destino, 0o600)
+    return total
+
+
+def _nuevo_curso(db: Session, u: m.Usuario, titulo: str, materia: str, **extra) -> m.AcCurso:
+    c = m.AcCurso(organizacion_id=u.organizacion_id, titulo=titulo[:200], materia=(materia or "General")[:120], instructor=extra.pop("instructor", None) or u.nombre,
+                  estado="borrador", creado_por_id=u.id, version=1, **extra)
+    db.add(c)
+    db.flush()
+    return c
+
+
+class EnlacesIn(BaseModel):
+    titulo: str | None = Field(None, max_length=200)
+    materia: str | None = Field(None, max_length=120)
+    enlaces: str | list[str]
+
+
+@router.post("/admin/importar/enlaces", status_code=201)
+def importar_enlaces(d: EnlacesIn, request: Request, u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
+    enlaces = importar.limpiar_enlaces(d.enlaces)
+    lms.exigir_lugar(db, u.organizacion_id)
+    titulos = [importar.titulo_oembed(x) for x in enlaces]
+    titulo = (d.titulo or "").strip() or (titulos[0] if len(enlaces) == 1 and titulos[0] else "Curso importado de videos")
+    c = _nuevo_curso(db, u, titulo, d.materia or "General")
+    mo = m.AcModulo(curso_id=c.id, titulo="Módulo 1", orden=0)
+    db.add(mo)
+    db.flush()
+    for i, (url, t) in enumerate(zip(enlaces, titulos)):
+        db.add(m.AcLeccion(curso_id=c.id, modulo_id=mo.id, titulo=(t or f"Lección {i + 1}")[:200], orden=i, video_url=url))
+    _aud(db, u, "ac_curso_importado", "ac_curso", c.id, request, forma="enlaces", lecciones=len(enlaces))
+    db.commit()
+    return admin_curso(c.id, u, db)
+
+
+@router.get("/admin/importar/plantilla")
+def plantilla_excel(u: m.Usuario = Depends(_instructor)):
+    return Response(importar.plantilla(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={**PRIVADO, "Content-Disposition": 'attachment; filename="plantilla-curso-nomira.xlsx"', "Access-Control-Expose-Headers": "Content-Disposition"})
+
+
+@router.post("/admin/importar/excel", status_code=201)
+def importar_excel(request: Request, archivo: UploadFile = File(...), u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
+    datos = archivo.file.read(5 * 1024 * 1024 + 1)
+    if len(datos) > 5 * 1024 * 1024 or not datos.startswith(b"PK"):
+        raise HTTPException(422, "Suba la plantilla en formato .xlsx (máximo 5 MB).")
+    r = importar.leer_excel(datos)
+    lms.exigir_lugar(db, u.organizacion_id)
+    k = r["curso"]
+    c = _nuevo_curso(db, u, k["titulo"], k["materia"], descripcion=k["descripcion"], instructor=k["instructor"], duracion_min=k["duracion_min"],
+                     calificacion_minima=k["calificacion_minima"])
+    mods: dict[str, m.AcModulo] = {}
+    for i, x in enumerate(r["lecciones"]):
+        mo = mods.get(x["modulo"])
+        if mo is None:
+            mo = mods[x["modulo"]] = m.AcModulo(curso_id=c.id, titulo=x["modulo"], orden=len(mods))
+            db.add(mo)
+            db.flush()
+        db.add(m.AcLeccion(curso_id=c.id, modulo_id=mo.id, titulo=x["titulo"], orden=i, video_url=x["video_url"], texto=x["texto"],
+                           duracion_min=x["duracion_min"], recursos=x["recursos"]))
+    for i, q in enumerate(r["preguntas"]):
+        db.add(m.AcPregunta(curso_id=c.id, texto=q["texto"], opciones=q["opciones"], correcta=q["correcta"], explicacion=q["explicacion"], orden=i))
+    _aud(db, u, "ac_curso_importado", "ac_curso", c.id, request, forma="excel", lecciones=len(r["lecciones"]), preguntas=len(r["preguntas"]))
+    db.commit()
+    return admin_curso(c.id, u, db)
+
+
+@router.post("/admin/importar/scorm", status_code=201)
+def importar_scorm(request: Request, archivo: UploadFile = File(...), materia: str | None = None, u: m.Usuario = Depends(_instructor),
+                   db: Session = Depends(get_db)):
+    conf = lms.config(db)
+    maximo = conf.scorm_max_mb * 1024 * 1024
+    lms.exigir_lugar(db, u.organizacion_id)
+    tmp = Path(ajustes().storage_dir) / str(u.organizacion_id) / "academia" / "tmp" / f"{os.urandom(8).hex()}.zip"
+    try:
+        _guardar_subida(archivo, tmp, maximo)
+        lms.exigir_espacio(db, u.organizacion_id, tmp.stat().st_size)
+        r = importar.extraer_scorm(tmp, Path(ajustes().storage_dir) / str(u.organizacion_id) / "academia" / "scorm", maximo * 3)
+    finally:
+        tmp.unlink(missing_ok=True)
+    try:
+        lms.exigir_espacio(db, u.organizacion_id, r["tamano"])
+    except HTTPException:
+        import shutil
+        shutil.rmtree(r["carpeta"], ignore_errors=True)
+        raise
+    c = _nuevo_curso(db, u, r["titulo"], materia or "General")
+    mods: dict[str, m.AcModulo] = {}
+    por_leccion = r["tamano"] // max(len(r["items"]), 1)
+    for i, it in enumerate(r["items"]):
+        nombre = it["modulo"] or "Contenido"
+        mo = mods.get(nombre)
+        if mo is None:
+            mo = mods[nombre] = m.AcModulo(curso_id=c.id, titulo=nombre[:200], orden=len(mods))
+            db.add(mo)
+            db.flush()
+        db.add(m.AcLeccion(curso_id=c.id, modulo_id=mo.id, titulo=it["titulo"], orden=i, scorm_dir=r["carpeta"], scorm_inicio=it["href"],
+                           scorm_version=r["version"], scorm_tamano=por_leccion if i else r["tamano"] - por_leccion * (len(r["items"]) - 1)))
+    _aud(db, u, "ac_curso_importado", "ac_curso", c.id, request, forma="scorm", version=r["version"], lecciones=len(r["items"]))
+    db.commit()
+    return admin_curso(c.id, u, db)
+
+
+@router.post("/admin/lecciones/{lid}/video")
+def subir_video(lid: int, request: Request, archivo: UploadFile = File(...), u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
+    x, c = _leccion(db, lid, u, editar=True)
+    ext = (archivo.filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in VIDEO_FORMATOS:
+        raise HTTPException(415, "Formatos de video permitidos: MP4, WebM o MOV.")
+    conf = lms.config(db)
+    carpeta = Path(ajustes().storage_dir) / str(u.organizacion_id) / "academia" / "videos"
+    destino = carpeta / f"{os.urandom(12).hex()}.{ext}"
+    tam = _guardar_subida(archivo, destino, conf.video_max_mb * 1024 * 1024)
+    with open(destino, "rb") as f:
+        cabeza = f.read(16)
+    valido = (cabeza[4:8] == b"ftyp") if ext in ("mp4", "m4v", "mov") else cabeza.startswith(b"\x1aE\xdf\xa3")
+    if not valido:
+        destino.unlink(missing_ok=True)
+        raise HTTPException(415, "El archivo no parece un video válido.")
+    try:
+        lms.exigir_espacio(db, u.organizacion_id, tam, liberado=x.video_tamano or 0)
+    except HTTPException:
+        destino.unlink(missing_ok=True)
+        raise
+    x.video_ruta, x.video_nombre, x.video_formato, x.video_tamano = str(destino), os.path.basename(archivo.filename or f"video.{ext}")[:300], ext, tam
+    base.tocar(c)
+    _aud(db, u, "ac_contenido_cambiado", "ac_curso", c.id, request, cambio="video_cargado", leccion_id=x.id, tamano=tam)
+    db.commit()
+    return admin_curso(c.id, u, db)
+
+
+@router.delete("/admin/lecciones/{lid}/video")
+def quitar_video(lid: int, request: Request, u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
+    x, c = _leccion(db, lid, u, editar=True)
+    x.video_ruta = x.video_nombre = x.video_formato = x.video_tamano = None  # el archivo se conserva si otra copia lo usa
+    base.tocar(c)
+    _aud(db, u, "ac_contenido_cambiado", "ac_curso", c.id, request, cambio="video_quitado", leccion_id=x.id)
+    db.commit()
+    return admin_curso(c.id, u, db)
+
+
+class ScormIn(BaseModel):
+    datos: dict
+
+
+@router.put("/lecciones/{lid}/scorm")
+def guardar_scorm(lid: int, d: ScormIn, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """Lo que reporta el paquete SCORM (avance, ubicación, calificación). Si el paquete dice
+    «completado» o «aprobado», la lección se marca completada."""
+    x, c = _leccion(db, lid, u)
+    if not x.scorm_dir:
+        raise HTTPException(404, "Esta lección no es SCORM.")
+    if c.estado != "publicado":
+        return {"ok": True, "vista_previa": True}
+    a = _avance(db, u, c)
+    al = _al(db, a, x.id)
+    al.scorm_datos = {**(al.scorm_datos or {}), **scorm.limpiar(d.datos)}
+    a.ultima_leccion_id, a.ultima_actividad_en = x.id, m.ahora()
+    r = scorm.resumen(al.scorm_datos, x.scorm_version or "1.2")
+    completo = False
+    if r["completo"] and not al.completada_en:
+        al.completada_en = m.ahora()
+        db.flush()
+        completo = base.revisar_completo(db, c, a)
+        if completo:
+            _aud(db, u, "ac_curso_completado", "ac_curso", c.id, request, folio=a.constancia_folio, version=c.version)
+    db.commit()
+    return {"ok": True, **r, "leccion_completada": bool(al.completada_en), "curso_completado": bool(a.completado_en)}
+
+
+class AyudaIn(BaseModel):
+    materia: str = Field(min_length=2, max_length=120)
+    descripcion: str = Field(min_length=10, max_length=4000)
+    enlaces: str | None = Field(None, max_length=4000)
+
+
+@router.post("/admin/ayuda", status_code=201)
+def pedir_ayuda(d: AyudaIn, request: Request, u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
+    """El despacho pide a Nomira que le arme un curso. Llega como conversación de Soporte."""
+    texto = (f"Solicito ayuda de Nomira para crear un curso en Academia.\n\nTema o materia: {d.materia.strip()}\n\n"
+             f"Qué necesito:\n{d.descripcion.strip()}" + (f"\n\nMaterial o enlaces:\n{d.enlaces.strip()}" if d.enlaces and d.enlaces.strip() else ""))
+    t = _ticket(db, u, f"Academia: ayuda para crear un curso de {d.materia.strip()}", texto)
+    _aud(db, u, "ac_ayuda_solicitada", "ticket_soporte", t.id, request)
+    db.commit()
+    return {"ok": True, "ticket_id": t.id, "mensaje": "Recibimos su solicitud en Soporte. Nomira le preparará el curso como borrador para que lo revise."}
+
+
 # Declarada al final: «/admin/cursos/{cid}/{accion}» no debe capturar modulos, preguntas ni sesiones.
 @router.post("/admin/cursos/{cid}/{accion}")
 def estado_curso(cid: int, accion: str, request: Request, u: m.Usuario = Depends(_instructor), db: Session = Depends(get_db)):
@@ -1142,6 +1470,8 @@ def estado_curso(cid: int, accion: str, request: Request, u: m.Usuario = Depends
     elif accion == "despublicar":
         c.estado = "borrador"
     elif accion == "restaurar":
+        if c.estado == "archivado":
+            lms.exigir_lugar(db, u.organizacion_id)
         c.estado, c.archivado_en = "borrador", None
     else:
         raise HTTPException(404, "Acción desconocida.")

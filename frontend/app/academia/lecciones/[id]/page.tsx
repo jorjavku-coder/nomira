@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AcademiaShell, Barra } from "@/components/academia";
+import { AcademiaShell, Barra, ReproductorScorm } from "@/components/academia";
 import { Aviso } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
@@ -64,12 +64,19 @@ export default function Leccion() {
         <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">{l.modulo}</p>
         <h1 className="text-3xl font-extrabold text-marino">{l.titulo}</h1>
         <div className="mt-5 space-y-5">
+          {l.scorm && <ReproductorScorm leccionId={l.id} scorm={l.scorm} onAvance={(r) => {
+            if (r.leccion_completada && !l.completada) setL({ ...l, completada: true });
+            if (r.curso_completado) setGuardado("¡Curso completado! Su diploma ya está disponible en la página del curso");
+          }} />}
+          {l.video_subido && <video className="aspect-video w-full rounded-2xl bg-black" controls preload="metadata" controlsList="nodownload" src={l.video_subido.url}
+            onLoadedMetadata={(e) => { if (l.posicion > 0 && l.posicion < (e.currentTarget.duration || 0)) e.currentTarget.currentTime = l.posicion; }}>
+            Su navegador no puede reproducir este video.</video>}
           {l.video_url && (l.video_embebido
             ? <div className="aspect-video overflow-hidden rounded-2xl bg-black"><iframe className="h-full w-full" src={l.video_embebido} title={`Video: ${l.titulo}`} allow="encrypted-media; picture-in-picture; fullscreen" referrerPolicy="strict-origin-when-cross-origin" /></div>
             : <a className="btn-sec" href={l.video_url} target="_blank" rel="noopener noreferrer">Abrir el video en su sitio</a>)}
           {l.transcripcion && <details className="tarjeta p-4 text-sm"><summary className="cursor-pointer font-semibold text-marino">Transcripción del video</summary><p className="mt-2 whitespace-pre-line text-slate-700">{l.transcripcion}</p></details>}
-          {l.sesion_url && <div className="tarjeta flex flex-wrap items-center justify-between gap-2 p-4 text-sm"><span>Esta lección incluye una sesión en vivo o grabada.</span>
-            <a className="btn-turquesa" href={l.sesion_url} target="_blank" rel="noopener noreferrer">Abrir la sesión</a></div>}
+          {l.sesion_url && <div className="tarjeta flex flex-wrap items-center justify-between gap-2 p-4 text-sm"><span>Esta lección incluye una sesión en vivo o grabada{l.sesion_plataforma && l.sesion_plataforma.clave !== "otra" ? ` en ${l.sesion_plataforma.nombre}` : ""}.</span>
+            <a className="btn-turquesa" href={l.sesion_url} target="_blank" rel="noopener noreferrer">{l.sesion_plataforma && l.sesion_plataforma.clave !== "otra" ? `Abrir en ${l.sesion_plataforma.nombre}` : "Abrir la sesión"}</a></div>}
           {l.texto && <div className="whitespace-pre-line text-[17px] leading-relaxed text-slate-800">{l.texto}</div>}
           {l.archivo && <div className="tarjeta flex flex-wrap items-center justify-between gap-2 p-4 text-sm"><span>Material: <b>{l.archivo.nombre}</b> ({l.archivo.formato.toUpperCase()}, {Math.ceil(l.archivo.tamano / 1024)} KB)</span>
             <button className="btn-sec" onClick={() => api.descargar(`/academia/lecciones/${l.id}/archivo`, l.archivo.nombre).catch((e) => setError(e.message))}>Descargar</button></div>}
@@ -94,9 +101,9 @@ export default function Leccion() {
         {fin ? (
           <section className="tarjeta mt-6 border-emerald-300 bg-emerald-50 p-5 text-center">
             <h2 className="text-xl font-bold text-emerald-900">{fin.completado ? "¡Terminó el curso!" : "Lección completada"}</h2>
-            {fin.completado && <p className="mt-1 text-sm text-emerald-900">Ya puede descargar su constancia de participación.</p>}
+            {fin.completado && <p className="mt-1 text-sm text-emerald-900">Ya puede descargar su diploma.</p>}
             <div className="mt-3 flex flex-wrap justify-center gap-2">
-              {fin.completado && <button className="btn-turquesa" onClick={() => api.descargar(`/academia/constancias/${fin.avance_id}`, "constancia.pdf")}>Descargar constancia</button>}
+              {fin.completado && <button className="btn-turquesa" onClick={() => api.descargar(`/academia/constancias/${fin.avance_id}`, "diploma.pdf")}>Descargar diploma</button>}
               <Link className="btn-sec" href={`/academia/cursos/${l.curso_id}`}>Volver al curso</Link>
               <Link className="btn-sec" href="/academia">Mi aprendizaje</Link>
             </div>

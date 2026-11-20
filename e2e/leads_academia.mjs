@@ -91,7 +91,7 @@ ok(true, "el prospecto del formulario aparece en la bandeja");
 await page.getByRole("link", { name: "Resultados" }).click();
 await page.getByText("Por campaña").waitFor();
 await foto("ld-08-resultados");
-await page.getByRole("link", { name: "Configuración" }).click();
+await page.getByRole("navigation", { name: "Nomira Leads" }).getByRole("link", { name: "Configuración" }).click();
 await page.getByText("WhatsApp Business Platform (API oficial de Meta)").waitFor();
 await foto("ld-09-configuracion");
 

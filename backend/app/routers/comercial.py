@@ -90,7 +90,10 @@ def catalogo(db: Session = Depends(get_db)):
             "modulos": [{"clave": k, "nombre": v["nombre"]} for k, v in modulos.MODULOS.items()],
             "periodicidades": [{"clave": k, "nombre": cm.PERIODICIDADES[k][0], "meses": cm.PERIODICIDADES[k][1]} for k in cm.periodicidades_habilitadas(c)],
             "servicios": [{"clave": k, "nombre": v} for k, v in cm.SERVICIOS.items()], "estados": cm.ESTADOS,
-            "config": config_dict(c), "integraciones": _integraciones(c), "confirmacion": CONFIRMACION}
+            "config": config_dict(c), "integraciones": _integraciones(c), "confirmacion": CONFIRMACION,
+            "cursos_academia": [{"id": x.id, "titulo": x.titulo, "precio": _txt(x.precio)} for x in db.scalars(
+                select(m.AcCurso).where(m.AcCurso.organizacion_id.is_(None), m.AcCurso.acceso == "pago", m.AcCurso.estado == "publicado",
+                                        m.AcCurso.precio.is_not(None)).order_by(m.AcCurso.titulo))]}
 
 
 class ConfigIn(BaseModel):
@@ -793,6 +796,13 @@ def convertir(cid: int, d: ConvertirIn, request: Request, a: m.AdminPlataforma =
     mods = [x["clave"] for x in calc["modulos"]]
     for clave in mods:  # solo AGREGA módulos: nunca desactiva ni oculta los que ya tenía
         modulos.fijar(db, org.id, clave, contratado=True, activo=True)
+    from ..services.academia import lms
+    for x in calc.get("cursos") or []:  # cursos de Nomira con costo incluidos en la cotización
+        cur = db.get(m.AcCurso, x["id"])
+        if cur:
+            lms.otorgar(db, org.id, cur, "comercial", cotizacion_id=c.id, admin_id=a.id)
+    if calc.get("cursos_extra"):
+        org.ac_cursos_extra = max(org.ac_cursos_extra or 0, int(calc["cursos_extra"]))
     asig = m.CmAsignacion(organizacion_id=org.id, cotizacion_id=c.id, periodo_id=periodo.id, paquete=calc["paquete"]["nombre"], modulos=mods,
                           usuarios=calc["usuarios"]["total"], almacenamiento_gb=calc["almacenamiento"]["total_gb"],
                           periodicidad=calc["periodicidad"]["clave"], monto=v.total, inicio=inicio, renovacion=fin + timedelta(days=1),

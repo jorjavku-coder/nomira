@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AcademiaShell, Barra, TarjetaCurso } from "@/components/academia";
+import { AcademiaShell, Barra, SesionEnVivo, TarjetaCurso } from "@/components/academia";
 import { Aviso } from "@/components/ui";
-import { api, fecha, fechaHora } from "@/lib/api";
+import { api, fecha } from "@/lib/api";
 
 /** Mi aprendizaje: continuar, asignados, disponibles, completados y próximas sesiones. */
 export default function MiAprendizaje() {
@@ -40,25 +40,22 @@ export default function MiAprendizaje() {
         </Seccion>
         {r.sesiones.length > 0 && (
           <Seccion titulo="Próximas sesiones en vivo">
-            <ul className="tarjeta divide-y divide-crema-200">
+            <div className="grid gap-3 md:grid-cols-2">
               {r.sesiones.map((s: any) => (
-                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
-                  <span><b className="text-marino">{s.titulo}</b> · {s.curso}<span className="block text-xs text-slate-500">{fechaHora(s.inicio)} · {s.duracion_min} min{s.notas ? ` · ${s.notas}` : ""}</span></span>
-                  {s.enlace ? <a className="btn-sec" href={s.enlace} target="_blank" rel="noopener noreferrer">Abrir enlace de la sesión</a>
-                    : <span className="text-xs text-slate-500">El instructor compartirá el enlace.</span>}
-                </li>))}
-            </ul>
+                <div key={s.id}><p className="mb-1 text-xs font-semibold text-slate-500">{s.curso}</p><SesionEnVivo s={s} />
+                  {!s.enlace && <p className="mt-1 text-xs text-slate-500">El instructor compartirá el enlace.</p>}</div>))}
+            </div>
           </Seccion>)}
         <Seccion titulo="Cursos disponibles" vacio={r.disponibles.length === 0 && <p className="text-sm text-slate-500">No hay más cursos disponibles por ahora.</p>}>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{r.disponibles.map((c: any) => <TarjetaCurso key={c.id} c={c} />)}</div>
         </Seccion>
-        <Seccion titulo="Completados" vacio={r.completados.length === 0 && <p className="text-sm text-slate-500">Cuando termine un curso aparecerá aquí con su constancia de participación.</p>}>
+        <Seccion titulo="Completados" vacio={r.completados.length === 0 && <p className="text-sm text-slate-500">Cuando termine un curso aparecerá aquí con su diploma.</p>}>
           <ul className="tarjeta divide-y divide-crema-200">
             {r.completados.map((c: any) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
                 <span><Link className="font-semibold text-marino hover:underline" href={`/academia/cursos/${c.id}`}>{c.titulo}</Link>
                   <span className="block text-xs text-slate-500">Completado el {fecha(c.completado_en)}</span></span>
-                <button className="btn-sec" onClick={() => api.descargar(`/academia/constancias/${c.avance_id}`, "constancia.pdf").catch((e) => setError(e.message))}>Descargar constancia</button>
+                <button className="btn-sec" onClick={() => api.descargar(`/academia/constancias/${c.avance_id}`, c.reconocimiento === "constancia" ? "constancia.pdf" : "diploma.pdf").catch((e) => setError(e.message))}>{c.reconocimiento === "constancia" ? "Descargar constancia" : "Descargar diploma"}</button>
               </li>))}
           </ul>
         </Seccion>

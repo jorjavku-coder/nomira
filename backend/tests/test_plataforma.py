@@ -29,7 +29,10 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET",
             ("GET", "/api/legal/documentos"), ("GET", "/api/legal/documentos/{clave}"), ("POST", "/api/legal/arco"),
             # Comercial: propuesta del prospecto (enlace X-Enlace; sin él, 404) y webhook de Stripe (firma)
             ("POST", "/api/propuesta"), ("POST", "/api/propuesta/pdf"), ("POST", "/api/propuesta/ajustes"),
-            ("POST", "/api/propuesta/aceptar"), ("POST", "/api/propuesta/pagar"), ("POST", "/api/comercial/stripe/webhook")}
+            ("POST", "/api/propuesta/aceptar"), ("POST", "/api/propuesta/pagar"), ("POST", "/api/comercial/stripe/webhook"),
+            # Academia: medios con URL firmada (sin firma válida, 404) y verificación pública de diplomas
+            ("GET", "/api/academia-medios/video/{token}"), ("GET", "/api/academia-medios/scorm/{token}/{ruta:path}"),
+            ("GET", "/api/academia-publico/verificar/{folio}")}
 
 
 def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):
