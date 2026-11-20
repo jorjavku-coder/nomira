@@ -107,6 +107,49 @@ function Inclinable({ children }: { children: React.ReactNode }) {
   return <div onMouseMove={mover} onMouseLeave={() => setT(reposo)} style={{ transform: t, transition: "transform .5s cubic-bezier(.2,.7,.2,1)" }}>{children}</div>;
 }
 
+const CLAVE_TEMA = "nomira_tema";
+/** Se ejecuta antes de pintar la página para que quien eligió el modo oscuro no vea un destello claro. */
+const SCRIPT_TEMA = `try{if(localStorage.getItem("${CLAVE_TEMA}")==="oscuro")document.documentElement.classList.add("s-tema-oscuro")}catch(e){}`;
+
+/** Modo claro (predeterminado) u oscuro, recordado en este navegador. Solo afecta al sitio público. */
+function useTema() {
+  const [oscuro, setOscuro] = useState(false);
+  useEffect(() => {
+    setOscuro(document.documentElement.classList.contains("s-tema-oscuro"));
+    return () => document.documentElement.classList.remove("s-tema-oscuro");  // al ir a «Iniciar sesión» el sistema sigue en claro
+  }, []);
+  const cambiar = () => {
+    const nuevo = !oscuro;
+    setOscuro(nuevo);
+    document.documentElement.classList.toggle("s-tema-oscuro", nuevo);
+    try { localStorage.setItem(CLAVE_TEMA, nuevo ? "oscuro" : "claro"); } catch {}
+  };
+  return { oscuro, cambiar };
+}
+
+/** Botón con sol (modo claro) y luna (modo oscuro). */
+function BotonTema({ oscuro, onCambiar }: { oscuro: boolean; onCambiar: () => void }) {
+  return (
+    <button type="button" onClick={onCambiar} aria-pressed={oscuro} aria-label={oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      title={oscuro ? "Modo claro" : "Modo oscuro"}
+      className={`relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border transition duration-300 hover:-translate-y-0.5 ${oscuro
+        ? "border-white/15 bg-white/5 text-turquesa-brillante hover:border-turquesa-brillante/50" : "border-crema-300 bg-white text-amber-500 hover:border-amber-300"}`}>
+      {/* Sol */}
+      <svg viewBox="0 0 24 24" className={`absolute h-5 w-5 transition-all duration-500 ${oscuro ? "-translate-y-6 rotate-90 opacity-0" : "translate-y-0 rotate-0 opacity-100"}`}
+        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+        <circle cx="12" cy="12" r="4.2" fill="currentColor" />
+        <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" />
+      </svg>
+      {/* Luna */}
+      <svg viewBox="0 0 24 24" className={`absolute h-5 w-5 transition-all duration-500 ${oscuro ? "translate-y-0 rotate-0 opacity-100" : "translate-y-6 -rotate-90 opacity-0"}`}
+        fill="currentColor" aria-hidden>
+        <path d="M20.2 14.6A8.5 8.5 0 0 1 9.4 3.8a.6.6 0 0 0-.8-.7A9.5 9.5 0 1 0 20.9 15.4a.6.6 0 0 0-.7-.8z" />
+        <circle cx="17.5" cy="5.5" r="1" /><circle cx="20.5" cy="9" r=".7" />
+      </svg>
+    </button>
+  );
+}
+
 function Palomita({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return <svg viewBox="0 0 20 20" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10.5l4 4 8-9" /></svg>;
 }
@@ -130,6 +173,7 @@ export default function SitioPublico() {
   const [menu, setMenu] = useState(false);
   const raiz = useRef<HTMLDivElement>(null);
   const { desplazado, progreso } = useAnimaciones(raiz);
+  const { oscuro, cambiar } = useTema();
   useEffect(() => {
     setConSesion(!!leerSesion());
     api.get("/publico").then((p) => setWhatsapp(p.whatsapp || null)).catch(() => {});
@@ -139,17 +183,19 @@ export default function SitioPublico() {
     : <Link href="/login" className="btn-sec">Iniciar sesión</Link>;
 
   return (
-    <div ref={raiz} className="bg-crema text-slate-800">
+    <div ref={raiz} className="s-sitio bg-crema text-slate-800">
+      <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       {/* Encabezado */}
       <header className={`sticky top-0 z-40 border-b backdrop-blur-md transition-all duration-300 ${desplazado ? "border-crema-300/80 bg-crema/90 shadow-[0_8px_30px_-18px_rgba(10,27,43,.35)]" : "border-transparent bg-crema/40"}`}>
         <div className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-gradient-to-r from-turquesa to-turquesa-brillante" style={{ transform: `scaleX(${progreso})` }} aria-hidden />
         <div className={`mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 transition-all duration-300 ${desplazado ? "py-2.5" : "py-4"}`}>
-          <Link href="/" aria-label="Nomira, inicio"><Logo /></Link>
+          <Link href="/" aria-label="Nomira, inicio"><Logo oscuro={oscuro} /></Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex" aria-label="Secciones">
             {NAV.map(([h, t]) => <a key={h} href={h} className="group relative transition hover:text-marino">{t}
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 rounded-full bg-turquesa transition-transform duration-300 group-hover:scale-x-100" aria-hidden /></a>)}
           </nav>
           <div className="flex items-center gap-2">
+            <BotonTema oscuro={oscuro} onCambiar={cambiar} />
             <a href="#informes" className="btn-primario hidden sm:inline-flex">Solicitar informes</a>
             {acceso}
             <button className="rounded-lg p-2 text-marino md:hidden" aria-label="Abrir menú" aria-expanded={menu} onClick={() => setMenu(!menu)}>

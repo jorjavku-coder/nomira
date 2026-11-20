@@ -73,3 +73,44 @@ h1, h2 { @apply font-marca tracking-tight; }
   .s-tarjeta, .s-tarjeta img, .s-oscura { transition: none !important; }
   .s-tarjeta:hover, .s-tarjeta:hover img, .s-oscura:hover { transform: none !important; }
 }
+
+/* ---------- Sitio público: modo oscuro (solo dentro de .s-sitio, con html.s-tema-oscuro) ---------- */
+.s-sitio { transition: background-color .4s ease, color .4s ease; }
+html.s-tema-oscuro { color-scheme: dark; background-color: #07131F; }
+html.s-tema-oscuro .s-sitio { background-color: #07131F; color: #CBD5E1; }
+html.s-tema-oscuro .s-sitio :is(.bg-crema, .bg-crema\/40, .bg-crema\/50, .bg-crema\/60) { background-color: #07131F; }
+html.s-tema-oscuro .s-sitio :is(.bg-crema\/80, .bg-crema\/85, .bg-crema\/90) { background-color: rgba(7, 19, 31, .86); }
+html.s-tema-oscuro .s-sitio :is(.bg-white, .bg-white\/90) { background-color: #0D2133; }
+html.s-tema-oscuro .s-sitio :is(.bg-white\/60, .bg-white\/70, .bg-white\/80) { background-color: rgba(13, 33, 51, .72); }
+html.s-tema-oscuro .s-sitio .bg-marino-700 { background-color: #0B1D2D; }
+html.s-tema-oscuro .s-sitio .bg-marino-900 { background-color: #040C14; }
+html.s-tema-oscuro .s-sitio .bg-marino { background-color: #1B4A6B; }
+html.s-tema-oscuro .s-sitio .bg-turquesa-50 { background-color: rgba(1, 178, 166, .14); }
+html.s-tema-oscuro .s-sitio .bg-marino\/10 { background-color: rgba(1, 233, 205, .06); }
+html.s-tema-oscuro .s-sitio :is(.text-marino, .text-marino-900) { color: #EAF3F9; }
+html.s-tema-oscuro .s-sitio .text-marino\/70 { color: rgba(234, 243, 249, .62); }
+html.s-tema-oscuro .s-sitio .text-slate-800 { color: #E2E8F0; }
+html.s-tema-oscuro .s-sitio .text-slate-600 { color: #A9B8C7; }
+html.s-tema-oscuro .s-sitio .text-slate-500 { color: #8496A8; }
+html.s-tema-oscuro .s-sitio .text-turquesa-700 { color: #2FE3CC; }
+html.s-tema-oscuro .s-sitio .text-emerald-700 { color: #6EE7B7; }
+html.s-tema-oscuro .s-sitio .bg-emerald-100 { background-color: rgba(16, 185, 129, .18); }
+html.s-tema-oscuro .s-sitio :is(.border-crema-300, .border-crema-300\/70, .border-crema-300\/80) { border-color: rgba(255, 255, 255, .09); }
+html.s-tema-oscuro .s-sitio .border-marino-900 { border-color: #1B3A55; }
+html.s-tema-oscuro .s-sitio .tarjeta { background-color: #0D2133; border-color: rgba(255, 255, 255, .08); box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6); }
+html.s-tema-oscuro .s-sitio .shadow-flotante { box-shadow: 0 30px 70px -25px rgba(0, 0, 0, .85); }
+html.s-tema-oscuro .s-sitio .btn-sec { background-color: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .16); color: #EAF3F9; }
+html.s-tema-oscuro .s-sitio .btn-sec:hover { background-color: rgba(255, 255, 255, .09); border-color: rgba(1, 233, 205, .5); }
+html.s-tema-oscuro .s-sitio .btn-primario { background-color: #EAF3F9; color: #0A1B2B; }
+html.s-tema-oscuro .s-sitio .btn-primario:hover { background-color: #FFFFFF; }
+html.s-tema-oscuro .s-sitio .campo { background-color: #081826; border-color: rgba(255, 255, 255, .14); color: #EAF3F9; }
+html.s-tema-oscuro .s-sitio .campo::placeholder { color: #6B7F92; }
+html.s-tema-oscuro .s-sitio .etiqueta { color: #8496A8; }
+html.s-tema-oscuro .s-sitio .from-white { --tw-gradient-from: #0B1D2D var(--tw-gradient-from-position); --tw-gradient-to: rgb(11 29 45 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.s-tema-oscuro .s-sitio .s-cuadricula { background-image: linear-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px); }
+html.s-tema-oscuro .s-sitio img { filter: brightness(.94) contrast(1.02); }
+html.s-tema-oscuro .s-sitio .s-tarjeta:hover { box-shadow: 0 28px 60px -24px rgba(0, 0, 0, .9), 0 0 0 1px rgba(1, 233, 205, .25); }
+html.s-tema-oscuro .s-sitio :focus-visible { --tw-ring-offset-color: #07131F; }
+html.s-tema-oscuro .s-sitio .hover\:bg-marino-50:hover { background-color: rgba(255, 255, 255, .09); }
+html.s-tema-oscuro .s-sitio .hover\:border-marino-300:hover { border-color: rgba(1, 233, 205, .45); }
