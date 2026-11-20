@@ -16,6 +16,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   admins: <><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></>,
   legal: <><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0zM8 21h8" /></>,
   comercial: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3M9 11h6M9 15h6M9 19h3" /></>,
+  academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
@@ -55,7 +56,8 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     { href: "/plataforma/correos", texto: "Correos", icono: "correos", activo: ruta.startsWith("/plataforma/correos") },
     { href: "/plataforma/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/plataforma/soporte"), n: cont?.tickets_sin_leer },
     { href: "/plataforma/legal", texto: "Legal", icono: "legal", activo: ruta.startsWith("/plataforma/legal"), n: cont?.arco_pendientes },
-    ...(esSuperadmin(sesion) ? [{ href: "/plataforma/comercial", texto: "Comercial", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial") }] : []),
+    ...(esSuperadmin(sesion) ? [{ href: "/plataforma/comercial", texto: "Comercial", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial") },
+      { href: "/plataforma/academia", texto: "Academia", icono: "academia", activo: ruta.startsWith("/plataforma/academia") }] : []),
     { href: "/plataforma/admins", texto: "Administradores", icono: "admins", activo: ruta.startsWith("/plataforma/admins") },
   ];
   const salir = () => { guardarSesionP(null); router.replace("/plataforma/login"); };

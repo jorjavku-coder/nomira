@@ -29,6 +29,15 @@ def centavos(v: Decimal) -> int:
 
 def crear_sesion(*, folio: str, version: int, cotizacion_id: int, pago_id: int, total: Decimal, email: str, url_exito: str,
                  url_cancelar: str, idempotencia: str) -> dict:
+    return crear_checkout(nombre=f"Nomira · Cotización {folio} (versión {version})", total=total, email=email, url_exito=url_exito,
+                          url_cancelar=url_cancelar, idempotencia=idempotencia, referencia=folio,
+                          metadata={"tipo": "cotizacion", "cotizacion_id": str(cotizacion_id), "version": str(version), "pago_id": str(pago_id),
+                                    "folio": folio})
+
+
+def crear_checkout(*, nombre: str, total: Decimal, email: str | None, url_exito: str, url_cancelar: str, idempotencia: str,
+                   referencia: str, metadata: dict[str, str]) -> dict:
+    """Sesión de Stripe Checkout de pago único en MXN por el total calculado en el servidor."""
     from .base import stripe_estado
 
     estado = stripe_estado()
@@ -36,13 +45,14 @@ def crear_sesion(*, folio: str, version: int, cotizacion_id: int, pago_id: int, 
         raise StripeError(estado["motivo"] or "Pago en línea pendiente de configuración.")
     llave = ajustes().stripe_secret_key.strip()
     datos = {
-        "mode": "payment", "client_reference_id": folio, "customer_email": email, "success_url": url_exito, "cancel_url": url_cancelar,
+        "mode": "payment", "client_reference_id": referencia[:200], "success_url": url_exito, "cancel_url": url_cancelar,
         "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "mxn",
         "line_items[0][price_data][unit_amount]": str(centavos(total)),
-        "line_items[0][price_data][product_data][name]": f"Nomira · Cotización {folio} (versión {version})",
-        "metadata[cotizacion_id]": str(cotizacion_id), "metadata[version]": str(version), "metadata[pago_id]": str(pago_id),
-        "metadata[folio]": folio,
+        "line_items[0][price_data][product_data][name]": nombre[:250],
+        **{f"metadata[{k}]": v for k, v in metadata.items()},
     }
+    if email:
+        datos["customer_email"] = email
     try:
         r = httpx.post(f"{API}/checkout/sessions", data=datos, auth=(llave, ""), timeout=20, headers={"Idempotency-Key": idempotencia})
     except httpx.HTTPError as e:

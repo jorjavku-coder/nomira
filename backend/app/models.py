@@ -2,7 +2,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import (JSON, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
+from sqlalchemy import (JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
                         UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +26,9 @@ class Organizacion(Base):
     # La administra quien opera Nomira: «suspendida» impide entrar a todos sus usuarios.
     estado: Mapped[str] = mapped_column(String(20), default="activa", server_default="activa")
     motivo_suspension: Mapped[str | None] = mapped_column(String(300))
+    # Academia: cursos propios contratados por encima de los incluidos y espacio para videos/SCORM
+    ac_cursos_extra: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    ac_cuota_medios_mb: Mapped[int | None] = mapped_column(Integer)  # vacío = la general de AcConfig
 
 
 class Usuario(Base):
@@ -1015,6 +1018,12 @@ class AcCurso(Base):
     nota_revision: Mapped[str | None] = mapped_column(String(500))
     asistido_ia: Mapped[bool] = mapped_column(Boolean, default=False)  # exige revisión humana antes de publicar
     calificacion_minima: Mapped[int | None] = mapped_column(Integer)  # vacío: basta con completar las lecciones
+    # Catálogo de Nomira (solo cursos globales): incluido para todos o con costo (pago único por despacho)
+    acceso: Mapped[str] = mapped_column(String(10), default="incluido", server_default="incluido")  # incluido | pago
+    precio: Mapped[Decimal | None] = mapped_column(DINERO)  # MXN antes de IVA
+    origen_curso_id: Mapped[int | None] = mapped_column(Integer, index=True)  # curso de la cuenta editora del que se publicó
+    entregado_por_nomira: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    reconocimiento: Mapped[str] = mapped_column(String(12), default="diploma", server_default="diploma")  # diploma | constancia
     version: Mapped[int] = mapped_column(Integer, default=1)
     contenido_actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
@@ -1053,6 +1062,17 @@ class AcLeccion(Base):
     archivo_nombre: Mapped[str | None] = mapped_column(String(300))
     archivo_formato: Mapped[str | None] = mapped_column(String(10))
     archivo_tamano: Mapped[int | None] = mapped_column(Integer)
+    # Video subido (además del enlace): se sirve con una URL firmada de corta duración
+    video_ruta: Mapped[str | None] = mapped_column(String(500))
+    video_nombre: Mapped[str | None] = mapped_column(String(300))
+    video_formato: Mapped[str | None] = mapped_column(String(10))
+    video_tamano: Mapped[int | None] = mapped_column(BigInteger)
+    # Paquete SCORM importado (carpeta extraída) y su página de inicio
+    scorm_dir: Mapped[str | None] = mapped_column(String(500))
+    scorm_inicio: Mapped[str | None] = mapped_column(String(500))
+    scorm_version: Mapped[str | None] = mapped_column(String(10))  # 1.2 | 2004
+    scorm_tamano: Mapped[int | None] = mapped_column(BigInteger)
+    origen_leccion_id: Mapped[int | None] = mapped_column(Integer)  # para actualizar copias del catálogo
     duracion_min: Mapped[int | None] = mapped_column(Integer)
     archivado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
@@ -1159,7 +1179,52 @@ class AcAvanceLeccion(Base):
     respuesta: Mapped[int | None] = mapped_column(Integer)
     correcta: Mapped[bool | None] = mapped_column(Boolean)
     completada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scorm_datos: Mapped[dict | None] = mapped_column(JSON)  # estado SCORM (cmi.*) que guarda el paquete
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AcConfig(Base):
+    """Configuración general de Academia (una fila), la administra Nomira desde su panel."""
+    __tablename__ = "ac_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cursos_incluidos: Mapped[int] = mapped_column(Integer, default=5)
+    cuota_medios_mb: Mapped[int] = mapped_column(Integer, default=2048)  # por despacho: videos + SCORM
+    video_max_mb: Mapped[int] = mapped_column(Integer, default=500)
+    scorm_max_mb: Mapped[int] = mapped_column(Integer, default=300)
+    org_editora_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AcAcceso(Base):
+    """Acceso de un despacho a un curso de Nomira con costo (por compra, cotización o cortesía)."""
+    __tablename__ = "ac_accesos"
+    __table_args__ = (UniqueConstraint("organizacion_id", "curso_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"), index=True)
+    origen: Mapped[str] = mapped_column(String(12))  # compra | comercial | cortesia
+    compra_id: Mapped[int | None] = mapped_column(Integer)
+    cotizacion_id: Mapped[int | None] = mapped_column(ForeignKey("cm_cotizaciones.id", ondelete="SET NULL"))
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AcCompra(Base):
+    """Compra en línea (Stripe Checkout) de un curso de Nomira. Solo el webhook la marca pagada."""
+    __tablename__ = "ac_compras"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    curso_id: Mapped[int] = mapped_column(ForeignKey("ac_cursos.id", ondelete="CASCADE"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    subtotal: Mapped[Decimal] = mapped_column(DINERO)
+    iva: Mapped[Decimal] = mapped_column(DINERO)
+    total: Mapped[Decimal] = mapped_column(DINERO)
+    estado: Mapped[str] = mapped_column(String(12), default="iniciada")  # iniciada | pagada
+    stripe_sesion: Mapped[str | None] = mapped_column(String(120), unique=True)
+    referencia: Mapped[str | None] = mapped_column(String(120))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    pagada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AcIntento(Base):

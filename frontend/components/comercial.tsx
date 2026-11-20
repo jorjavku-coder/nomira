@@ -218,6 +218,18 @@ export function Constructor({ cat, cot, onGuardado, onCancelar }: { cat: any; co
             <label><span className="etiqueta">Bloques de almacenamiento adicional</span><input className="campo" type="number" min={0} max={200} value={e.bloques_extra} onChange={(ev) => setE({ bloques_extra: Number(ev.target.value) || 0 })} /></label>
           </div>
           <p className="text-xs text-slate-500">Los clientes invitados al portal no cuentan como usuarios internos. No se cobra por expediente.</p>
+          {e.modulos.includes("academia") && <fieldset className="rounded-xl border border-crema-300 p-3">
+            <legend className="px-1 text-sm font-semibold text-marino">Nomira Academia</legend>
+            <label className="block max-w-xs"><span className="etiqueta">Cursos propios adicionales (al mes)</span>
+              <input className="campo" type="number" min={0} max={500} value={e.cursos_extra || 0} onChange={(ev) => setE({ cursos_extra: Number(ev.target.value) || 0 })} /></label>
+            {cat.cursos_academia?.length > 0 && <div className="mt-2 space-y-1">
+              <span className="etiqueta">Cursos de Nomira con costo (pago único)</span>
+              {cat.cursos_academia.map((x: any) => <label key={x.id} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-turquesa"
+                checked={(e.cursos_nomira || []).includes(x.id)} onChange={() => setE({ cursos_nomira: (e.cursos_nomira || []).includes(x.id) ? e.cursos_nomira.filter((y: number) => y !== x.id) : [...(e.cursos_nomira || []), x.id] })} />
+                {x.titulo} <span className="text-slate-500">· {mxn(x.precio)} + IVA</span></label>)}
+            </div>}
+            <p className="mt-1 text-xs text-slate-500">Al asignar la cotización pagada, el despacho recibe los cursos y su límite de cursos propios sube.</p>
+          </fieldset>}
         </div>}
 
         {paso === 2 && <div className="grid gap-3 sm:grid-cols-2">

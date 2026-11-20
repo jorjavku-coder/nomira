@@ -247,5 +247,26 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
                 cm.evento(db, c, "pago_registrado", actor="stripe", version_num=p.version,
                           detalle={"metodo": "tarjeta", "monto": cm.txt(p.monto), "modo": "real" if real else "prueba"})
                 _aplicar_pagos(db, c, v, actor="stripe")
+        if p is None and obj.get("payment_status") == "paid":
+            _confirmar_compra_curso(db, obj, real)
     db.commit()
     return {"ok": True}
+
+
+def _confirmar_compra_curso(db: Session, obj: dict, real: bool) -> None:
+    """Compra en línea de un curso de Nomira (Academia): da acceso al despacho solo con pago confirmado."""
+    from ..services.academia import lms
+
+    compra = db.scalar(select(m.AcCompra).where(m.AcCompra.stripe_sesion == obj.get("id")))
+    if not compra or compra.estado == "pagada":
+        return
+    if obj.get("amount_total") != st.centavos(compra.total) or (obj.get("currency") or "").lower() != "mxn":
+        log.warning("Compra de curso con importe o moneda distintos (compra %s): no se aplicó.", compra.id)
+        return
+    curso = db.get(m.AcCurso, compra.curso_id)
+    compra.estado, compra.pagada_en = "pagada", cm.ahora()
+    compra.referencia = str(obj.get("payment_intent") or obj.get("id"))[:120]
+    if curso:
+        lms.otorgar(db, compra.organizacion_id, curso, "compra", compra_id=compra.id)
+    db.add(m.Auditoria(organizacion_id=compra.organizacion_id, usuario_id=compra.usuario_id, accion="ac_curso_comprado", entidad="ac_curso",
+                       entidad_id=compra.curso_id, detalle={"compra_id": compra.id, "total": cm.txt(compra.total), "modo": "real" if real else "prueba"}))

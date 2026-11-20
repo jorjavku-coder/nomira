@@ -96,7 +96,7 @@ function Contenido({ c, hacer, setEditando }: any) {
               {m.lecciones.map((l: any, j: number) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
                   <span className="min-w-0 flex-1"><b className="text-marino">{l.titulo}</b>
-                    <span className="block text-xs text-slate-500">{[l.video_url && "video", l.sesion_url && "sesión", l.texto && "lectura", l.archivo && "material", l.actividad && "pregunta", l.recursos.length && `${l.recursos.length} enlace(s)`].filter(Boolean).join(" · ") || "Sin contenido todavía"}</span></span>
+                    <span className="block text-xs text-slate-500">{[l.scorm && "SCORM", l.video_subido && "video subido", l.video_url && "video", l.sesion_url && (l.sesion_plataforma && l.sesion_plataforma.clave !== "otra" ? l.sesion_plataforma.nombre : "sesión"), l.texto && "lectura", l.archivo && "material", l.actividad && "pregunta", l.recursos.length && `${l.recursos.length} enlace(s)`].filter(Boolean).join(" · ") || "Sin contenido todavía"}</span></span>
                   <button className="btn-sec px-2 py-1 text-xs" disabled={j === 0} onClick={() => hacer(() => api.patch(`/academia/admin/lecciones/${l.id}`, { mover: "arriba" }), "Orden actualizado.")} aria-label="Subir lección">↑</button>
                   <button className="btn-sec px-2 py-1 text-xs" disabled={j === m.lecciones.length - 1} onClick={() => hacer(() => api.patch(`/academia/admin/lecciones/${l.id}`, { mover: "abajo" }), "Orden actualizado.")} aria-label="Bajar lección">↓</button>
                   <button className="btn-sec px-2 py-1 text-xs" onClick={() => setEditando(l)}>Editar</button>
@@ -122,6 +122,8 @@ function EditarLeccion({ c, l, hacer, onCerrar }: any) {
     duracion_min: l.duracion_min || "", recursos: (l.recursos || []).map((r: any) => `${r.titulo} | ${r.url}`).join("\n"),
     act: !!l.actividad, pregunta: l.actividad?.pregunta || "", opciones: (l.actividad?.opciones || ["", ""]).join("\n"), correcta: l.actividad?.correcta ?? 0, explicacion: l.actividad?.explicacion || "" });
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
   const actual = c.modulos.flatMap((m: any) => m.lecciones).find((x: any) => x.id === l.id) || l;
   const opciones = d.opciones.split("\n").map((x: string) => x.trim()).filter(Boolean);
   async function guardar(e: React.FormEvent) {
@@ -143,7 +145,17 @@ function EditarLeccion({ c, l, hacer, onCerrar }: any) {
           <label><span className="etiqueta">Enlace a sesión (Zoom, Meet, Teams…)</span><input className="campo" value={d.sesion_url} onChange={(e) => setD({ ...d, sesion_url: e.target.value })} /></label>
           <label><span className="etiqueta">Duración (min)</span><input className="campo" type="number" min={1} value={d.duracion_min} onChange={(e) => setD({ ...d, duracion_min: e.target.value })} /></label>
         </div>
-        <p className="text-xs text-slate-500">Nomira no aloja videos: YouTube y Vimeo se muestran dentro de la lección; otros se abren en su sitio.</p>
+        <p className="text-xs text-slate-500">YouTube y Vimeo se muestran dentro de la lección (no ocupan espacio); otros enlaces se abren en su sitio. También puede subir el video abajo.</p>
+        <div className="rounded-xl border border-crema-300 p-3">
+          <span className="etiqueta">Video subido (MP4, WebM o MOV; hasta {c.espacio?.video_max_mb || 500} MB)</span>
+          {actual.video_subido ? <p className="text-sm">🎬 {actual.video_subido.nombre} ({Math.round(actual.video_subido.tamano / 1048576)} MB)
+            <button type="button" className="ml-2 text-xs font-semibold text-red-700 hover:underline" onClick={() => hacer(() => api.borrar(`/academia/admin/lecciones/${l.id}/video`), "Video quitado.")}>Quitar</button></p>
+            : <div className="flex flex-wrap gap-2"><input type="file" className="text-sm" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" aria-label="Archivo de video" onChange={(e) => setVideo(e.target.files?.[0] || null)} />
+              <button type="button" className="btn-sec" disabled={!video || subiendo} onClick={async () => { setSubiendo(true); const f = new FormData(); f.append("archivo", video!);
+                await hacer(() => api.subir(`/academia/admin/lecciones/${l.id}/video`, f), "Video cargado."); setSubiendo(false); }}>{subiendo ? "Subiendo…" : "Subir video"}</button></div>}
+          <p className="mt-1 text-xs text-slate-500">Espacio de su despacho: {c.espacio?.usado_mb ?? 0} de {c.espacio?.cuota_mb ?? 0} MB.</p>
+        </div>
+        {actual.scorm && <p className="rounded-xl bg-turquesa-50 p-3 text-sm text-marino">Esta lección es un paquete <b>SCORM {actual.scorm.version}</b> (inicio: {actual.scorm.inicio}). El avance y la calificación los reporta el propio paquete.</p>}
         <label className="block"><span className="etiqueta">Subtítulos o transcripción (accesibilidad)</span><textarea className="campo" rows={3} value={d.transcripcion} onChange={(e) => setD({ ...d, transcripcion: e.target.value })} /></label>
         <label className="block"><span className="etiqueta">Recursos y enlaces (uno por línea: Título | https://…)</span><textarea className="campo font-mono text-xs" rows={3} value={d.recursos} onChange={(e) => setD({ ...d, recursos: e.target.value })} /></label>
         <div className="rounded-xl border border-crema-300 p-3">
@@ -202,7 +214,7 @@ function Preguntas({ c, hacer }: any) {
 function Ficha({ c, hacer }: any) {
   const [d, setD] = useState<any>({ titulo: c.titulo, materia: c.materia, roles: (c.roles || []).join(", "), instructor: c.instructor || "", institucion: c.institucion || "",
     descripcion: c.descripcion || "", duracion_min: c.duracion_min || "", modalidad: c.modalidad, juridico: c.juridico, asistido_ia: c.asistido_ia,
-    calificacion_minima: c.calificacion_minima || "" });
+    calificacion_minima: c.calificacion_minima || "", reconocimiento: c.reconocimiento || "diploma" });
   return (
     <section className="tarjeta p-5">
       <h2 className="mb-3 font-semibold text-marino">Ficha del curso</h2>
@@ -217,6 +229,8 @@ function Ficha({ c, hacer }: any) {
           <label><span className="etiqueta">Modalidad</span><select className="campo" value={d.modalidad} onChange={(e) => setD({ ...d, modalidad: e.target.value })}>
             <option value="autodirigido">Autodirigido</option><option value="en_vivo">En vivo</option><option value="combinado">Combinado</option></select></label>
         </div>
+        <label><span className="etiqueta">Al terminar se entrega</span><select className="campo" value={d.reconocimiento} onChange={(e) => setD({ ...d, reconocimiento: e.target.value })}>
+          <option value="diploma">Diploma (con código QR de verificación)</option><option value="constancia">Constancia de participación</option></select></label>
         <label><span className="etiqueta">Calificación mínima del cuestionario (vacío = solo completar lecciones)</span>
           <input className="campo" type="number" min={1} max={100} value={d.calificacion_minima} onChange={(e) => setD({ ...d, calificacion_minima: e.target.value })} /></label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-turquesa" checked={d.juridico} onChange={(e) => setD({ ...d, juridico: e.target.checked })} />Contenido jurídico</label>
@@ -249,10 +263,10 @@ function Sesiones({ c, hacer }: any) {
   return (
     <section className="tarjeta p-5 text-sm">
       <h2 className="font-semibold text-marino">Sesiones en vivo</h2>
-      <p className="text-xs text-slate-500">Nomira no crea reuniones: pegue el enlace de Zoom, Google Meet o Teams.</p>
+      <p className="text-xs text-slate-500">Pegue el enlace de Zoom, Google Meet, Teams o Webex: Nomira lo reconoce y los participantes ven «Unirse» 15 minutos antes y pueden agregarlo a su calendario.</p>
       <ul className="mt-2 space-y-2">
         {c.sesiones.map((s: any) => (
-          <li key={s.id} className={`rounded-xl border border-crema-300 p-2 ${s.cancelada ? "opacity-60" : ""}`}><b>{s.titulo}</b> · {fechaHora(s.inicio)} · {s.duracion_min} min{s.cancelada ? " · cancelada" : ""}
+          <li key={s.id} className={`rounded-xl border border-crema-300 p-2 ${s.cancelada ? "opacity-60" : ""}`}><b>{s.titulo}</b> · {fechaHora(s.inicio)} · {s.duracion_min} min{s.plataforma ? ` · ${s.plataforma.nombre}` : ""}{s.cancelada ? " · cancelada" : ""}
             {!s.cancelada && <button className="ml-2 text-xs font-semibold text-red-700 hover:underline" onClick={() => hacer(() => api.patch(`/academia/admin/sesiones/${s.id}`, { ...s, cancelada: true }), "Sesión cancelada.")}>Cancelar</button>}</li>))}
       </ul>
       <form className="mt-3 grid gap-2" onSubmit={(e) => { e.preventDefault();
@@ -261,7 +275,7 @@ function Sesiones({ c, hacer }: any) {
         <input className="campo" required minLength={3} placeholder="Título de la sesión" value={d.titulo} onChange={(e) => setD({ ...d, titulo: e.target.value })} />
         <div className="grid grid-cols-2 gap-2"><input className="campo" type="datetime-local" required value={d.inicio} onChange={(e) => setD({ ...d, inicio: e.target.value })} aria-label="Inicio" />
           <input className="campo" type="number" min={10} value={d.duracion_min} onChange={(e) => setD({ ...d, duracion_min: e.target.value })} aria-label="Duración (min)" /></div>
-        <input className="campo" placeholder="Enlace https:// (opcional)" value={d.enlace} onChange={(e) => setD({ ...d, enlace: e.target.value })} />
+        <input className="campo" placeholder="Enlace de Zoom, Meet o Teams (https://…)" aria-label="Enlace de la reunión" value={d.enlace} onChange={(e) => setD({ ...d, enlace: e.target.value })} />
         <button className="btn-sec justify-self-start">+ Sesión</button>
       </form>
     </section>
