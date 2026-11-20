@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { MisDocumentosLegales } from "@/components/legal";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso, Avatar, CampoContrasena, ReglasContrasena } from "@/components/ui";
 import { actualizarSesion, api } from "@/lib/api";
@@ -107,6 +108,7 @@ export default function Perfil() {
               </div>
             </form>
           </section>
+          <MisDocumentosLegales />
         </div>
       </div>
     </Shell>

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import FormularioInformes from "@/components/FormularioInformes";
+import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, leerSesion } from "@/lib/api";
 
@@ -428,6 +429,7 @@ export default function SitioPublico() {
             <a href="#informes" className="hover:text-white">Informes</a>
             <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
           </nav>
+          <div className="w-full text-xs sm:w-auto"><EnlacesLegales claro /></div>
           <p className="w-full text-xs text-white/40 sm:w-auto">© {new Date().getFullYear()} Nomira · Desarrollado por IMA</p>
         </div>
       </footer>

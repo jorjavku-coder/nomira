@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Aviso } from "@/components/ui";
+import { AvisoCorto } from "@/components/legal";
 import { api } from "@/lib/api";
 
 const VACIO = { tipo: "informes", nombre: "", empresa: "", email: "", telefono: "", expedientes_mes: "", mensaje: "", acepta_contacto: false, sitio_web: "" };
@@ -8,6 +9,8 @@ const VACIO = { tipo: "informes", nombre: "", empresa: "", email: "", telefono: 
 /** Formulario público de informes y suscripción (página de inicio). */
 export default function FormularioInformes() {
   const [f, setF] = useState(VACIO);
+  const [aviso, setAviso] = useState<{ id: number | null; marketing: boolean }>({ id: null, marketing: false });
+  const [marketing, setMarketing] = useState(false);
   const [error, setError] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -17,7 +20,8 @@ export default function FormularioInformes() {
     e.preventDefault();
     setError(""); setEnviando(true);
     try {
-      await api.post("/solicitudes", { ...f, empresa: f.empresa || null, telefono: f.telefono || null, expedientes_mes: f.expedientes_mes || null, mensaje: f.mensaje || null });
+      await api.post("/solicitudes", { ...f, empresa: f.empresa || null, telefono: f.telefono || null, expedientes_mes: f.expedientes_mes || null, mensaje: f.mensaje || null,
+        aviso_version_id: aviso.id, marketing: aviso.marketing && marketing });
       setEnviado(true); setF(VACIO);
     } catch (err: any) { setError(err.message); }
     setEnviando(false);
@@ -60,8 +64,12 @@ export default function FormularioInformes() {
       <label className="block"><span className="etiqueta">Mensaje (opcional)</span><textarea className="campo" rows={3} maxLength={2000} value={f.mensaje} onChange={cambiar("mensaje")} /></label>
       {/* Campo trampa para bots: oculto a personas y lectores de pantalla */}
       <div className="hidden" aria-hidden="true"><label>Sitio web<input tabIndex={-1} autoComplete="off" value={f.sitio_web} onChange={cambiar("sitio_web")} /></label></div>
+      <AvisoCorto onVersion={(id, mk) => setAviso({ id, marketing: mk })} />
       <label className="flex items-start gap-2 text-sm text-slate-600"><input type="checkbox" className="mt-1" required checked={f.acepta_contacto} onChange={(e) => setF({ ...f, acepta_contacto: e.target.checked })} />
         <span>Acepto que se usen estos datos para contactarme sobre mi solicitud.</span></label>
+      {aviso.marketing && (
+        <label className="flex items-start gap-2 text-sm text-slate-600"><input type="checkbox" className="mt-1" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
+          <span>Opcional: también acepto recibir información comercial de Nomira.</span></label>)}
       <Aviso>{error}</Aviso>
       <button className="btn-turquesa w-full py-2.5" disabled={enviando}>{enviando ? "Enviando…" : f.tipo === "suscripcion" ? "Solicitar suscripción" : "Solicitar informes"}</button>
     </form>

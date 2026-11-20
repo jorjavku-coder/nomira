@@ -54,6 +54,8 @@ export const apiP = {
     (await pedir(ruta, { method: "POST", body: JSON.stringify(cuerpo ?? {}) })).json(),
   patch: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
     (await pedir(ruta, { method: "PATCH", body: JSON.stringify(cuerpo) })).json(),
+  put: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
+    (await pedir(ruta, { method: "PUT", body: JSON.stringify(cuerpo) })).json(),
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
   texto: async (ruta: string): Promise<string> => (await pedir(ruta)).text(),
 };

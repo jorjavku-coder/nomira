@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..db import get_db
 from ..deps import ip_cliente
+from ..services import legal as lg
 
 router = APIRouter(prefix="/api", tags=["solicitudes"])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -28,6 +29,8 @@ class SolicitudNueva(BaseModel):
     mensaje: str | None = Field(None, max_length=2000)
     acepta_contacto: bool
     sitio_web: str | None = Field(None, max_length=200)  # trampa para bots: debe llegar vacío
+    aviso_version_id: int | None = None  # aviso de privacidad simplificado que vio la persona (Centro Legal)
+    marketing: bool = False  # consentimiento OPCIONAL para información comercial (solo si Nomira lo habilitó)
 
 
 class Atencion(BaseModel):
@@ -62,8 +65,19 @@ def crear(d: SolicitudNueva, request: Request, db: Session = Depends(get_db)):
     _envios[ip] = recientes + [ahora]
     if _limpio(d.sitio_web):  # un bot llenó el campo oculto: se responde igual, sin guardar
         return {"ok": True}
-    db.add(m.Solicitud(tipo=d.tipo, nombre=_limpio(d.nombre), empresa=_limpio(d.empresa), email=email, telefono=tel,
-                       expedientes_mes=d.expedientes_mes or None, mensaje=_limpio(d.mensaje), ip=ip[:60]))
+    sol = m.Solicitud(tipo=d.tipo, nombre=_limpio(d.nombre), empresa=_limpio(d.empresa), email=email, telefono=tel,
+                      expedientes_mes=d.expedientes_mes or None, mensaje=_limpio(d.mensaje), ip=ip[:60])
+    db.add(sol)
+    db.flush()
+    # Evidencia mínima: qué versión del aviso se mostró junto al formulario y, si aplica, el consentimiento opcional
+    aviso = lg.vigente(db, "privacidad_simplificado")
+    if aviso and d.aviso_version_id == aviso.id:
+        db.add(m.LgEvento(version_id=aviso.id, documento="privacidad_simplificado", evento="aviso_mostrado", contexto="formulario_informes",
+                          solicitud_id=sol.id))
+    if d.marketing and lg.config(db).marketing_habilitado:
+        pv = lg.vigente(db, "privacidad")
+        db.add(m.LgEvento(version_id=pv.id if pv else None, documento="privacidad", evento="marketing_otorgado", contexto="formulario_informes",
+                          solicitud_id=sol.id))
     db.commit()
     return {"ok": True}
 

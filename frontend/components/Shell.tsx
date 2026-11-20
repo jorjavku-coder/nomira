@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AceptacionLegal, EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { Avatar } from "@/components/ui";
 import { Sesion, alCambiarSesion, api, guardarSesion, leerSesion } from "@/lib/api";
@@ -163,7 +164,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
         ) : bloqueado ? <div className="p-10 text-sm text-slate-500">Cargando…</div> : children}
       </main>
-      <footer className="border-t border-crema-300 px-4 py-4 text-center text-xs text-slate-500 lg:px-10">© {new Date().getFullYear()} Nomira · Desarrollado por IMA</footer>
+      <footer className="space-y-1.5 border-t border-crema-300 px-4 py-4 text-center text-xs text-slate-500 lg:px-10">
+        <EnlacesLegales />
+        <p>© {new Date().getFullYear()} Nomira · Desarrollado por IMA</p>
+      </footer>
+      <AceptacionLegal />
     </div>
   );
 }

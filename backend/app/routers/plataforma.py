@@ -133,6 +133,7 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
         "tickets_abiertos": contar(select(m.TicketSoporte.id).where(m.TicketSoporte.estado == "abierto")),
         "tickets_sin_leer": contar(select(m.TicketSoporte.id).where(m.TicketSoporte.leido_plataforma.is_(False))),
         "usuarios_activos": contar(select(m.Usuario.id).where(m.Usuario.activo.is_(True))),
+        "arco_pendientes": contar(select(m.LgSolicitud.id).where(m.LgSolicitud.estado.not_in(("atendida", "improcedente")))),
         **_conteo_suscripciones(db),
     }
 
