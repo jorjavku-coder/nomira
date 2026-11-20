@@ -21,6 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ... import models as m
+from .. import almacenamiento as almacen
 from ...config import ajustes
 from . import base
 
@@ -93,29 +94,59 @@ def exigir_lugar(db: Session, org_id: int, cuantos: int = 1) -> None:
 
 # ------------------------------------------------------------------ espacio para videos y SCORM
 
-def cuota_bytes(db: Session, org_id: int) -> int:
+def _alcance(db: Session, org_id: int) -> tuple[str, int]:
+    """Qué se mide y cuánto cabe.
+
+    - Si Nomira fijó a mano un espacio para Academia: solo videos + SCORM contra ese límite.
+    - Si el despacho tiene un plan asignado en Comercial: TODO su espacio (expedientes, evidencia,
+      Academia…) contra el almacenamiento contratado (paquete + bloques adicionales).
+    - Si no: solo videos + SCORM contra el espacio general de Academia.
+    """
     org = db.get(m.Organizacion, org_id)
-    mb = (org.ac_cuota_medios_mb if org and org.ac_cuota_medios_mb is not None else config(db).cuota_medios_mb)
-    return mb * 1024 * 1024
+    if org and org.ac_cuota_medios_mb is not None:
+        return "academia", org.ac_cuota_medios_mb * 1024 * 1024
+    gb = almacen.contratado_gb(db, org_id)
+    if gb:
+        return "despacho", gb * almacen.GB
+    return "academia", config(db).cuota_medios_mb * 1024 * 1024
 
 
-def uso_bytes(db: Session, org_id: int) -> int:
+def cuota_bytes(db: Session, org_id: int) -> int:
+    return _alcance(db, org_id)[1]
+
+
+def uso_academia(db: Session, org_id: int) -> int:
     cursos = select(m.AcCurso.id).where(m.AcCurso.organizacion_id == org_id)
     return int(db.scalar(select(func.coalesce(func.sum(func.coalesce(m.AcLeccion.video_tamano, 0) + func.coalesce(m.AcLeccion.scorm_tamano, 0)), 0))
                          .where(m.AcLeccion.curso_id.in_(cursos))) or 0)
 
 
+def uso_bytes(db: Session, org_id: int, fresco: bool = False) -> int:
+    if _alcance(db, org_id)[0] == "despacho":
+        return almacen.uso_bytes(org_id, fresco=fresco)
+    return uso_academia(db, org_id)
+
+
 def espacio(db: Session, org_id: int) -> dict:
     conf = config(db)
-    return {"usado_mb": round(uso_bytes(db, org_id) / 1048576, 1), "cuota_mb": cuota_bytes(db, org_id) // 1048576,
+    alcance, cuota = _alcance(db, org_id)
+    return {"usado_mb": round(uso_bytes(db, org_id) / 1048576, 1), "cuota_mb": cuota // 1048576, "alcance": alcance,
             "video_max_mb": conf.video_max_mb, "scorm_max_mb": conf.scorm_max_mb}
 
 
 def exigir_espacio(db: Session, org_id: int, nuevo: int, liberado: int = 0) -> None:
-    if uso_bytes(db, org_id) - liberado + nuevo > cuota_bytes(db, org_id):
+    """Se llama con el archivo nuevo YA guardado en disco (si no cabe, quien llama lo borra)."""
+    alcance, cuota = _alcance(db, org_id)
+    extra = 0 if alcance == "despacho" else nuevo  # medido en disco, el archivo nuevo ya cuenta
+    if uso_bytes(db, org_id, fresco=True) - liberado + extra > cuota:
         e = espacio(db, org_id)
+        almacen.olvidar(org_id)  # quien llama borra el archivo que no cupo
+        if e["alcance"] == "despacho":
+            raise HTTPException(413, f"Ya no hay espacio en el almacenamiento de su plan ({e['usado_mb']:,.0f} de {e['cuota_mb']:,} MB usados). "
+                                     "Contrate almacenamiento adicional con Nomira o use un enlace de YouTube o Vimeo.")
         raise HTTPException(413, f"No hay espacio suficiente para videos y SCORM ({e['usado_mb']} de {e['cuota_mb']} MB usados). "
                                  "Pida más espacio a Nomira o use un enlace de YouTube o Vimeo.")
+
 
 
 # ------------------------------------------------------------------ URL firmadas (video y SCORM)

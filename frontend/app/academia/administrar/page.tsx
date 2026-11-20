@@ -39,9 +39,9 @@ export default function Administrar() {
           {!r.limite.disponibles && <p className="mt-2 text-sm text-amber-900">Llegó al límite de su plan. <Link className="font-semibold underline" href="/soporte">Contrate cursos adicionales con Nomira</Link> o archive un curso que ya no use.</p>}
         </div>
         <div className="tarjeta p-4">
-          <div className="flex justify-between text-sm"><b className="text-marino">Espacio para videos y SCORM</b><span>{r.espacio.usado_mb} de {r.espacio.cuota_mb} MB</span></div>
+          <div className="flex justify-between text-sm"><b className="text-marino">{r.espacio.alcance === "despacho" ? "Almacenamiento de su plan" : "Espacio para videos y SCORM"}</b><span>{r.espacio.cuota_mb >= 1024 ? `${(r.espacio.usado_mb / 1024).toFixed(1)} de ${Math.round(r.espacio.cuota_mb / 1024)} GB` : `${r.espacio.usado_mb} de ${r.espacio.cuota_mb} MB`}</span></div>
           <div className="mt-2"><Barra valor={r.espacio.cuota_mb ? Math.min(100, Math.round(100 * r.espacio.usado_mb / r.espacio.cuota_mb)) : 100} etiqueta="Espacio usado" /></div>
-          <p className="mt-1 text-xs text-slate-500">Videos de hasta {r.espacio.video_max_mb} MB. Los enlaces de YouTube o Vimeo no ocupan espacio.</p>
+          <p className="mt-1 text-xs text-slate-500">{r.espacio.alcance === "despacho" ? "Es el mismo espacio para expedientes, evidencia y Academia. " : ""}Videos de hasta {r.espacio.video_max_mb} MB. Los enlaces de YouTube o Vimeo no ocupan espacio.</p>
         </div>
       </div>}
       {!r && !error && <p className="text-sm text-slate-500">Cargando…</p>}
