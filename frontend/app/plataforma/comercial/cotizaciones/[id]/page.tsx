@@ -7,7 +7,7 @@ import { Aviso, Modal } from "@/components/ui";
 import { fecha, fechaHora, mxn } from "@/lib/api";
 import { apiP } from "@/lib/plataforma";
 
-const ACTOR: Record<string, string> = { admin: "", cliente: "Cliente", stripe: "Stripe (prueba)", sistema: "Sistema" };
+const ACTOR: Record<string, string> = { admin: "", cliente: "Cliente", stripe: "Stripe", sistema: "Sistema" };
 const METODO: Record<string, string> = { spei: "Transferencia SPEI", otro: "Otra forma", tarjeta: "Tarjeta" };
 
 export default function Cotizacion() {
@@ -104,7 +104,7 @@ export default function Cotizacion() {
                   {e.detalle?.motivo && <p className="text-slate-600">Motivo: {e.detalle.motivo}</p>}
                   {e.tipo === "aceptada" && <p className="text-xs text-slate-600">Registrada por {e.detalle.nombre}{e.detalle.cargo ? ` (${e.detalle.cargo})` : ""} sobre la versión {e.detalle.version}. Huella {String(e.detalle.huella).slice(0, 12)}…</p>}
                   {e.detalle?.cambios && <p className="text-xs text-slate-600">{e.detalle.cambios.join(" · ")}</p>}
-                  {e.detalle?.monto && <p className="text-xs text-slate-600">{METODO[e.detalle.metodo] || e.detalle.metodo} · {mxn(e.detalle.monto)} {e.detalle.referencia ? `· ref. ${e.detalle.referencia}` : ""}</p>}
+                  {e.detalle?.monto && <p className="text-xs text-slate-600">{METODO[e.detalle.metodo] || e.detalle.metodo} · {mxn(e.detalle.monto)} {e.detalle.referencia ? `· ref. ${e.detalle.referencia}` : ""}{e.detalle.modo ? ` · ${e.detalle.modo === "real" ? "cobro REAL" : "modo de prueba"}` : ""}</p>}
                   {e.detalle?.error && <p className="text-xs text-red-700">{e.detalle.error}</p>}
                 </li>))}</ol>
             </section>

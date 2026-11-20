@@ -57,8 +57,8 @@ export default function ConfiguracionComercial() {
           <div className="mt-3 grid gap-4 lg:grid-cols-3">
             <div className="rounded-xl border border-crema-300 p-3">
               <label className="flex items-center gap-2 font-semibold text-marino"><input type="checkbox" className="h-4 w-4 accent-turquesa" checked={f.pago_tarjeta} onChange={set("pago_tarjeta")} />Tarjeta (Stripe Checkout)</label>
-              <p className="mt-1 text-xs text-slate-600">{integ?.stripe.conectado ? "Stripe conectado en MODO DE PRUEBA." : integ?.stripe.motivo}</p>
-              <p className="mt-1 text-xs text-slate-500">Se configura en el servidor (STRIPE_SECRET_KEY de prueba y STRIPE_WEBHOOK_SECRET). Nomira no guarda datos de tarjeta.</p>
+              <p className="mt-1 text-xs text-slate-600">{integ?.stripe.conectado ? (integ.stripe.modo === "real" ? <b className="text-red-700">Stripe conectado en MODO REAL: los pagos con tarjeta son cobros reales.</b> : "Stripe conectado en MODO DE PRUEBA (sin dinero real).") : integ?.stripe.motivo}</p>
+              <p className="mt-1 text-xs text-slate-500">Se configura en el servidor: STRIPE_MODO (prueba o real), STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET. Nomira no guarda datos de tarjeta.</p>
             </div>
             <div className="rounded-xl border border-crema-300 p-3">
               <label className="flex items-center gap-2 font-semibold text-marino"><input type="checkbox" className="h-4 w-4 accent-turquesa" checked={f.spei_habilitado} onChange={set("spei_habilitado")} />Transferencia SPEI</label>
