@@ -69,6 +69,7 @@ def info_formulario(request: Request, x_enlace: str | None = Header(None), db: S
     org = db.get(m.Organizacion, cfg.organizacion_id)
     db.commit()
     return {"despacho": org.nombre, "materias": base.materias(cfg), "campana": camp.nombre if camp else None,
+            "aviso_privacidad_url": cfg.aviso_privacidad_url,
             "preferencias": {k: v for k, v in cat.PREFERENCIAS.items() if k != "ninguno"}}
 
 

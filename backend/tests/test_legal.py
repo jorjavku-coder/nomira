@@ -120,3 +120,12 @@ def test_solicitudes_arco(cliente, plataforma):
                       json={"estado": "remitida_al_despacho", "nota": "Es cliente del despacho X (responsable); se le remitió y se informó al titular."})
     s = plataforma.c.get("/api/plataforma/legal/arco", headers=plataforma.h).json()["solicitudes"][0]
     assert s["estado"] == "remitida_al_despacho" and s["atendida_en"] is None and len(s["notas"]) == 2
+
+
+def test_uso_aceptable_y_anexo_ia_son_documentos_informativos(plataforma, cliente, org):
+    claves = [d["clave"] for d in cliente.get("/api/legal/documentos").json()["documentos"]]
+    assert "uso_aceptable" in claves and "anexo_ia" in claves
+    assert cliente.get("/api/legal/documentos/anexo_ia").json()["version"] is None  # sin texto aprobado: «en preparación»
+    publicar(plataforma, borrador(plataforma, documento="uso_aceptable")["id"])
+    assert cliente.get("/api/legal/documentos/uso_aceptable").json()["version"]["contenido"] == TEXTO
+    assert org.c.get("/api/legal/pendientes", headers=org.h).json()["pendientes"] == []  # no se piden aceptar por separado

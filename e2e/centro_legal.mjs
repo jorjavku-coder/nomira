@@ -17,7 +17,7 @@ const TEXTO = (t) => `# ${t}\n\nTexto de ejemplo cargado en pruebas (NO es un te
 let p = await nueva();
 await p.goto(base + "/legal");
 await p.getByText("En preparación").first().waitFor();
-ok(await p.getByText("En preparación").count() === 6, "sin textos aprobados, todo aparece «en preparación»");
+ok(await p.getByText("En preparación").count() === 8, "sin textos aprobados, todo aparece «en preparación»");
 await foto(p, "01-centro-vacio");
 
 // Plataforma: publicar versiones

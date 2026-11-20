@@ -19,11 +19,12 @@ export async function legalPublico(ruta: string, init?: RequestInit) {
 export const RUTA_DOC: Record<string, string> = {
   terminos: "/legal/terminos", privacidad: "/legal/privacidad", privacidad_simplificado: "/legal/privacidad_simplificado",
   cookies: "/legal/cookies", anexo_tratamiento: "/legal/anexo_tratamiento", subencargados: "/legal/subencargados",
+  uso_aceptable: "/legal/uso_aceptable", anexo_ia: "/legal/anexo_ia",
 };
 
 export const NOMBRE_DOC: Record<string, string> = {
   terminos: "Términos y condiciones", privacidad: "Aviso de privacidad", privacidad_simplificado: "Aviso simplificado", cookies: "Cookies",
-  anexo_tratamiento: "Anexo de tratamiento", subencargados: "Subencargados",
+  anexo_tratamiento: "Anexo de tratamiento", subencargados: "Subencargados", uso_aceptable: "Uso aceptable", anexo_ia: "IA e integraciones",
 };
 
 /** Lector de Markdown sencillo y seguro (sin HTML): títulos, párrafos, listas, negritas y enlaces. */

@@ -13,7 +13,9 @@ export default function ConfiguracionLeads() {
   const [listas, setListas] = useState<any>(null);
   const [wa, setWa] = useState<any>({ phone_number_id: "", numero: "", token: "", plantilla: "", plantilla_idioma: "es_MX" });
   const [mt, setMt] = useState<any>({ page_id: "", token: "" });
+  const [avisoUrl, setAvisoUrl] = useState("");
   useEffect(() => { api.get("/leads/config").then((x) => { setC(x); setListas({ materias: x.materias.join("\n"), motivos: x.motivos_perdida.join("\n"), dias: x.dias_sin_actividad });
+    setAvisoUrl(x.aviso_privacidad_url || "");
     setWa((w: any) => ({ ...w, phone_number_id: x.whatsapp.phone_number_id || "", numero: x.whatsapp.numero || "", plantilla: x.whatsapp.plantilla || "", plantilla_idioma: x.whatsapp.plantilla_idioma || "es_MX" })); })
     .catch((e) => setError(e.message)); }, []);
   async function hacer(fn: () => Promise<any>, exito: string) {
@@ -43,6 +45,19 @@ export default function ConfiguracionLeads() {
           </div>
           {admin && <button className="btn-turquesa mt-3" onClick={() => hacer(() => api.patch("/leads/config", { materias: listas.materias.split("\n"), motivos_perdida: listas.motivos.split("\n"),
             dias_sin_actividad: Number(listas.dias) }), "Listas guardadas.")}>Guardar listas</button>}
+        </section>
+
+        <section className="tarjeta p-5">
+          <h2 className="font-semibold text-marino">Aviso de privacidad del despacho</h2>
+          <p className="mt-1 text-sm text-slate-600">Su despacho es el responsable de los datos que dejan sus prospectos y necesita su propio aviso de privacidad.
+            El aviso de Nomira no lo sustituye. El enlace se mostrará junto a su formulario de contacto.</p>
+          <div className="mt-2"><Etiqueta clase={c.aviso_privacidad_url ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{c.aviso_privacidad_url ? "Enlace agregado" : "Falta el enlace"}</Etiqueta></div>
+          <label className="mt-3 block"><span className="etiqueta">Dirección de su aviso de privacidad (https://…)</span>
+            <input className="campo" type="url" inputMode="url" placeholder="https://www.sudespacho.mx/aviso-de-privacidad" disabled={!admin} maxLength={500}
+              value={avisoUrl} onChange={(e) => setAvisoUrl(e.target.value)} /></label>
+          {admin && <button className="btn-turquesa mt-3" onClick={() => hacer(() => api.patch("/leads/config", { aviso_privacidad_url: avisoUrl.trim() }),
+            avisoUrl.trim() ? "Enlace del aviso guardado." : "Se quitó el enlace del aviso.")}>Guardar enlace</button>}
+          <p className="mt-2 text-xs text-slate-500">¿Aún no tiene aviso? Consulte la guía y plantilla para despachos con su abogado. Nomira no redacta ni revisa el aviso de su despacho.</p>
         </section>
 
         <section className="tarjeta p-5">

@@ -28,6 +28,11 @@ DOCUMENTOS: dict[str, dict] = {
                           "evento": "aceptacion", "quien": "organizacion"},
     "subencargados": {"titulo": "Proveedores que tratan datos (subencargados)", "descripcion": "Lista de proveedores que participan en el servicio.",
                       "evento": None, "quien": None},
+    "uso_aceptable": {"titulo": "Uso aceptable y seguridad", "descripcion": "Qué no se permite hacer en Nomira y cómo reportar un problema de seguridad.",
+                      "evento": None, "quien": None},
+    "anexo_ia": {"titulo": "Inteligencia artificial e integraciones",
+                 "descripcion": "Qué información se envía a cada proveedor conectado y cómo deben revisarse las sugerencias de la IA.",
+                 "evento": None, "quien": None},
 }
 EVENTOS = {"aceptacion": "Aceptó", "lectura": "Confirmó haber leído", "marketing_otorgado": "Aceptó recibir información comercial",
            "marketing_revocado": "Retiró su consentimiento para información comercial", "aviso_mostrado": "Se le mostró el aviso"}

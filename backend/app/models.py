@@ -822,6 +822,8 @@ class LdConfig(Base):
     materias: Mapped[list | None] = mapped_column(JSON)  # materias o servicios que ofrece el despacho
     motivos_perdida: Mapped[list | None] = mapped_column(JSON)
     dias_sin_actividad: Mapped[int] = mapped_column(Integer, default=7)
+    # Enlace al aviso de privacidad PROPIO del despacho (responsable de los datos de sus prospectos)
+    aviso_privacidad_url: Mapped[str | None] = mapped_column(String(500))
     # Enlace público del formulario general (no es secreto: se publica en el sitio o en redes)
     formulario_token: Mapped[str | None] = mapped_column(String(40), unique=True)
     formulario_activo: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -1180,7 +1182,7 @@ class LgVersion(Base):
     __tablename__ = "lg_versiones"
     __table_args__ = (UniqueConstraint("documento", "numero"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    documento: Mapped[str] = mapped_column(String(40), index=True)  # terminos | privacidad | privacidad_simplificado | cookies | anexo_tratamiento | subencargados
+    documento: Mapped[str] = mapped_column(String(40), index=True)  # claves de services/legal.py DOCUMENTOS
     numero: Mapped[int] = mapped_column(Integer)  # consecutivo interno por documento
     version: Mapped[str] = mapped_column(String(30))  # etiqueta visible, p. ej. «1.0»
     titulo: Mapped[str] = mapped_column(String(200))

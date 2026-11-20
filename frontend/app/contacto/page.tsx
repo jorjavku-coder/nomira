@@ -86,6 +86,13 @@ export default function Contacto() {
                 <input type="checkbox" className="mt-0.5 h-4 w-4 accent-turquesa" required checked={d.acepta} onChange={set("acepta")} />
                 <span>Autorizo a <b>{info.despacho}</b> a contactarme por los medios que indiqué para atender esta solicitud. Puedo retirar esta autorización en cualquier momento.</span>
               </label>
+              <p className="text-xs text-slate-600">
+                <b>{info.despacho}</b> es responsable de los datos que deje en este formulario y los usará para atender su solicitud.{" "}
+                {info.aviso_privacidad_url
+                  ? <>Consulte su <a className="font-semibold text-turquesa-700 underline" href={info.aviso_privacidad_url} target="_blank" rel="noopener noreferrer nofollow">aviso de privacidad</a>.</>
+                  : <>El despacho aún no ha publicado aquí su aviso de privacidad; puede pedírselo directamente.</>}
+                {" "}El despacho usa Nomira como proveedor tecnológico.
+              </p>
               {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
               <button className="btn-turquesa w-full py-3 text-base" disabled={enviando}>{enviando ? "Enviando…" : "Enviar solicitud"}</button>
               <p className="text-center text-xs text-slate-500">Enviar este formulario no constituye asesoría jurídica ni una relación profesional.</p>

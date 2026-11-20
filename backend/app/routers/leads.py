@@ -177,7 +177,8 @@ def catalogos(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_
             "campanas": [{"id": c.id, "nombre": c.nombre, "canal": c.canal, "activa": c.activa} for c in camp],
             "puede_editar": u.rol in ("administrador", "analista"), "es_admin": u.rol == "administrador", "ve_datos": _ve_datos(u),
             "whatsapp_conectado": meta.wa_conectado(cfg), "correo_configurado": correo.configurado(),
-            "modulos": modulos.activos(db, u.organizacion_id), "dias_sin_actividad": cfg.dias_sin_actividad}
+            "modulos": modulos.activos(db, u.organizacion_id), "dias_sin_actividad": cfg.dias_sin_actividad,
+            "falta_aviso_privacidad": not cfg.aviso_privacidad_url}
 
 
 # ---------- bandeja ----------
@@ -1141,6 +1142,7 @@ def ver_config(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get
     falta = meta.faltantes_plataforma()
     db.commit()
     return {"materias": base.materias(cfg), "motivos_perdida": base.motivos(cfg), "dias_sin_actividad": cfg.dias_sin_actividad,
+            "aviso_privacidad_url": cfg.aviso_privacidad_url,
             "formulario": {"activo": cfg.formulario_activo, "enlace": enlace_formulario(cfg.formulario_token)},
             "entrada": {"configurada": bool(cfg.entrada_clave_hash), "pista": cfg.entrada_clave_pista, "url": f"{url}/api/leads-entrada"},
             "whatsapp": {"conectado": meta.wa_conectado(cfg), "phone_number_id": cfg.wa_phone_number_id, "numero": cfg.wa_numero,
@@ -1158,6 +1160,7 @@ class ConfigCambio(BaseModel):
     motivos_perdida: list[str] | None = None
     dias_sin_actividad: int | None = Field(None, ge=1, le=90)
     formulario_activo: bool | None = None
+    aviso_privacidad_url: str | None = Field(None, max_length=500)
 
 
 def _lista(v: list[str], n: int) -> list[str]:
@@ -1181,6 +1184,11 @@ def cambiar_config(d: ConfigCambio, request: Request, u: m.Usuario = Depends(sol
         cfg.dias_sin_actividad = datos["dias_sin_actividad"]
     if "formulario_activo" in datos:
         cfg.formulario_activo = bool(datos["formulario_activo"])
+    if "aviso_privacidad_url" in datos:
+        url_aviso = (datos["aviso_privacidad_url"] or "").strip()
+        if url_aviso and not re.fullmatch(r"https://[^\s<>\"']+\.[^\s<>\"']+", url_aviso):
+            raise HTTPException(422, "El enlace del aviso de privacidad debe ser una dirección completa que empiece con https://")
+        cfg.aviso_privacidad_url = url_aviso or None
     auditar(db, u, "ld_config_actualizada", "ld_config", cfg.id, {"campos": sorted(datos)}, request)
     db.commit()
     return ver_config(u, db)
