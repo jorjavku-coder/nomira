@@ -20,6 +20,14 @@ const MODULOS = [
     texto: "Alta guiada del caso, checklist por tipo de problema, folios, respuestas y seguimientos, y un portal donde el cliente ve sus avances y envía documentos.",
     puntos: ["Checklist editable por problema", "Folios, acuses y fechas con su naturaleza", "CURP y NSS cifrados y enmascarados", "Mensajes con aprobación del abogado", "WhatsApp oficial de Meta (opcional)"],
     imagen: "/sitio/afore.webp", alt: "Resumen «¿Qué requiere atención ahora?» de Nomira AFORE (datos ficticios)." },
+  { clave: "leads", nombre: "Nomira Leads", lema: "Ningún prospecto sin respuesta",
+    texto: "Una bandeja que le dice a quién atender hoy, un tablero de seguimiento y el próximo paso de cada prospecto. Sepa qué campañas de WhatsApp, correo y redes sociales le traen clientes.",
+    puntos: ["Alta de prospectos en menos de un minuto", "Tablero con etapas a su medida", "Campañas por WhatsApp, correo y redes", "Formulario de contacto para anuncios", "Resultados y costo por cliente"],
+    imagen: "/sitio/leads.webp", alt: "Bandeja «¿A quién hay que atender?» de Nomira Leads (datos ficticios)." },
+  { clave: "academia", nombre: "Nomira Academia", lema: "Capacite a su equipo a su ritmo",
+    texto: "Cursos breves y prácticos por materia: asígnelos a su equipo, vea quién avanza y quién terminó, y entregue constancias de participación al concluir.",
+    puntos: ["Cursos propios y cursos de Nomira", "Video, lecturas, materiales y preguntas", "Avance guardado: retoma donde se quedó", "Asignación por persona o equipo", "Constancia de participación en PDF"],
+    imagen: "/sitio/academia.webp", alt: "Pantalla «Mi aprendizaje» de Nomira Academia (datos ficticios)." },
 ];
 
 const PASOS = [
@@ -44,10 +52,12 @@ const PREGUNTAS = [
   ["¿Quién puede ver mis expedientes?", "Solo los usuarios de su organización. Ni otras empresas ni el equipo de Nomira tienen acceso a sus expedientes ni a sus documentos."],
   ["¿Tengo que instalar algo?", "No. Nomira funciona desde el navegador, en computadora o tableta."],
   ["¿Puedo corregir una lectura?", "Sí. Cada corrección pide un motivo y queda registrada; el comprobante original no se modifica."],
-  ["¿Tengo que contratar los tres módulos?", "No. Cada módulo funciona por separado: contrate Nómina y prestaciones, Nomira Evidencia, Nomira AFORE o la combinación que necesite. Desactivar un módulo no borra su información."],
+  ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: contrate Nómina y prestaciones, Nomira Evidencia, Nomira AFORE, Nomira Leads, Nomira Academia o la combinación que necesite. Desactivar un módulo no borra su información."],
   ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
   ["¿Cómo envía documentos mi cliente?", "Usted le manda un enlace seguro que vence: lo abre en su celular, confirma un código que le llega a su correo y sube sus archivos. Solo puede enviar; no ve nada interno de su despacho."],
   ["¿Nomira manda mensajes de WhatsApp por su cuenta?", "Solo con la API oficial de WhatsApp Business de Meta conectada a su número, con el consentimiento del cliente y, por omisión, con la aprobación del abogado. Si algo falta, el mensaje queda como borrador."],
+  ["¿Nomira Leads me consigue clientes?", "Nomira no publica anuncios ni promete clientes. Le ayuda a responder a tiempo a quien ya le contactó, a dar seguimiento ordenado y a medir qué campañas (WhatsApp, correo, redes sociales, su sitio web) le traen clientes."],
+  ["¿La constancia de Nomira Academia es una certificación oficial?", "No. Es una constancia de participación interna que indica curso, participante, despacho y fecha. No sustituye certificaciones, acreditaciones ni avales de ninguna institución."],
   ["¿Cómo empiezo?", "Llene el formulario de informes o escríbanos. Le damos de alta, activamos los módulos que necesite y le acompañamos en su primer caso."],
 ];
 
@@ -145,7 +155,7 @@ export default function SitioPublico() {
             <h2 className="font-marca text-3xl font-extrabold leading-tight">El trabajo repetitivo<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
             <p className="text-lg leading-relaxed text-white/75">
               Sumar quincenas a mano, buscar una fecha entre decenas de documentos, perseguir al cliente por un acta o recordar en qué va
-              cada folio con la AFORE. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
+              cada folio con la AFORE, dar seguimiento a cada prospecto o capacitar al equipo. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
           </div>
         </section>
 
@@ -154,12 +164,12 @@ export default function SitioPublico() {
           <div className="mx-auto max-w-6xl px-5 pt-20">
             <div className="max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Módulos</span>
-              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Tres módulos, una sola plataforma</h2>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Cinco módulos, una sola plataforma</h2>
               <p className="mt-3 text-slate-600">Cada uno funciona por separado y comparte los mismos usuarios, la bitácora y la seguridad de su despacho.</p>
             </div>
-            <div className="mt-10 grid gap-6 lg:grid-cols-3">
-              {MODULOS.map((m) => (
-                <article key={m.clave} className="tarjeta flex flex-col overflow-hidden">
+            <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
+              {MODULOS.map((m, i) => (
+                <article key={m.clave} className={`tarjeta flex flex-col overflow-hidden lg:col-span-2 ${i === 3 ? "lg:col-start-2" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.imagen} alt={m.alt} loading="lazy" className="aspect-[16/10] w-full border-b border-crema-300 bg-crema object-cover object-left-top" />
                   <div className="flex flex-1 flex-col p-6">
@@ -251,10 +261,12 @@ export default function SitioPublico() {
         <section>
           <div className="mx-auto max-w-6xl px-5 py-16">
             <h2 className="text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien trabaja con documentos y plazos</h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[["Despachos laborales", "Integre prestaciones con el respaldo de cada comprobante y arme el expediente probatorio."],
                 ["Familiar, civil y mercantil", "Ordene documentos, hechos y fechas de cada asunto, y detecte versiones distintas entre fuentes."],
                 ["Seguridad social y AFORE", "Lleve cada caso AFORE/SAR con su checklist, folios, respuestas y seguimientos al día."],
+                ["Despachos que quieren crecer", "Atienda cada consulta a tiempo y sepa qué campañas le traen clientes, sin depender de la memoria de nadie."],
+                ["Equipos en formación", "Capacite a abogados y personal de apoyo con cursos breves, y compruebe quién ya los terminó."],
                 ["Recursos humanos y áreas jurídicas", "Verifique pagos de varios periodos con trazabilidad completa, lista para un expediente."]].map(([t, d]) => (
                 <div key={t} className="rounded-3xl border border-crema-300 bg-white/60 p-6">
                   <h3 className="font-bold text-marino">{t}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{d}</p>
