@@ -24,6 +24,8 @@ MODULOS = {
               "por_defecto": False},
     "leads": {"nombre": "Nomira Leads", "descripcion": "Prospectos y consultas: bandeja, tablero de seguimiento, próximos pasos, campañas y origen de los clientes.",
               "por_defecto": False},
+    "agenda": {"nombre": "Nomira Agenda Jurídica", "descripcion": "Plazos, audiencias y actividades con responsables, alertas escalonadas y cálculo asistido de días hábiles.",
+               "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
 }

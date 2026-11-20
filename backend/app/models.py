@@ -1514,3 +1514,156 @@ class CmAsignacion(Base):
     motivo: Mapped[str | None] = mapped_column(String(300))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ================================================================== Nomira Agenda Jurídica
+
+class AgConfig(Base):
+    """Ajustes de la agenda por despacho (una fila por organización)."""
+    __tablename__ = "ag_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    alertas_plazo: Mapped[list | None] = mapped_column(JSON)  # días antes: [5, 3, 1, 0]
+    alertas_audiencia: Mapped[list | None] = mapped_column(JSON)  # [7, 1, 0]
+    escalar_a_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))  # vacío = administradores
+    resumen_diario: Mapped[bool] = mapped_column(Boolean, default=True)
+    hora_resumen: Mapped[int] = mapped_column(Integer, default=7)  # hora local (Ciudad de México)
+    calendario_id: Mapped[int | None] = mapped_column(ForeignKey("ag_calendarios.id", ondelete="SET NULL"))  # por defecto
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgCalendario(Base):
+    """Calendario de días hábiles de un tribunal o autoridad, capturado por el despacho."""
+    __tablename__ = "ag_calendarios"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    jurisdiccion: Mapped[str] = mapped_column(String(20), default="federal")  # federal | estatal
+    entidad: Mapped[str | None] = mapped_column(String(40))  # estado, si es estatal
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+    fuente: Mapped[str | None] = mapped_column(String(500))  # acuerdo o circular de donde salen los días
+    dias_semana_inhabiles: Mapped[list | None] = mapped_column(JSON)  # 0=lunes … 6=domingo; por defecto [5, 6]
+    incluir_descanso_lft: Mapped[bool] = mapped_column(Boolean, default=True)  # días de descanso obligatorio (art. 74 LFT)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgDia(Base):
+    __tablename__ = "ag_dias"
+    __table_args__ = (UniqueConstraint("calendario_id", "fecha"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    calendario_id: Mapped[int] = mapped_column(ForeignKey("ag_calendarios.id", ondelete="CASCADE"), index=True)
+    fecha: Mapped[date] = mapped_column(Date)
+    tipo: Mapped[str] = mapped_column(String(10), default="inhabil")  # inhabil | habil (habilitado de forma excepcional)
+    motivo: Mapped[str] = mapped_column(String(200))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+
+
+class AgAsunto(Base):
+    """Juicio o procedimiento que se sigue en la agenda."""
+    __tablename__ = "ag_asuntos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))  # p. ej. «Pérez vs. Empresa X»
+    numero: Mapped[str | None] = mapped_column(String(80))  # número de expediente o juicio
+    jurisdiccion: Mapped[str] = mapped_column(String(20), default="federal")
+    entidad: Mapped[str | None] = mapped_column(String(40))
+    tribunal: Mapped[str | None] = mapped_column(String(200))
+    materia: Mapped[str] = mapped_column(String(30))
+    calendario_id: Mapped[int | None] = mapped_column(ForeignKey("ag_calendarios.id", ondelete="SET NULL"))
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    expediente_id: Mapped[int | None] = mapped_column(ForeignKey("expedientes.id", ondelete="SET NULL"))
+    ev_asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ev_asuntos.id", ondelete="SET NULL"))
+    notas: Mapped[str | None] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(12), default="activo")  # activo | concluido | archivado
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgActuacion(Base):
+    """Lo que pasó en el asunto: acuerdos, notificaciones, promociones, audiencias celebradas."""
+    __tablename__ = "ag_actuaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="CASCADE"), index=True)
+    fecha: Mapped[date] = mapped_column(Date)
+    tipo: Mapped[str] = mapped_column(String(20))
+    descripcion: Mapped[str] = mapped_column(String(1000))
+    notificada_en: Mapped[date | None] = mapped_column(Date)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AgPlantilla(Base):
+    """Plazos frecuentes que el propio despacho define (Nomira no precarga plazos legales)."""
+    __tablename__ = "ag_plantillas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    materia: Mapped[str | None] = mapped_column(String(30))
+    dias: Mapped[int] = mapped_column(Integer)
+    tipo_dias: Mapped[str] = mapped_column(String(10), default="habiles")  # habiles | naturales
+    surte_efectos: Mapped[str] = mapped_column(String(25))  # mismo_dia | dia_habil_siguiente
+    fundamento: Mapped[str | None] = mapped_column(String(500))
+    alertas: Mapped[list | None] = mapped_column(JSON)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AgEvento(Base):
+    """Plazo, audiencia o actividad con responsable y alertas."""
+    __tablename__ = "ag_eventos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="CASCADE"), index=True)
+    actuacion_id: Mapped[int | None] = mapped_column(ForeignKey("ag_actuaciones.id", ondelete="SET NULL"))
+    tipo: Mapped[str] = mapped_column(String(15))  # plazo | audiencia | actividad
+    titulo: Mapped[str] = mapped_column(String(200))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    fecha: Mapped[date] = mapped_column(Date, index=True)  # vencimiento del plazo o día de la audiencia/actividad
+    hora: Mapped[str | None] = mapped_column(String(5))  # HH:MM
+    duracion_min: Mapped[int | None] = mapped_column(Integer)
+    lugar: Mapped[str | None] = mapped_column(String(300))
+    enlace: Mapped[str | None] = mapped_column(String(500))  # Zoom, Meet, Teams…
+    prioridad: Mapped[str] = mapped_column(String(10), default="normal")  # normal | alta | critica
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
+    apoyo_ids: Mapped[list | None] = mapped_column(JSON)
+    alertas: Mapped[list | None] = mapped_column(JSON)  # días antes
+    calculo: Mapped[dict | None] = mapped_column(JSON)  # cálculo asistido con su desglose
+    validado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    validado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | cumplido | cancelado
+    cumplido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cumplido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    nota_cierre: Mapped[str | None] = mapped_column(String(1000))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgPreferencia(Base):
+    __tablename__ = "ag_preferencias"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), unique=True)
+    resumen_diario: Mapped[bool] = mapped_column(Boolean, default=True)
+    alertas_correo: Mapped[bool] = mapped_column(Boolean, default=True)
+    feed_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)  # enlace para Google/Outlook
+    feed_detalle: Mapped[str] = mapped_column(String(10), default="reservado")  # reservado | completo
+    feed_creado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AgAviso(Base):
+    """Aviso ya generado (evita repetirlo). El correo es opcional; el aviso también se ve en Nomira."""
+    __tablename__ = "ag_avisos"
+    __table_args__ = (UniqueConstraint("evento_id", "usuario_id", "clave", "fecha_evento"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("ag_eventos.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    clave: Mapped[str] = mapped_column(String(20))  # d5 | d3 | d1 | d0 | escalado | vencido
+    nivel: Mapped[str] = mapped_column(String(15))  # anticipado | hoy | escalado | vencido
+    fecha_evento: Mapped[date] = mapped_column(Date)
+    correo: Mapped[bool] = mapped_column(Boolean, default=False)
+    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

@@ -20,6 +20,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   afore: <><path d="M12 3l8 4v2H4V7z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7M3 20h18" /></>,
   leads: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
+  agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
@@ -75,15 +76,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const deAfore = ruta.startsWith("/afore");
   const deLeads = ruta.startsWith("/leads");
   const deAcademia = ruta.startsWith("/academia");
+  const deAgenda = ruta.startsWith("/agenda");
   useEffect(() => {
     if (modulos && ruta === "/app" && !modulos.includes("nomina")) {
       if (modulos.includes("evidencia")) router.replace("/evidencia");
       else if (modulos.includes("afore")) router.replace("/afore");
       else if (modulos.includes("leads")) router.replace("/leads");
+      else if (modulos.includes("agenda")) router.replace("/agenda");
       else if (modulos.includes("academia")) router.replace("/academia");
     }
   }, [modulos, ruta, router]);
   const [sinLeer, setSinLeer] = useState(0);
+  const [agendaN, setAgendaN] = useState(0);
+  const conAgenda = (modulos ?? sesion?.modulos ?? []).includes("agenda");
+  useEffect(() => {
+    if (!sesion || !conAgenda) return;
+    const cargar = () => api.get("/agenda/contador").then((r) => setAgendaN(r.total)).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 300000);
+    window.addEventListener("nomira:agenda", cargar);
+    return () => { clearInterval(t); window.removeEventListener("nomira:agenda", cargar); };
+  }, [sesion, conAgenda]);
   useEffect(() => {
     if (!sesion) return;
     const cargar = () => api.get("/soporte/sin-leer").then((r) => setSinLeer(r.total)).catch(() => {});
@@ -94,13 +107,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
   const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
-    : activos.includes("leads") ? "/leads" : activos.includes("academia") ? "/academia" : "/perfil";
+    : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("academia") ? "/academia" : "/perfil";
   const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
-    || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia"));
+    || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"));
   const enlaces = [
     ...(activos.includes("nomina") ? [
       { href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
       { href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
+    ...(activos.includes("agenda") ? [
+      { href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     ...(activos.includes("evidencia") ? [
       { href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
     ...(activos.includes("afore") ? [
@@ -139,7 +154,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               {e.activo && <span className="absolute -left-3 top-2 hidden h-6 w-1 rounded-r bg-turquesa-brillante lg:block" aria-hidden />}
               <span className={e.activo ? "text-turquesa-brillante" : ""}><Icono nombre={e.icono} /></span>
               <span className="flex-1">{e.texto}</span>
-              {!!(e as any).n && <span className="rounded-full bg-turquesa-brillante px-1.5 text-[11px] font-bold text-marino-900" aria-label={`${(e as any).n} respuestas nuevas`}>{(e as any).n}</span>}
+              {!!(e as any).n && <span className="rounded-full bg-turquesa-brillante px-1.5 text-[11px] font-bold text-marino-900" aria-label={`${(e as any).n} ${e.href === "/agenda" ? "pendientes vencidos o de hoy" : "respuestas nuevas"}`}>{(e as any).n}</span>}
             </Link>
           ))}
         </nav>

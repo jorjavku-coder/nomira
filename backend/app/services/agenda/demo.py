@@ -1,0 +1,58 @@
+"""Datos de demostración de Nomira Agenda Jurídica (ficticios). Se crean una sola vez."""
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from ... import models as m
+from .. import modulos
+from . import base
+from .dias import Calendario, calcular
+
+
+def sembrar(db: Session, email: str = "admin@demo.local") -> bool:
+    admin = db.scalar(select(m.Usuario).where(m.Usuario.email == email))
+    if not admin:
+        return False
+    oid = admin.organizacion_id
+    if db.scalar(select(m.OrganizacionModulo.id).where(m.OrganizacionModulo.organizacion_id == oid, m.OrganizacionModulo.modulo == "agenda")):
+        return False
+    modulos.fijar(db, oid, "agenda", contratado=True, activo=True)
+    analista = db.scalar(select(m.Usuario).where(m.Usuario.organizacion_id == oid, m.Usuario.rol == "analista")) or admin
+    hoy = base.hoy()
+    cal = m.AgCalendario(organizacion_id=oid, nombre="Tribunal Laboral Ficticio (demostración)", jurisdiccion="estatal", entidad="Ciudad de México",
+                         fuente="Ejemplo: capture aquí la circular o acuerdo oficial del tribunal.", dias_semana_inhabiles=[5, 6], incluir_descanso_lft=True)
+    db.add(cal)
+    db.flush()
+    db.add(m.AgDia(calendario_id=cal.id, fecha=hoy + timedelta(days=9), motivo="Suspensión de labores (ejemplo ficticio)", creado_por_id=admin.id))
+    conf = base.config(db, oid)
+    conf.calendario_id = cal.id
+    a1 = m.AgAsunto(organizacion_id=oid, titulo="Ruiz Ficticio vs. Comercializadora Demo", numero="1450/2026", jurisdiccion="estatal",
+                    entidad="Ciudad de México", tribunal="Tribunal Laboral Ficticio", materia="laboral", calendario_id=cal.id,
+                    responsable_id=analista.id, creado_por_id=admin.id, actualizado_en=m.ahora())
+    a2 = m.AgAsunto(organizacion_id=oid, titulo="Amparo indirecto Demo", numero="88/2026", jurisdiccion="federal", tribunal="Juzgado de Distrito Ficticio",
+                    materia="amparo", responsable_id=admin.id, creado_por_id=admin.id, actualizado_en=m.ahora())
+    db.add_all([a1, a2])
+    db.flush()
+    notif = hoy - timedelta(days=3)
+    act = m.AgActuacion(organizacion_id=oid, asunto_id=a1.id, fecha=notif - timedelta(days=1), tipo="acuerdo",
+                        descripcion="Acuerdo que admite la demanda y ordena emplazar (ejemplo)", notificada_en=notif, creado_por_id=admin.id)
+    db.add(act)
+    db.flush()
+    r = calcular(base.calendario(db, cal.id, oid), notif, 10, "habiles", "dia_habil_siguiente")
+    r["calendario_id"], r["ajuste_manual"] = cal.id, None
+    db.add_all([
+        m.AgEvento(organizacion_id=oid, asunto_id=a1.id, actuacion_id=act.id, tipo="plazo", titulo="Contestar demanda (ejemplo)",
+                   fecha=date.fromisoformat(r["vence"]),
+                   prioridad="critica", responsable_id=analista.id, apoyo_ids=[admin.id], calculo=r, creado_por_id=admin.id),
+        m.AgEvento(organizacion_id=oid, asunto_id=a1.id, tipo="audiencia", titulo="Audiencia preliminar", fecha=hoy, hora="11:00", duracion_min=90,
+                   enlace="https://meet.google.com/abc-defg-hij", prioridad="alta", responsable_id=admin.id, creado_por_id=admin.id),
+        m.AgEvento(organizacion_id=oid, asunto_id=a2.id, tipo="plazo", titulo="Desahogar vista (ejemplo)", fecha=hoy - timedelta(days=1),
+                   prioridad="alta", responsable_id=admin.id, creado_por_id=admin.id),
+        m.AgEvento(organizacion_id=oid, asunto_id=a2.id, tipo="actividad", titulo="Revisar lista de acuerdos", fecha=hoy + timedelta(days=2),
+                   creado_por_id=admin.id),
+    ])
+    db.commit()
+    return True
