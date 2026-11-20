@@ -56,6 +56,9 @@ def _limpiar():
     _plataforma._intentos.clear()
     from app.routers import solicitudes
     solicitudes._envios.clear()
+    from app.routers import comercial_publico
+    comercial_publico._ver_ip._eventos.clear()
+    comercial_publico._accion_ip._eventos.clear()
     yield
 
 
@@ -129,7 +132,8 @@ class Plataforma:
         from app.security import hash_contrasena
         self.c = cliente
         with SessionLocal() as s:
-            s.add(m.AdminPlataforma(email=self.EMAIL, nombre="Dueño de Nomira", hash_contrasena=hash_contrasena(self.CONTRASENA)))
+            s.add(m.AdminPlataforma(email=self.EMAIL, nombre="Dueño de Nomira", hash_contrasena=hash_contrasena(self.CONTRASENA),
+                                    rol="superadministrador"))
             s.commit()
         r = cliente.post("/api/plataforma/login", json={"email": self.EMAIL, "contrasena": self.CONTRASENA})
         assert r.status_code == 200, r.text

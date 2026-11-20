@@ -76,6 +76,12 @@ services:
         value: "false"
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Módulo Comercial: pago con tarjeta por Stripe Checkout. SOLO llaves de PRUEBA (sk_test_… y whsec_…);
+      # una llave real se rechaza. Vacío = «Pago en línea pendiente de configuración».
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
       # Render pone Cloudflare delante; este encabezado lo fija Cloudflare y no se puede falsificar
       # (X-Forwarded-For sí: Render no lo limpia).
       - key: IP_CLIENTE_ENCABEZADO

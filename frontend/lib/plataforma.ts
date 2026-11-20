@@ -6,7 +6,8 @@ import { ErrorApi } from "@/lib/api";
 const LLAVE = "nomira_plataforma";
 const EVENTO = "nomira-plataforma-sesion";
 
-export type AdminP = { id: number; nombre: string; email: string; activo: boolean; ultimo_acceso: string | null };
+export type AdminP = { id: number; nombre: string; email: string; activo: boolean; ultimo_acceso: string | null; rol?: string };
+export const esSuperadmin = (s: SesionP | null) => s?.admin.rol === "superadministrador";
 export type SesionP = { token: string; admin: AdminP };
 
 export function leerSesionP(): SesionP | null {
@@ -58,4 +59,6 @@ export const apiP = {
     (await pedir(ruta, { method: "PUT", body: JSON.stringify(cuerpo) })).json(),
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
   texto: async (ruta: string): Promise<string> => (await pedir(ruta)).text(),
+  /** Descarga binaria (PDF): devuelve un Blob. */
+  blob: async (ruta: string): Promise<Blob> => (await pedir(ruta)).blob(),
 };

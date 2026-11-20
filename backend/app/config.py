@@ -58,6 +58,10 @@ class Ajustes(BaseSettings):
     # API oficial de CURP (opcional, deshabilitada sin credenciales y sin autorización por organización)
     curp_api_url: str = ""
     curp_api_key: str = ""
+    # Stripe Checkout para cotizaciones (módulo Comercial). SOLO llaves de prueba (sk_test_…): una llave
+    # real se rechaza mientras el flujo no se habilite formalmente para producción.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
     plataforma_admin_email: str = ""
     plataforma_admin_contrasena: str = ""
 

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import ShellPlataforma, { Credenciales, useSesionP } from "@/components/plataforma";
 import { Aviso, Avatar, CampoContrasena, Chip, Modal } from "@/components/ui";
 import { fechaHora } from "@/lib/api";
-import { apiP, guardarSesionP, leerSesionP } from "@/lib/plataforma";
+import { apiP, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
+
+const ROLES: Record<string, string> = { superadministrador: "Superadministrador", soporte: "Soporte" };
 
 export default function Admins() {
   const sesion = useSesionP();
@@ -47,9 +49,15 @@ export default function Admins() {
                 <div className="min-w-[12rem] flex-1">
                   <div className="flex items-center gap-2"><span className="font-semibold text-marino">{a.nombre}</span>
                     {yo && <span className="rounded-full bg-turquesa-50 px-2 py-0.5 text-[11px] font-semibold text-turquesa-700">Usted</span>}
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${a.rol === "superadministrador" ? "bg-amber-100 text-amber-800" : "bg-crema-200 text-marino"}`}>{ROLES[a.rol] || a.rol}</span>
                     {!a.activo && <Chip estado="archivado" texto="Desactivado" />}</div>
                   <div className="text-sm text-slate-500">{a.email} · último acceso: {a.ultimo_acceso ? fechaHora(a.ultimo_acceso) : "nunca"}</div>
                 </div>
+                {!yo && esSuperadmin(sesion) && <select aria-label={`Rol de ${a.nombre}`} className="campo w-auto" value={a.rol} onChange={async (e) => {
+                  setError(""); setOk("");
+                  try { await apiP.patch(`/admins/${a.id}`, { rol: e.target.value }); setOk(`${a.nombre} ahora es ${ROLES[e.target.value]}. Deberá volver a iniciar sesión.`); cargar(); }
+                  catch (err: any) { setError(err.message); }
+                }}>{Object.entries(ROLES).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>}
                 {!yo && <button className="btn-sec" onClick={async () => {
                   setError(""); setOk("");
                   try { await apiP.patch(`/admins/${a.id}`, { activo: !a.activo }); setOk(a.activo ? `${a.nombre} ya no puede entrar al panel.` : `${a.nombre} puede entrar de nuevo.`); cargar(); }
@@ -81,7 +89,8 @@ export default function Admins() {
 }
 
 function NuevoAdmin({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r: any) => void }) {
-  const [f, setF] = useState({ nombre: "", email: "" });
+  const [f, setF] = useState({ nombre: "", email: "", rol: "soporte" });
+  const sesion = useSesionP();
   const [error, setError] = useState("");
   async function enviar(e: React.FormEvent) {
     e.preventDefault(); setError("");
@@ -92,7 +101,9 @@ function NuevoAdmin({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r: 
       <form className="space-y-3" onSubmit={enviar}>
         <label className="block"><span className="etiqueta">Nombre</span><input className="campo" required minLength={2} autoFocus value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></label>
         <label className="block"><span className="etiqueta">Correo</span><input className="campo" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
-        <p className="text-xs text-slate-500">Tendrá acceso completo a este panel (solicitudes, clientes y soporte), pero tampoco podrá ver expedientes.</p>
+        {esSuperadmin(sesion) && <label className="block"><span className="etiqueta">Rol</span>
+          <select className="campo" value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value })}>{Object.entries(ROLES).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>}
+        <p className="text-xs text-slate-500">Soporte: solicitudes, clientes, suscripciones, correos, soporte y legal. Superadministrador: además el módulo Comercial y los roles. Nadie en este panel puede ver expedientes.</p>
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-primario">Crear</button></div>
       </form>

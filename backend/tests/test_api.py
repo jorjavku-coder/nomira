@@ -583,4 +583,4 @@ def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, plataforma, d
     solicitudes._envios.clear()
     codigos = [cliente.post("/api/solicitudes", json={**base, "tipo": "informes"}).status_code for _ in range(6)]
     assert codigos == [201] * 5 + [429]
-    assert cliente.get("/api/publico").json() == {"permitir_registro": True, "whatsapp": None}
+    assert cliente.get("/api/publico").json() == {"permitir_registro": True, "whatsapp": None, "precio_desde": None}

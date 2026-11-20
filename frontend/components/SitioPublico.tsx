@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import FormularioInformes from "@/components/FormularioInformes";
 import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
-import { api, leerSesion } from "@/lib/api";
+import { api, leerSesion, mxn } from "@/lib/api";
 
 const NAV = [["#modulos", "Módulos"], ["#clientes", "Portal del cliente"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
 
@@ -170,6 +170,7 @@ function BotonWhatsApp({ numero }: { numero: string }) {
 
 export default function SitioPublico() {
   const [whatsapp, setWhatsapp] = useState<string | null>(null);
+  const [desde, setDesde] = useState<string | null>(null);
   const [conSesion, setConSesion] = useState(false);
   const [menu, setMenu] = useState(false);
   const raiz = useRef<HTMLDivElement>(null);
@@ -177,7 +178,7 @@ export default function SitioPublico() {
   const { oscuro, cambiar } = useTema();
   useEffect(() => {
     setConSesion(!!leerSesion());
-    api.get("/publico").then((p) => setWhatsapp(p.whatsapp || null)).catch(() => {});
+    api.get("/publico").then((p) => { setWhatsapp(p.whatsapp || null); setDesde(p.precio_desde || null); }).catch(() => {});
   }, []);
   const acceso = conSesion
     ? <Link href="/app" className="btn-turquesa">Ir a Nomira</Link>
@@ -454,6 +455,8 @@ export default function SitioPublico() {
               <span className="rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">Informes y suscripción</span>
               <h2 className="mt-4 font-marca text-3xl font-extrabold leading-tight text-marino sm:text-4xl">Hablemos de su operación</h2>
               <p className="mt-3 text-slate-600">Cuéntenos qué módulos le interesan, cuántos asuntos lleva y cómo trabaja hoy. Le respondemos para explicarle cómo empezar.</p>
+              {desde && <p className="mt-4 inline-flex items-center gap-2 rounded-xl border border-turquesa/40 bg-turquesa-50 px-4 py-2 text-sm text-marino">
+                <b>Paquetes desde {mxn(desde).replace(/\.00$/, "")} MXN + IVA</b><span className="text-slate-600">· le enviamos una cotización a la medida</span></p>}
               {whatsapp && (
                 <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, me interesa conocer Nomira.")}`} target="_blank" rel="noopener noreferrer"
                   className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2.5 text-sm font-semibold text-[#128C4B] transition hover:bg-[#25D366]/20">

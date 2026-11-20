@@ -9,8 +9,9 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, afore, afore_publico, auth, catalogos, documentos, evidencia, evidencia_publica, expedientes, ia,
-                      leads, leads_publico, legal, organizacion, plataforma, plataforma_legal, soporte, solicitudes)
+from .routers import (academia, afore, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+                      evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_legal,
+                      soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
 from .services.modulos import requiere_modulo
@@ -90,6 +91,8 @@ app.include_router(academia.router, dependencies=[Depends(requiere_modulo("acade
 # Centro Legal: documentos publicados (públicos), solicitudes ARCO y aceptación; y su administración en el panel
 app.include_router(legal.router)
 app.include_router(plataforma_legal.router)
+app.include_router(comercial.router)  # solo superadministrador (dependencia en el propio router)
+app.include_router(comercial_publico.router)
 
 
 @app.get("/api/salud")

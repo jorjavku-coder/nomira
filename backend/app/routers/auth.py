@@ -120,10 +120,19 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/publico")
-def publico():
-    """Datos no sensibles para la página de inicio."""
+def publico(db: Session = Depends(get_db)):
+    """Datos no sensibles para la página de inicio. Por defecto NO se publican precios; si Nomira lo
+    elige, solo el «desde» (el precio más bajo de los paquetes activos), nunca el desglose."""
+    from ..services.comercial import base as cm
+
     digitos = re.sub(r"\D", "", ajustes().whatsapp_contacto)
-    return {"permitir_registro": ajustes().permitir_registro, "whatsapp": digitos if 10 <= len(digitos) <= 15 else None}
+    desde = None
+    c = db.scalar(select(m.CmConfig))
+    if c and c.precios_publicos == "desde":
+        minimo = db.scalar(select(func.min(m.CmPaquete.precio_mensual)).where(m.CmPaquete.estado == "activo"))
+        desde = cm.txt(minimo) if minimo is not None else None
+    return {"permitir_registro": ajustes().permitir_registro, "whatsapp": digitos if 10 <= len(digitos) <= 15 else None,
+            "precio_desde": desde}
 
 
 @router.post("/auth/registro", status_code=201)

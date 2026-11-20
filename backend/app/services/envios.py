@@ -24,7 +24,7 @@ MAX_ERRORES_DIA = 3
 
 def registrar_y_enviar(db: Session, tipo: str, destinatarios: list[str], asunto: str, html: str, texto: str, *,
                        organizacion_id: int | None = None, periodo_id: int | None = None,
-                       llave: str | None = None) -> m.CorreoEnviado | None:
+                       llave: str | None = None, adjuntos: list | None = None) -> m.CorreoEnviado | None:
     """Devuelve el registro, o None si esa llave ya se había enviado."""
     r = m.CorreoEnviado(tipo=tipo, organizacion_id=organizacion_id, periodo_id=periodo_id, llave=llave,
                         destinatarios=", ".join(destinatarios)[:1000], asunto=asunto[:300], estado="enviando")
@@ -35,7 +35,7 @@ def registrar_y_enviar(db: Session, tipo: str, destinatarios: list[str], asunto:
         db.rollback()
         return None
     try:
-        correo.enviar(destinatarios, asunto, html, texto)
+        correo.enviar(destinatarios, asunto, html, texto, **({"adjuntos": adjuntos} if adjuntos else {}))
         r.estado = "enviado"
     except correo.CorreoError as e:
         r.estado, r.error, r.llave = "error", str(e)[:2000], None

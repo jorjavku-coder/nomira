@@ -29,7 +29,7 @@ def main() -> None:
             a.sesion_version += 1
             print(f"Se restableció la contraseña de {email}.")
         else:
-            db.add(m.AdminPlataforma(email=email, nombre=nombre, hash_contrasena=hash_contrasena(contrasena)))
+            db.add(m.AdminPlataforma(email=email, nombre=nombre, hash_contrasena=hash_contrasena(contrasena), rol="superadministrador"))
             print(f"Se creó el administrador de la plataforma {email}.")
         db.commit()
 
