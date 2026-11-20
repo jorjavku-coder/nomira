@@ -3,6 +3,13 @@
 # Si la API o la interfaz terminan, el contenedor termina también, para que la plataforma lo
 # reinicie (antes, si se caía la API, la interfaz seguía arriba respondiendo errores).
 set -e
+# Los archivos de los despachos deben guardarse en el disco permanente. Si la carpeta no se puede
+# escribir, es mejor no arrancar que aceptar archivos que se perderían.
+mkdir -p "${STORAGE_DIR:-/datos/almacen}" 2>/dev/null || true
+if ! ( touch "${STORAGE_DIR:-/datos/almacen}/.prueba_escritura" && rm -f "${STORAGE_DIR:-/datos/almacen}/.prueba_escritura" ); then
+  echo "ERROR: no se puede escribir en ${STORAGE_DIR:-/datos/almacen}. Revise el disco permanente (Render > Disks)." >&2
+  exit 1
+fi
 cd /app/backend
 alembic upgrade head
 

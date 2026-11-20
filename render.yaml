@@ -1,12 +1,18 @@
-# Despliegue de DEMOSTRACIÓN en Render (https://render.com) con un clic: «New > Blueprint».
-# Plan gratuito: el servicio se duerme tras unos minutos sin uso (el primer acceso tarda ~1 min),
-# el disco es temporal y la base de datos gratuita caduca a los 30 días. No lo use con datos reales.
+# Despliegue de Nomira en Render (https://render.com) con «New > Blueprint».
+# Planes de PAGO: servicio siempre encendido, disco permanente para los archivos que suben los
+# despachos (montado en /datos) y base de datos sin caducidad con recuperación a un punto en el tiempo.
+# Los nombres de plan son los identificadores de Render (https://render.com/docs/blueprint-spec).
 services:
   - type: web
     name: nomira-demo
     runtime: docker
     dockerfilePath: ./Dockerfile.demo
-    plan: free
+    plan: 0.5c-512mb
+    # Archivos subidos (expedientes, evidencia, comprobantes). STORAGE_DIR=/datos/almacen (Dockerfile).
+    disk:
+      name: nomira-archivos
+      mountPath: /datos
+      sizeGB: 5
     healthCheckPath: /api/salud  # pasa por Next y comprueba API y base de datos
     envVars:
       - key: DATABASE_URL
@@ -77,4 +83,4 @@ services:
 
 databases:
   - name: nomira-db
-    plan: free
+    plan: 0.1c-256mb
