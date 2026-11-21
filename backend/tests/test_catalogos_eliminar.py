@@ -10,6 +10,9 @@ def test_eliminar_catalogo_y_version(org, org2, db):
     assert usado["expedientes"] == 1
     r = org.c.delete(f"/api/catalogos/{usado['id']}", headers=org.h)
     assert r.status_code == 409 and "1 expediente" in r.json()["detail"]
+    lista = org.c.get(f"/api/catalogos/{usado['id']}/expedientes", headers=org.h).json()
+    assert [x["nombre"] for x in lista] == ["EJEMPLO SINTETICO"]
+    assert org2.c.get(f"/api/catalogos/{usado['id']}/expedientes", headers=org2.h).status_code == 404
     v_usada = next(v for v in usado["versiones"] if v["expedientes"])
     assert org.c.delete(f"/api/catalogos/versiones/{v_usada['id']}", headers=org.h).status_code == 409
 

@@ -107,6 +107,16 @@ def listar(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)
              "versiones": [{**_v(v), "expedientes": usos.get(v.id, 0)} for v in c.versiones]} for c in cats]
 
 
+@router.get("/{cid}/expedientes")
+def expedientes_que_lo_usan(cid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """Expedientes que impiden eliminar el catálogo (para mostrarlos y poder ir a ellos)."""
+    c = obtener(db, m.Catalogo, cid, u)
+    ids = [v.id for v in c.versiones]
+    filas = db.scalars(select(m.Expediente).where(m.Expediente.organizacion_id == u.organizacion_id,
+                                                  m.Expediente.catalogo_version_id.in_(ids)).order_by(m.Expediente.id.desc())) if ids else []
+    return [{"id": e.id, "nombre": e.trabajador_nombre, "estado": e.estado} for e in filas]
+
+
 @router.delete("/{cid}")
 def eliminar_catalogo(cid: int, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
     """Elimina el catálogo con todas sus versiones, SOLO si ningún expediente lo usa: un expediente
