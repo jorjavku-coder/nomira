@@ -30,7 +30,7 @@ const sec = page.locator("section", { hasText: "Catálogo de prueba para borrar"
 await sec.waitFor();
 await sec.locator('input[type="file"]').setInputFiles(pdf);
 await page.getByText("Subiendo «Prestaciones.pdf»…").waitFor({ timeout: 5000 });
-ok(await page.locator("svg.nm-carga").count() >= 1, "mientras sube, aparece el logotipo de Nomira animado");
+ok(await page.locator("svg.nm-girando").count() >= 1, "mientras sube, aparece al centro el logotipo de Nomira girando");
 await page.screenshot({ path: `${dir}/carga-01-subiendo.png` });
 await page.getByText("«Prestaciones.pdf» se cargó con éxito.").waitFor({ timeout: 120000 });
 ok(true, "al terminar avisa que el archivo se cargó con éxito");
@@ -43,8 +43,11 @@ await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click()
 await page.getByText("Se eliminó el catálogo «Catálogo de prueba para borrar».").waitFor();
 await page.getByRole("heading", { name: "Catálogo de prueba para borrar" }).waitFor({ state: "detached" });
 ok(true, "se elimina un catálogo que ningún expediente usa");
-const usado = page.locator("section button.btn-peligro[disabled]");
-ok(await usado.count() >= 1, "un catálogo que usan expedientes no se puede eliminar");
+await page.locator("section", { hasText: "Prestaciones (transcripción" }).locator("button.btn-peligro").click();
+await page.getByRole("dialog").getByText(/Lo usan \d+ expediente/).waitFor();
+ok(await page.getByRole("dialog").getByRole("link", { name: "Abrir" }).count() >= 1, "si lo usan expedientes, explica por qué y muestra cuáles");
+await page.screenshot({ path: `${dir}/carga-04-en-uso.png` });
+await page.getByRole("button", { name: "Entendido" }).click();
 await page.screenshot({ path: `${dir}/carga-03-catalogos.png`, fullPage: true });
 ok(errores.length === 0, "sin errores en la consola: " + errores.join(" | "));
 await browser.close();

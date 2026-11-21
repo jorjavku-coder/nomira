@@ -1,25 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
 
-/** Logotipo de Nomira animado: las tres barras se llenan en orden y la palomita se enciende. */
-export function LogoCargando({ className = "h-14 w-14", oscuro = false }: { className?: string; oscuro?: boolean }) {
-  const tinta = oscuro ? "#FFFFFF" : "#123048";
-  const acento = oscuro ? "#01E9CD" : "#01B2A6";
+/** Logotipo de Nomira girando dentro de un aro turquesa. */
+export function LogoCargando({ tam = 112 }: { tam?: number }) {
   return (
-    <svg viewBox="15 15 290 315" className={`nm-carga ${className}`} aria-hidden="true" focusable="false">
-      <path className="nm-arco" fill={tinta} d="M25 88V60q0-35 35-35h140q93 0 93 93v34l-75 68v-82q0-53-53-53H48q-14 0-23 3z" />
-      <rect className="nm-barra" fill={tinta} x="28" y="117" width="162" height="38" rx="19" />
-      <rect className="nm-barra nm-barra-2" fill={tinta} x="28" y="184" width="162" height="38" rx="19" />
-      <rect className="nm-barra nm-barra-3" fill={tinta} x="28" y="253" width="100" height="38" rx="19" />
-      <path className="nm-acento" fill={acento} d="M293 187v101q0 32-32 32h-65q-10 0-18-8l-30-30q-10-12 2-22t23 0l22 22z" />
-    </svg>
+    <span className="relative inline-flex items-center justify-center" style={{ width: tam, height: tam }} aria-hidden>
+      <svg viewBox="0 0 100 100" className="nm-aro absolute inset-0 h-full w-full">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#C2EFEA" strokeWidth="5" />
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#01B2A6" strokeWidth="5" strokeLinecap="round" strokeDasharray="70 220" />
+      </svg>
+      <span className="flex items-center justify-center rounded-full bg-white shadow-flotante" style={{ width: tam * 0.74, height: tam * 0.74 }}>
+        <svg viewBox="15 15 290 315" className="nm-girando" style={{ width: tam * 0.42, height: tam * 0.42 }} focusable="false">
+          <path fill="#123048" d="M25 88V60q0-35 35-35h140q93 0 93 93v34l-75 68v-82q0-53-53-53H48q-14 0-23 3z" />
+          <rect fill="#123048" x="28" y="117" width="162" height="38" rx="19" />
+          <rect fill="#123048" x="28" y="184" width="162" height="38" rx="19" />
+          <rect fill="#123048" x="28" y="253" width="100" height="38" rx="19" />
+          <path fill="#01B2A6" d="M293 187v101q0 32-32 32h-65q-10 0-18-8l-30-30q-10-12 2-22t23 0l22 22z" />
+        </svg>
+      </span>
+    </span>
   );
 }
 
 // ------------------------------------------------------------------ registro global de peticiones
 
 type Tipo = "subida" | "entrada" | "guardado" | "lectura";
-type Trabajo = { id: number; tipo: Tipo; texto: string; inicio: number };
+type Trabajo = { id: number; tipo: Tipo; texto: string; inicio: number; fin?: number };
 type Aviso = { id: number; tipo: "ok" | "error"; texto: string; hasta: number };
 
 const trabajos = new Map<number, Trabajo>();
@@ -55,7 +61,8 @@ function recuperar() {
 const SILENCIOSAS = [/\/contador$/, /\/sin-leer$/, /\/avisos\/leidos$/, /\/agenda\/calcular$/, /\/lecciones\/\d+\/scorm$/, /\/no-leidos/, /\/salud$/];
 const ENTRADA = /^\/api\/(auth\/login|plataforma\/login)(\/codigo)?$/;
 const ultimaLectura = new Map<string, number>();
-const UMBRAL = { subida: 120, entrada: 150, guardado: 450, lectura: 650 };
+const UMBRAL = { subida: 0, entrada: 0, guardado: 400, lectura: 500 };
+const MINIMO = 900; // una vez visible, el logotipo se queda al menos esto (ms) para que se alcance a ver
 const TEXTO: Record<Tipo, string> = { subida: "Subiendo archivo…", entrada: "Entrando…", guardado: "Guardando…", lectura: "Cargando…" };
 
 function archivosDe(body: any): string[] {
@@ -103,7 +110,10 @@ function instalar() {
       if (tipo !== "lectura") notificar("No hay conexión con Nomira. Revise su internet e intente de nuevo.", "error");
       throw e;
     } finally {
-      trabajos.delete(t.id);
+      const visible = Date.now() - t.inicio >= UMBRAL[t.tipo];
+      const resta = visible ? MINIMO - (Date.now() - t.inicio - UMBRAL[t.tipo]) : 0;
+      if (resta > 0 && t.tipo !== "lectura") { t.fin = Date.now(); setTimeout(() => { trabajos.delete(t.id); avisar(); }, resta); }
+      else trabajos.delete(t.id);
       avisar();
     }
   };
@@ -125,20 +135,14 @@ export default function IndicadorCarga() {
   const leyendo = !principal && vigentes.some((t) => t.tipo === "lectura");
   return (
     <>
-      {principal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-marino-900/45 p-6 backdrop-blur-[2px]" role="status" aria-live="polite" aria-busy="true">
-          <div className="nm-aparecer flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl bg-white px-8 py-7 text-center shadow-flotante">
-            <LogoCargando className="h-16 w-16" />
-            <div>
-              <p className="font-marca text-lg font-bold text-marino">{principal.texto}</p>
-              <p className="mt-1 text-xs text-slate-500">{principal.tipo === "subida" ? "No cierre esta ventana hasta que termine." : "Un momento, por favor."}</p>
-            </div>
+      {(principal || leyendo) && (
+        <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 p-6 ${principal ? "bg-marino-900/40 backdrop-blur-[2px]" : "pointer-events-none"}`}
+          role="status" aria-live="polite" aria-busy="true">
+          <div className="nm-aparecer flex flex-col items-center gap-3">
+            <LogoCargando tam={principal ? 120 : 96} />
+            <p className="rounded-full bg-white/95 px-4 py-1.5 text-center font-marca text-sm font-bold text-marino shadow-flotante">{principal ? principal.texto : "Cargando…"}</p>
+            {principal?.tipo === "subida" && <p className="rounded-full bg-white/90 px-3 py-1 text-xs text-slate-600">No cierre esta ventana hasta que termine.</p>}
           </div>
-        </div>
-      )}
-      {leyendo && (
-        <div className="nm-aparecer fixed bottom-5 right-5 z-[90] flex items-center gap-2 rounded-full bg-white/95 py-1.5 pl-2 pr-4 text-sm font-semibold text-marino shadow-flotante ring-1 ring-crema-300" role="status" aria-live="polite">
-          <LogoCargando className="h-6 w-6" /> Cargando…
         </div>
       )}
       <div className="pointer-events-none fixed inset-x-0 top-4 z-[110] flex flex-col items-center gap-2 px-4" aria-live="polite">
