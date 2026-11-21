@@ -12,7 +12,7 @@ from ..db import get_db
 from ..deps import auditar, ip_cliente, solo_admin, usuario_actual
 from ..freno import FrenoAcceso
 from ..models import ahora
-from ..services import fotos, modulos
+from ..services import dos_pasos, fotos, modulos
 from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
@@ -58,7 +58,7 @@ class CambioContrasena(BaseModel):
 def _u(u: m.Usuario) -> dict:
     return {"id": u.id, "nombre": u.nombre, "email": u.email, "rol": u.rol, "activo": u.activo,
             "organizacion_id": u.organizacion_id, "creado_en": u.creado_en.isoformat(),
-            "foto": fotos.data_url(u.foto)}
+            "foto": fotos.data_url(u.foto), "dos_pasos": dos_pasos.activo(u)}
 
 
 def _de_mi_org(db: Session, uid: int, u: m.Usuario) -> m.Usuario:
@@ -113,10 +113,54 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
         auditar(db, u, "login_rechazado_suspension", request=request)
         db.commit()
         raise HTTPException(403, "La cuenta de su organización está suspendida. Contacte a soporte de Nomira.")
+    if dos_pasos.activo(u):  # contraseña correcta: falta el código de la app
+        auditar(db, u, "login_paso_1", request=request)
+        db.commit()
+        return {"requiere_codigo": True, "reto": dos_pasos.crear_reto("usuario", u.id, u.sesion_version)}
     auditar(db, u, "login", request=request)
     db.commit()
+    return _sesion(db, u, org)
+
+
+def _sesion(db: Session, u: m.Usuario, org: m.Organizacion) -> dict:
     return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
             "organizacion": org.nombre, "modulos": modulos.activos(db, u.organizacion_id)}
+
+
+class SegundoPaso(BaseModel):
+    reto: str = Field(max_length=2000)
+    codigo: str = Field(max_length=20)
+
+
+@router.post("/auth/login/codigo")
+def login_codigo(d: SegundoPaso, request: Request, db: Session = Depends(get_db)):
+    """Segundo paso: código de 6 dígitos de la app (o uno de respaldo). El reto caduca en 5 minutos."""
+    ip = ip_cliente(request) or "-"
+    datos = dos_pasos.leer_reto(d.reto, "usuario")
+    if not datos:
+        raise HTTPException(401, "El inicio de sesión caducó. Vuelva a escribir su contraseña.")
+    llave = f"2p:{datos['sub']}"
+    if _intentos.bloqueado(ip, llave):
+        raise HTTPException(429, "Demasiados intentos. Espere unos minutos.")
+    u = db.get(m.Usuario, int(datos["sub"]))
+    if not u or not u.activo or u.eliminado_en or u.sesion_version != datos.get("ver") or not dos_pasos.activo(u):
+        raise HTTPException(401, "El inicio de sesión caducó. Vuelva a escribir su contraseña.")
+    via = dos_pasos.verificar(u, d.codigo)
+    if not via:
+        _intentos.fallo(ip, llave)
+        auditar(db, u, "login_codigo_fallido", request=request)
+        db.commit()
+        raise HTTPException(401, "Código incorrecto o ya usado.")
+    _intentos.exito(ip, llave)
+    org = db.get(m.Organizacion, u.organizacion_id)
+    if org.estado != "activa":
+        raise HTTPException(403, "La cuenta de su organización está suspendida. Contacte a soporte de Nomira.")
+    auditar(db, u, "login", request=request, detalle={"dos_pasos": via})
+    db.commit()
+    r = _sesion(db, u, org)
+    if via == "respaldo":
+        r["aviso"] = f"Usó un código de respaldo. Le quedan {len(u.totp_respaldo or [])}."
+    return r
 
 
 @router.get("/publico")
@@ -304,3 +348,90 @@ def auditoria(limite: int = 200, u: m.Usuario = Depends(solo_admin), db: Session
                        .order_by(m.Auditoria.id.desc()).limit(min(max(limite, 1), 1000)))
     return [{"id": a.id, "fecha": a.fecha.isoformat(), "usuario": a.usuario_email, "accion": a.accion,
              "entidad": a.entidad, "entidad_id": a.entidad_id, "detalle": a.detalle, "ip": a.ip} for a in filas]
+
+
+# ------------------------------------------------------------------ verificación en dos pasos
+
+class ConContrasena(BaseModel):
+    contrasena: str = Field(max_length=128)
+
+
+class ConCodigo(BaseModel):
+    codigo: str = Field(max_length=20)
+
+
+class QuitarDosPasos(BaseModel):
+    contrasena: str = Field(max_length=128)
+    codigo: str = Field(max_length=20)
+
+
+@router.get("/auth/yo/dos-pasos")
+def mis_dos_pasos(u: m.Usuario = Depends(usuario_actual)):
+    return dos_pasos.estado(u)
+
+
+@router.post("/auth/yo/dos-pasos/preparar")
+def preparar_dos_pasos(d: ConContrasena, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    if dos_pasos.activo(u):
+        raise HTTPException(409, "La verificación en dos pasos ya está activa.")
+    if not verificar_contrasena(d.contrasena, u.hash_contrasena):
+        raise HTTPException(422, "La contraseña no es correcta.")
+    secreto = dos_pasos.preparar(u)
+    auditar(db, u, "dos_pasos_preparado", request=request)
+    db.commit()
+    url = dos_pasos.uri(u.email, secreto)
+    return {"secreto": secreto, "uri": url, "qr_svg": dos_pasos.qr_svg(url)}
+
+
+@router.post("/auth/yo/dos-pasos/activar")
+def activar_dos_pasos(d: ConCodigo, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    cods = dos_pasos.activar(u, d.codigo)
+    if not cods:
+        raise HTTPException(422, "El código no coincide. Revise que la hora de su celular sea automática e intente con el código nuevo.")
+    auditar(db, u, "dos_pasos_activado", request=request)
+    db.commit()
+    return {"codigos_respaldo": cods, **dos_pasos.estado(u)}
+
+
+@router.post("/auth/yo/dos-pasos/respaldo")
+def nuevos_respaldo(d: ConCodigo, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    if not dos_pasos.activo(u) or dos_pasos.verificar(u, d.codigo) != "app":
+        raise HTTPException(422, "Escriba el código actual de su app.")
+    cods, u.totp_respaldo = dos_pasos.codigos_respaldo()
+    auditar(db, u, "dos_pasos_respaldo_nuevos", request=request)
+    db.commit()
+    return {"codigos_respaldo": cods, **dos_pasos.estado(u)}
+
+
+@router.post("/auth/yo/dos-pasos/desactivar")
+def desactivar_dos_pasos(d: QuitarDosPasos, request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    if not dos_pasos.activo(u):
+        raise HTTPException(409, "La verificación en dos pasos no está activa.")
+    if not verificar_contrasena(d.contrasena, u.hash_contrasena) or not dos_pasos.verificar(u, d.codigo):
+        raise HTTPException(422, "La contraseña o el código no son correctos.")
+    dos_pasos.quitar(u)
+    auditar(db, u, "dos_pasos_desactivado", request=request)
+    db.commit()
+    return dos_pasos.estado(u)
+
+
+@router.post("/usuarios/{uid}/dos-pasos/quitar")
+def quitar_dos_pasos_de_usuario(uid: int, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """Para quien perdió su celular y sus códigos de respaldo. Cierra sus sesiones; al entrar podrá activarla de nuevo."""
+    x = _de_mi_org(db, uid, u)
+    if x.id == u.id:
+        raise HTTPException(409, "Para su propia cuenta use Mi perfil.")
+    dos_pasos.quitar(x)
+    x.sesion_version += 1
+    auditar(db, u, "dos_pasos_quitado_por_admin", "usuario", x.id, request=request)
+    db.commit()
+    return _u(x)
+
+
+@router.post("/auth/yo/cerrar-sesiones")
+def cerrar_sesiones(request: Request, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """Cierra la sesión en todos los demás navegadores y dispositivos; esta sigue abierta con un token nuevo."""
+    u.sesion_version += 1
+    auditar(db, u, "sesiones_cerradas", request=request)
+    db.commit()
+    return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u)}

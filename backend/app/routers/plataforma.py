@@ -24,7 +24,7 @@ from ..deps import ip_cliente
 from ..freno import FrenoAcceso
 from ..security import (ROLES, crear_token_plataforma, gastar_tiempo_de_verificacion, hash_contrasena,
                         leer_token_plataforma, verificar_contrasena)
-from ..services import correo, envios, modulos, plantillas_correo
+from ..services import correo, dos_pasos, envios, modulos, plantillas_correo
 from ..services import suscripciones as sus
 from ..services.plataforma import borrar_archivos, contrasena_temporal, eliminar_organizacion
 from . import auth as auth_clientes
@@ -75,7 +75,8 @@ def _email(valor: str) -> str:
 
 def _a(a: m.AdminPlataforma) -> dict:
     return {"id": a.id, "nombre": a.nombre, "email": a.email, "activo": a.activo, "rol": a.rol,
-            "creado_en": a.creado_en.isoformat(), "ultimo_acceso": a.ultimo_acceso.isoformat() if a.ultimo_acceso else None}
+            "creado_en": a.creado_en.isoformat(), "ultimo_acceso": a.ultimo_acceso.isoformat() if a.ultimo_acceso else None,
+            "dos_pasos": dos_pasos.activo(a)}
 
 
 class Credenciales(BaseModel):
@@ -106,10 +107,47 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(401, "Correo o contraseña incorrectos.")
     _intentos.exito(ip, email)
+    if dos_pasos.activo(a):
+        _registrar(db, a, "plataforma_login_paso_1", request)
+        db.commit()
+        return {"requiere_codigo": True, "reto": dos_pasos.crear_reto("plataforma", a.id, a.sesion_version)}
     a.ultimo_acceso = m.ahora()
     _registrar(db, a, "plataforma_login", request)
     db.commit()
     return {"token": crear_token_plataforma(a.id, a.sesion_version), "admin": _a(a)}
+
+
+class SegundoPaso(BaseModel):
+    reto: str = Field(max_length=2000)
+    codigo: str = Field(max_length=20)
+
+
+@router.post("/login/codigo")
+def login_codigo(d: SegundoPaso, request: Request, db: Session = Depends(get_db)):
+    ip = ip_cliente(request) or "-"
+    datos = dos_pasos.leer_reto(d.reto, "plataforma")
+    if not datos:
+        raise HTTPException(401, "El inicio de sesión caducó. Vuelva a escribir su contraseña.")
+    llave = f"2p:{datos['sub']}"
+    if _intentos.bloqueado(ip, llave):
+        raise HTTPException(429, "Demasiados intentos. Espere unos minutos.")
+    a = db.get(m.AdminPlataforma, int(datos["sub"]))
+    if not a or not a.activo or a.sesion_version != datos.get("ver") or not dos_pasos.activo(a):
+        raise HTTPException(401, "El inicio de sesión caducó. Vuelva a escribir su contraseña.")
+    via = dos_pasos.verificar(a, d.codigo)
+    if not via:
+        _intentos.fallo(ip, llave)
+        _registrar(db, a, "plataforma_login_codigo_fallido", request)
+        db.commit()
+        raise HTTPException(401, "Código incorrecto o ya usado.")
+    _intentos.exito(ip, llave)
+    a.ultimo_acceso = m.ahora()
+    _registrar(db, a, "plataforma_login", request, detalle={"dos_pasos": via})
+    db.commit()
+    r = {"token": crear_token_plataforma(a.id, a.sesion_version), "admin": _a(a)}
+    if via == "respaldo":
+        r["aviso"] = f"Usó un código de respaldo. Le quedan {len(a.totp_respaldo or [])}."
+    return r
 
 
 @router.get("/yo")
@@ -826,3 +864,90 @@ def cambiar_admin(aid: int, d: AdminCambio, request: Request, a: m.AdminPlatafor
                    detalle={"activo": d.activo})
         db.commit()
     return _a(x)
+
+
+# ---------- verificación en dos pasos del panel ----------
+
+class ConContrasena(BaseModel):
+    contrasena: str = Field(max_length=128)
+
+
+class ConCodigo(BaseModel):
+    codigo: str = Field(max_length=20)
+
+
+class QuitarDosPasos(BaseModel):
+    contrasena: str = Field(max_length=128)
+    codigo: str = Field(max_length=20)
+
+
+@router.get("/yo/dos-pasos")
+def mis_dos_pasos(a: m.AdminPlataforma = Depends(admin_plataforma)):
+    return dos_pasos.estado(a)
+
+
+@router.post("/yo/dos-pasos/preparar")
+def preparar_dos_pasos(d: ConContrasena, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    if dos_pasos.activo(a):
+        raise HTTPException(409, "La verificación en dos pasos ya está activa.")
+    if not verificar_contrasena(d.contrasena, a.hash_contrasena):
+        raise HTTPException(422, "La contraseña no es correcta.")
+    secreto = dos_pasos.preparar(a)
+    _registrar(db, a, "plataforma_dos_pasos_preparado", request)
+    db.commit()
+    url = dos_pasos.uri(a.email, secreto, "Nomira Panel")
+    return {"secreto": secreto, "uri": url, "qr_svg": dos_pasos.qr_svg(url)}
+
+
+@router.post("/yo/dos-pasos/activar")
+def activar_dos_pasos(d: ConCodigo, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    cods = dos_pasos.activar(a, d.codigo)
+    if not cods:
+        raise HTTPException(422, "El código no coincide. Revise que la hora de su celular sea automática e intente con el código nuevo.")
+    _registrar(db, a, "plataforma_dos_pasos_activado", request)
+    db.commit()
+    return {"codigos_respaldo": cods, **dos_pasos.estado(a)}
+
+
+@router.post("/yo/dos-pasos/respaldo")
+def nuevos_respaldo(d: ConCodigo, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    if not dos_pasos.activo(a) or dos_pasos.verificar(a, d.codigo) != "app":
+        raise HTTPException(422, "Escriba el código actual de su app.")
+    cods, a.totp_respaldo = dos_pasos.codigos_respaldo()
+    _registrar(db, a, "plataforma_dos_pasos_respaldo", request)
+    db.commit()
+    return {"codigos_respaldo": cods, **dos_pasos.estado(a)}
+
+
+@router.post("/yo/dos-pasos/desactivar")
+def desactivar_dos_pasos(d: QuitarDosPasos, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    if not dos_pasos.activo(a):
+        raise HTTPException(409, "La verificación en dos pasos no está activa.")
+    if not verificar_contrasena(d.contrasena, a.hash_contrasena) or not dos_pasos.verificar(a, d.codigo):
+        raise HTTPException(422, "La contraseña o el código no son correctos.")
+    dos_pasos.quitar(a)
+    _registrar(db, a, "plataforma_dos_pasos_desactivado", request)
+    db.commit()
+    return dos_pasos.estado(a)
+
+
+@router.post("/admins/{aid}/dos-pasos/quitar")
+def quitar_dos_pasos_admin(aid: int, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+    x = db.get(m.AdminPlataforma, aid)
+    if not x:
+        raise HTTPException(404, "No encontrado.")
+    if x.id == a.id:
+        raise HTTPException(409, "Para su propia cuenta use Mi cuenta.")
+    dos_pasos.quitar(x)
+    x.sesion_version += 1
+    _registrar(db, a, "plataforma_dos_pasos_quitado", request, entidad="admin_plataforma", entidad_id=x.id)
+    db.commit()
+    return _a(x)
+
+
+@router.post("/yo/cerrar-sesiones")
+def cerrar_sesiones(request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    a.sesion_version += 1
+    _registrar(db, a, "plataforma_sesiones_cerradas", request)
+    db.commit()
+    return {"token": crear_token_plataforma(a.id, a.sesion_version), "admin": _a(a)}

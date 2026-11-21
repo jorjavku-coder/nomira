@@ -27,6 +27,11 @@ services:
         value: "false"
       - key: SEMBRAR_DEMO
         value: "true"
+      # Contraseña PRIVADA (12+ caracteres) de las cuentas demo (admin/analista/consulta@demo.local).
+      # La de ejemplo del README está publicada: en producción nunca abre nada. Sin esta variable,
+      # las cuentas demo se desactivan.
+      - key: DEMO_CONTRASENA
+        sync: false
       - key: ZONA_HORARIA
         value: America/Mexico_City
       # Panel de la plataforma (/plataforma): su primer administrador se crea al arrancar con estos

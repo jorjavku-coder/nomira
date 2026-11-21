@@ -19,6 +19,7 @@ from .services.modulos import requiere_modulo
 from .services import correo
 from .services.envios import ejecutar_recordatorios
 from .services.plataforma import asegurar_admin_inicial
+from .services.semilla import proteger_demo
 from .services.procesamiento import recuperar_interrumpidos
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -42,6 +43,9 @@ async def ciclo(app: FastAPI):
     try:
         with SessionLocal() as db:
             asegurar_admin_inicial(db)
+            r = proteger_demo(db)
+            if r != "sin_cambios":
+                logging.getLogger("nomira").warning("Cuentas de demostración: %s.", r)
     except Exception:
         logging.getLogger("quincena").warning("No se pudo revisar el administrador de la plataforma.")
     tarea = asyncio.create_task(_revisar_recordatorios())

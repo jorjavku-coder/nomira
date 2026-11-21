@@ -13,7 +13,7 @@ from app.main import app
 from app.services.plataforma import asegurar_admin_inicial
 from app.sinteticos import BASE, crear_pdf, recibo
 
-PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/registro"), ("GET", "/api/publico"),
+PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("POST", "/api/auth/registro"), ("GET", "/api/publico"),
             ("GET", "/api/salud"), ("POST", "/api/solicitudes"),
             # Carga de documentos del cliente: no usa sesión sino el enlace (X-Enlace); sin él, 404.
             ("POST", "/api/subida/estado"), ("POST", "/api/subida/codigo"), ("POST", "/api/subida/verificar"),
@@ -52,14 +52,23 @@ def test_rutas_de_subida_sin_enlace_no_dan_nada(cliente, plataforma):
             assert r.status_code == 404 and set(r.json()) == {"detail"}, ruta
 
 
+def _todas(rutas):
+    """Todas las rutas de la API, también las de routers incluidos (FastAPI los agrupa en _IncludedRouter)."""
+    for r in rutas:
+        if isinstance(r, APIRoute):
+            yield r
+        elif hasattr(r, "original_router"):
+            yield from _todas(r.original_router.routes)
+
+
 def _rutas(prefijo_plataforma: bool):
-    for r in app.routes:
-        if not isinstance(r, APIRoute) or not r.path.startswith("/api"):
+    for r in _todas(app.routes):
+        if not r.path.startswith("/api"):
             continue
         if r.path.startswith("/api/plataforma") != prefijo_plataforma:
             continue
         for metodo in r.methods - {"HEAD", "OPTIONS"}:
-            if (metodo, r.path) not in PUBLICAS and (metodo, r.path) != ("POST", "/api/plataforma/login"):
+            if (metodo, r.path) not in PUBLICAS and (metodo, r.path) not in (("POST", "/api/plataforma/login"), ("POST", "/api/plataforma/login/codigo")):
                 yield metodo, re.sub(r"\{[^}]+\}", "1", r.path)
 
 

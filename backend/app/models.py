@@ -48,6 +48,11 @@ class Usuario(Base):
     # Baja lógica: el usuario desaparece del panel y no puede entrar, pero sus acciones pasadas
     # (correcciones, validaciones, auditoría) conservan su referencia.
     eliminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Verificación en dos pasos (TOTP). Secreto cifrado; códigos de respaldo con hash.
+    totp_secreto_cifrado: Mapped[str | None] = mapped_column(Text)
+    totp_activo_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    totp_ultimo_paso: Mapped[int | None] = mapped_column(BigInteger)
+    totp_respaldo: Mapped[list | None] = mapped_column(JSON)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
 
@@ -279,6 +284,11 @@ class AdminPlataforma(Base):
     ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # superadministrador: todo el panel, incluido Comercial · soporte: todo excepto Comercial y roles
     rol: Mapped[str] = mapped_column(String(20), default="soporte", server_default="superadministrador")
+    # Verificación en dos pasos (TOTP, apps como Google Authenticator). Secreto cifrado; códigos de respaldo con hash.
+    totp_secreto_cifrado: Mapped[str | None] = mapped_column(Text)
+    totp_activo_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    totp_ultimo_paso: Mapped[int | None] = mapped_column(BigInteger)  # evita reusar el mismo código
+    totp_respaldo: Mapped[list | None] = mapped_column(JSON)
 
 
 class TicketSoporte(Base):

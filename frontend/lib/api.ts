@@ -2,7 +2,7 @@
 
 const LLAVE = "qc_sesion";
 
-export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null };
+export type Usuario = { id: number; nombre: string; email: string; rol: string; activo?: boolean; foto?: string | null; dos_pasos?: boolean };
 export type Sesion = { token: string; usuario: Usuario; organizacion: string; modulos?: string[] };
 const EVENTO = "nomira-sesion";
 
@@ -146,3 +146,8 @@ export const ESTADOS: Record<string, { texto: string; clase: string }> = {
   cero: { texto: "$0.00 autorizado", clase: "bg-slate-200 text-slate-700" },
   faltante: { texto: "Faltante", clase: "bg-red-100 text-red-800" },
 };
+
+/** Fecha local (AAAA-MM-DD) del navegador. No use toISOString(): da la fecha de UTC (de noche ya es «mañana»). */
+export function hoyLocal(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

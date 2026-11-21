@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..config import ajustes
-from ..security import hash_contrasena
+from ..config import ajustes
+from ..security import hash_contrasena, verificar_contrasena
 from ..sinteticos import BASE, CASO_ACEPTACION, crear_pdf, recibo
 from .procesamiento import procesar_documento
 
@@ -148,3 +149,32 @@ def restaurar_archivos(db: Session) -> dict:
             perdidos += 1
     db.commit()
     return {"restaurados": restaurados, "perdidos": perdidos}
+
+
+DEMO_EMAILS = ("admin@demo.local", "analista@demo.local", "consulta@demo.local")
+DEMO_CONTRASENA_PUBLICA = "Demo-Quincena-2025"
+
+
+def proteger_demo(db: Session) -> str:
+    """En producción, la contraseña de ejemplo (publicada en el README) nunca debe abrir las cuentas demo.
+    - Con DEMO_CONTRASENA (12+ caracteres): las cuentas demo usan esa contraseña.
+    - Sin ella: las cuentas demo que aún tengan la contraseña de ejemplo se desactivan.
+    Devuelve qué hizo (para el registro), sin contraseñas ni correos."""
+    a = ajustes()
+    if a.entorno != "produccion":
+        return "sin_cambios"
+    usuarios = list(db.scalars(select(m.Usuario).where(m.Usuario.email.in_(DEMO_EMAILS), m.Usuario.eliminado_en.is_(None))))
+    nueva = a.demo_contrasena if len(a.demo_contrasena) >= 12 and a.demo_contrasena != DEMO_CONTRASENA_PUBLICA else ""
+    hecho = "sin_cambios"
+    for u in usuarios:
+        if nueva:
+            if not verificar_contrasena(nueva, u.hash_contrasena):
+                u.hash_contrasena, u.activo = hash_contrasena(nueva), True
+                u.sesion_version += 1
+                hecho = "contrasena_demo_aplicada"
+        elif u.activo and verificar_contrasena(DEMO_CONTRASENA_PUBLICA, u.hash_contrasena):
+            u.activo = False
+            u.sesion_version += 1
+            hecho = "demo_desactivada"
+    db.commit()
+    return hecho

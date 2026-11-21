@@ -35,7 +35,7 @@ Datos de demostración (100 % sintéticos: personas, plazas y recibos ficticios)
 docker compose exec backend python -m scripts.sembrar_demo
 ```
 
-Usuarios de la demo (contraseña `Demo-Quincena-2025`; cámbiela o desactívelos):
+Usuarios de la demo en su computadora (contraseña `Demo-Quincena-2025`). En producción esa contraseña no funciona: se usa `DEMO_CONTRASENA` o las cuentas demo se desactivan:
 `admin@demo.local`, `analista@demo.local`, `consulta@demo.local`.
 
 Sin demo: en la pantalla de acceso use «Registrar una organización nueva»; después ponga

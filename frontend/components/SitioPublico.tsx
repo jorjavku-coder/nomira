@@ -68,7 +68,7 @@ const CINTA = ["Nómina y prestaciones", "Nomira Evidencia", "Nomira AFORE", "No
   "WhatsApp oficial de Meta", "Bitácora completa", "Datos cifrados", "Excel y PDF con su logotipo", "Constancias de participación", "Campañas y resultados"];
 
 /** Animaciones del sitio: aparición al desplazarse, encabezado compacto y barra de lectura. */
-function useAnimaciones(raiz: React.RefObject<HTMLDivElement>) {
+function useAnimaciones(raiz: React.RefObject<HTMLDivElement | null>) {
   const [desplazado, setDesplazado] = useState(false);
   const [progreso, setProgreso] = useState(0);
   useEffect(() => {
