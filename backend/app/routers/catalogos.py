@@ -89,11 +89,50 @@ def _borrador(db: Session, vid: int, u: m.Usuario) -> m.CatalogoVersion:
     return v
 
 
+def _usos(db: Session, version_ids: list[int]) -> dict[int, int]:
+    """Cuántos expedientes usan cada versión (una versión en uso no se puede eliminar)."""
+    if not version_ids:
+        return {}
+    return dict(db.execute(select(m.Expediente.catalogo_version_id, func.count(m.Expediente.id))
+                           .where(m.Expediente.catalogo_version_id.in_(version_ids))
+                           .group_by(m.Expediente.catalogo_version_id)).all())
+
+
 @router.get("")
 def listar(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
-    cats = db.scalars(select(m.Catalogo).where(m.Catalogo.organizacion_id == u.organizacion_id)
-                      .order_by(m.Catalogo.nombre))
-    return [{"id": c.id, "nombre": c.nombre, "versiones": [_v(v) for v in c.versiones]} for c in cats]
+    cats = list(db.scalars(select(m.Catalogo).where(m.Catalogo.organizacion_id == u.organizacion_id)
+                           .order_by(m.Catalogo.nombre)))
+    usos = _usos(db, [v.id for c in cats for v in c.versiones])
+    return [{"id": c.id, "nombre": c.nombre, "expedientes": sum(usos.get(v.id, 0) for v in c.versiones),
+             "versiones": [{**_v(v), "expedientes": usos.get(v.id, 0)} for v in c.versiones]} for c in cats]
+
+
+@router.delete("/{cid}")
+def eliminar_catalogo(cid: int, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """Elimina el catálogo con todas sus versiones, SOLO si ningún expediente lo usa: un expediente
+    calculado con un catálogo debe poder mostrar siempre con qué claves se calculó."""
+    c = obtener(db, m.Catalogo, cid, u)
+    n = sum(_usos(db, [v.id for v in c.versiones]).values())
+    if n:
+        raise HTTPException(409, f"No se puede eliminar: {n} expediente(s) usan este catálogo. "
+                                 "Elimine esos expedientes o cámbielos a otro catálogo primero.")
+    auditar(db, u, "catalogo_eliminado", "catalogo", c.id, {"nombre": c.nombre, "versiones": len(c.versiones)}, request)
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/versiones/{vid}")
+def eliminar_version(vid: int, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    v = obtener(db, m.CatalogoVersion, vid, u)
+    n = _usos(db, [v.id]).get(v.id, 0)
+    if n:
+        raise HTTPException(409, f"No se puede eliminar: {n} expediente(s) usan esta versión.")
+    cid = v.catalogo_id
+    auditar(db, u, "catalogo_version_eliminada", "catalogo_version", v.id, {"numero": v.numero, "estado": v.estado}, request)
+    db.delete(v)
+    db.commit()
+    return {"ok": True, "catalogo_id": cid}
 
 
 @router.post("", status_code=201)
