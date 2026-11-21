@@ -232,7 +232,7 @@ async def meta_webhook(request: Request, db: Session = Depends(get_db)):
             try:
                 info = meta.obtener_lead(cfg, lead)
             except meta.MetaError as e:
-                log.warning("No se pudo leer el formulario %s de Meta: %s", lead, e)
+                log.warning("No se pudo leer un formulario de Meta: %s", type(e).__name__)
                 continue
             c = meta.campos_lead(info)
             canal = "instagram" if (info.get("platform") or "").lower() in ("ig", "instagram") else "facebook"

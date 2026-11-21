@@ -78,4 +78,4 @@ def asegurar_admin_inicial(db: Session) -> None:
     db.add(m.AdminPlataforma(email=email, nombre="Administrador de Nomira", hash_contrasena=hash_contrasena(contrasena),
                              rol="superadministrador"))
     db.commit()
-    log.info("Se creó el administrador de la plataforma %s.", email)
+    log.info("Se creó el administrador inicial de la plataforma.")  # sin el correo: los registros no llevan datos personales

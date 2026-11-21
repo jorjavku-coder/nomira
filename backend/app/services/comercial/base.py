@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import text, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -94,7 +94,10 @@ def config(db: Session) -> m.CmConfig:
 
 
 def asegurar_catalogo(db: Session) -> None:
-    """Crea los paquetes y precios iniciales solo si no existe ninguno. Nunca pisa cambios."""
+    """Crea los paquetes y precios iniciales solo si no existe ninguno. Nunca pisa cambios.
+    Un candado de la base evita que dos peticiones simultáneas (p. ej. la primera vez que se abre
+    «Paquetes y precios») creen el catálogo dos veces."""
+    db.execute(text("SELECT pg_advisory_xact_lock(4202611)"))
     config(db)
     if not db.scalar(select(func.count(m.CmPaquete.id))):
         for p in PAQUETES_INICIALES:

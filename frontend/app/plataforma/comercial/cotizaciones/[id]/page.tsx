@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ComercialShell, Constructor, Desglose, EstadoCot, abrirPdf, useCatalogoCM } from "@/components/comercial";
 import { Aviso, Modal } from "@/components/ui";
-import { fecha, fechaHora, mxn } from "@/lib/api";
+import { fecha, fechaHora, hoyLocal, mxn } from "@/lib/api";
 import { apiP } from "@/lib/plataforma";
 
 const ACTOR: Record<string, string> = { admin: "", cliente: "Cliente", stripe: "Stripe", sistema: "Sistema" };
@@ -207,7 +207,7 @@ function Motivo({ titulo, boton, onCerrar, onConfirmar }: { titulo: string; boto
 }
 
 function RegistrarPago({ total, pagado, onCerrar, onGuardar }: { total: string; pagado: string; onCerrar: () => void; onGuardar: (d: any) => void }) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocal();
   const [f, setF] = useState({ metodo: "spei", monto: "", fecha_pago: hoy, referencia: "" });
   return <Modal titulo="Registrar pago recibido" onCerrar={onCerrar}>
     <p className="mb-3 text-sm text-slate-600">Registre solo pagos que ya verificó en su cuenta. Total: <b>{mxn(total)}</b> · pagado: {mxn(pagado)}.</p>
@@ -224,7 +224,7 @@ function RegistrarPago({ total, pagado, onCerrar, onGuardar }: { total: string; 
 
 function Convertir({ promocional, onCerrar, onGuardar }: { promocional: boolean; onCerrar: () => void; onGuardar: (d: any) => void }) {
   const [orgs, setOrgs] = useState<any[]>([]);
-  const [f, setF] = useState({ organizacion_id: "", inicio: new Date().toISOString().slice(0, 10), motivo: "", confirmo: false });
+  const [f, setF] = useState({ organizacion_id: "", inicio: hoyLocal(), motivo: "", confirmo: false });
   useEffect(() => { apiP.get("/clientes").then(setOrgs).catch(() => {}); }, []);
   return <Modal titulo={promocional ? "Asignación promocional" : "Asignar paquete al despacho"} onCerrar={onCerrar}>
     <div className="space-y-3">

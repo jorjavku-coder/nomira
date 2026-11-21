@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { MisDocumentosLegales } from "@/components/legal";
+import { ConfigDosPasos } from "@/components/DosPasos";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso, Avatar, CampoContrasena, ReglasContrasena } from "@/components/ui";
 import { actualizarSesion, api } from "@/lib/api";
@@ -108,6 +109,7 @@ export default function Perfil() {
               </div>
             </form>
           </section>
+          <ConfigDosPasos api={api} ruta="/auth/yo" onCerrarSesiones={async () => { const r = await api.post("/auth/yo/cerrar-sesiones"); actualizarSesion({ token: r.token, usuario: r.usuario }); }} />
           <MisDocumentosLegales />
         </div>
       </div>

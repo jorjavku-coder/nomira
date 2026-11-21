@@ -65,6 +65,9 @@ class Ajustes(BaseSettings):
     stripe_modo: str = "prueba"
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    # Cuentas de demostración (admin/analista/consulta@demo.local). Su contraseña de ejemplo está en el
+    # repositorio: en producción se reemplaza por DEMO_CONTRASENA (12+ caracteres) o, si falta, se desactivan.
+    demo_contrasena: str = ""
     plataforma_admin_email: str = ""
     plataforma_admin_contrasena: str = ""
 

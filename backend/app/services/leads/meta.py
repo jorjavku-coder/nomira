@@ -110,9 +110,10 @@ def meta_conectado(cfg: m.LdConfig | None) -> bool:
 def suscribir_pagina(page_id: str, token: str) -> str | None:
     """Suscribe la página del despacho a los avisos de formularios (leadgen). Devuelve el nombre de la página."""
     try:
-        r = httpx.post(_graph(f"{page_id}/subscribed_apps"), params={"subscribed_fields": "leadgen", "access_token": token}, timeout=20)
+        cab = {"Authorization": f"Bearer {token}"}  # el token va en el encabezado, no en la URL (las URLs acaban en registros)
+        r = httpx.post(_graph(f"{page_id}/subscribed_apps"), params={"subscribed_fields": "leadgen"}, headers=cab, timeout=20)
         _respuesta(r, "Meta no aceptó la suscripción de la página")
-        r2 = httpx.get(_graph(page_id), params={"fields": "name", "access_token": token}, timeout=20)
+        r2 = httpx.get(_graph(page_id), params={"fields": "name"}, headers=cab, timeout=20)
         return _respuesta(r2, "Meta no devolvió los datos de la página").get("name")
     except httpx.HTTPError as e:
         raise MetaError(f"No se pudo conectar con Meta ({type(e).__name__}).") from e
@@ -123,7 +124,7 @@ def obtener_lead(cfg: m.LdConfig, leadgen_id: str) -> dict:
     if not token:
         raise MetaError("No se pudo leer el token de la página.")
     try:
-        r = httpx.get(_graph(leadgen_id), params={"access_token": token, "fields":
+        r = httpx.get(_graph(leadgen_id), headers={"Authorization": f"Bearer {token}"}, params={"fields":
                       "field_data,created_time,ad_id,ad_name,adset_name,campaign_id,campaign_name,form_id,platform"}, timeout=20)
     except httpx.HTTPError as e:
         raise MetaError(f"No se pudo conectar con Meta ({type(e).__name__}).") from e

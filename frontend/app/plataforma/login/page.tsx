@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Logo from "@/components/Logo";
+import { PasoCodigo } from "@/components/DosPasos";
 import { Aviso } from "@/components/ui";
 import { apiP, guardarSesionP } from "@/lib/plataforma";
 
@@ -11,13 +12,25 @@ export default function LoginPlataforma() {
   const [contrasena, setContrasena] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [reto, setReto] = useState<string | null>(null);
   async function enviar(e: React.FormEvent) {
     e.preventDefault(); setError(""); setEnviando(true);
     try {
-      guardarSesionP(await apiP.post("/login", { email, contrasena }));
+      const r = await apiP.post("/login", { email, contrasena });
+      if (r.requiere_codigo) { setReto(r.reto); setContrasena(""); setEnviando(false); return; }
+      guardarSesionP(r);
       router.replace("/plataforma");
     } catch (err: any) { setError(err.message); setEnviando(false); }
   }
+  async function enviarCodigo(codigo: string) {
+    setError(""); setEnviando(true);
+    try { guardarSesionP(await apiP.post("/login/codigo", { reto, codigo })); router.replace("/plataforma"); }
+    catch (err: any) { setError(err.message); setEnviando(false); if (/caduc/i.test(err.message)) setReto(null); }
+  }
+  if (reto) return (
+    <main className="flex min-h-screen items-center justify-center bg-marino-900 p-6">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-flotante"><PasoCodigo onEnviar={enviarCodigo} onCancelar={() => { setReto(null); setError(""); }} error={error} cargando={enviando} /></div>
+    </main>);
   return (
     <main className="flex min-h-screen items-center justify-center bg-marino-900 p-6">
       <form onSubmit={enviar} className="w-full max-w-sm space-y-5 rounded-3xl bg-white p-8 shadow-flotante">

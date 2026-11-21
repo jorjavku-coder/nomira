@@ -97,6 +97,7 @@ export default function Usuarios() {
                     <span className="font-semibold text-marino">{u.nombre}</span>
                     {yo && <span className="rounded-full bg-turquesa-50 px-2 py-0.5 text-[11px] font-semibold text-turquesa-700">Usted</span>}
                     {!u.activo && <Chip estado="archivado" texto="Desactivado" />}
+                    {u.dos_pasos && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800" title="Verificación en dos pasos activa">2 pasos</span>}
                   </div>
                   <div className="text-sm text-slate-500">{u.email}</div>
                 </div>
@@ -106,6 +107,8 @@ export default function Usuarios() {
                   <button className="btn-sec" onClick={() => setDialogo({ tipo: "contrasena", u })}>Contraseña</button>
                   {!yo && <button className="btn-sec" onClick={() => accion(() => api.patch(`/usuarios/${u.id}`, { activo: !u.activo }), u.activo ? `${u.nombre} ya no puede entrar.` : `${u.nombre} puede entrar de nuevo.`)}>
                     {u.activo ? "Desactivar" : "Reactivar"}</button>}
+                  {!yo && u.dos_pasos && <button className="btn-sec" title="Si perdió su celular y sus códigos de respaldo"
+                    onClick={() => window.confirm(`¿Quitar la verificación en dos pasos de ${u.nombre}? Se cerrarán sus sesiones y podrá activarla de nuevo.`) && accion(() => api.post(`/usuarios/${u.id}/dos-pasos/quitar`), `Se quitó la verificación en dos pasos de ${u.nombre}.`)}>Quitar 2 pasos</button>}
                   {!yo && <button className="btn-peligro" onClick={() => setDialogo({ tipo: "eliminar", u })}>Eliminar</button>}
                 </div>
               </li>

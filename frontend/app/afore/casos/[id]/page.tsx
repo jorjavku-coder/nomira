@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AforeShell, COLOR_CASO, COLOR_REQ, CampoDato, Pastilla, TarjetaMensaje, mxnTexto, useCatalogos } from "@/components/afore";
 import { useSesion } from "@/components/Shell";
 import { Aviso, Modal } from "@/components/ui";
-import { api, fecha, fechaHora } from "@/lib/api";
+import { api, fecha, fechaHora, hoyLocal } from "@/lib/api";
 
 type Pestana = "resumen" | "checklist" | "documentos" | "seguimiento" | "revision" | "portal" | "afore" | "evidencia" | "historial";
 
@@ -269,14 +269,14 @@ function CapturarDatos({ x, onCerrar, accion }: any) {
 // ------------------------------------------------------------------ Seguimiento
 
 function Seguimiento({ d, id, cat, editor, accion }: any) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocal();
   const vacioA = { tipo: "solicitud_enviada", fecha: hoy, institucion: "", canal: "", folio: "", resumen: "", responde_a_id: "", documento_id: "" };
   const [a, setA] = useState<any>(vacioA);
   const [p, setP] = useState<any>({ tipo: "seguimiento_interno", descripcion: "", fecha: "", fuente: "", regla: "" });
   const solicitudes = d.actividades.filter((x: any) => ["solicitud_enviada", "queja"].includes(x.tipo));
   const sugerir = (regla: any) => {
     const f = new Date(); f.setDate(f.getDate() + Number(regla.dias));
-    setP({ ...p, tipo: "estimado", fecha: f.toISOString().slice(0, 10), regla: regla.nombre, fuente: regla.fuente || "", descripcion: p.descripcion || regla.nombre });
+    setP({ ...p, tipo: "estimado", fecha: hoyLocal(f), regla: regla.nombre, fuente: regla.fuente || "", descripcion: p.descripcion || regla.nombre });
   };
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">

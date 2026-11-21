@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
+import { PasoCodigo } from "@/components/DosPasos";
 import { api, guardarSesion } from "@/lib/api";
 import { Aviso } from "@/components/ui";
 
@@ -20,6 +21,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [registro, setRegistro] = useState(false);
+  const [reto, setReto] = useState<string | null>(null);
   useEffect(() => { api.get("/publico").then((p) => setRegistro(!!p.permitir_registro)).catch(() => {}); }, []);
   const cambiar = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
@@ -31,6 +33,7 @@ export default function Login() {
       const s = modo === "entrar"
         ? await api.post("/auth/login", { email: f.email, contrasena: f.contrasena })
         : await api.post("/auth/registro", f);
+      if (s.requiere_codigo) { setReto(s.reto); setF({ ...f, contrasena: "" }); return; }
       guardarSesion(s);
       router.replace("/app");
     } catch (err: any) {
@@ -38,6 +41,17 @@ export default function Login() {
     } finally {
       setCargando(false);
     }
+  }
+
+  async function enviarCodigo(codigo: string) {
+    setError(""); setCargando(true);
+    try {
+      guardarSesion(await api.post("/auth/login/codigo", { reto, codigo }));
+      router.replace("/app");
+    } catch (err: any) {
+      setError(err.message);
+      if (/caduc/i.test(err.message)) setReto(null);
+    } finally { setCargando(false); }
   }
 
   return (
@@ -66,6 +80,7 @@ export default function Login() {
       </section>
 
       <section className="flex items-center justify-center p-6">
+        {reto ? <div className="w-full max-w-sm"><PasoCodigo onEnviar={enviarCodigo} onCancelar={() => { setReto(null); setError(""); }} error={error} cargando={cargando} /></div> :
         <form onSubmit={enviar} className="w-full max-w-sm space-y-4">
           <div className="lg:hidden"><Link href="/" aria-label="Ir al sitio de Nomira"><Logo lema /></Link></div>
           <div>
@@ -95,7 +110,7 @@ export default function Login() {
           </button>}
           <p className="text-center text-sm text-slate-500">¿Aún no es cliente? <Link href="/#informes" className="font-semibold text-turquesa-700 hover:underline">Solicite informes o una suscripción</Link></p>
           <p className="text-center text-sm"><Link href="/" className="text-slate-500 hover:text-marino hover:underline">← Volver a nomirasoft.com</Link></p>
-        </form>
+        </form>}
       </section>
     </div>
 

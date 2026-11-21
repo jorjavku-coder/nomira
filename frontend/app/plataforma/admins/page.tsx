@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { ConfigDosPasos } from "@/components/DosPasos";
 import ShellPlataforma, { Credenciales, useSesionP } from "@/components/plataforma";
 import { Aviso, Avatar, CampoContrasena, Chip, Modal } from "@/components/ui";
 import { fechaHora } from "@/lib/api";
@@ -50,7 +51,9 @@ export default function Admins() {
                   <div className="flex items-center gap-2"><span className="font-semibold text-marino">{a.nombre}</span>
                     {yo && <span className="rounded-full bg-turquesa-50 px-2 py-0.5 text-[11px] font-semibold text-turquesa-700">Usted</span>}
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${a.rol === "superadministrador" ? "bg-amber-100 text-amber-800" : "bg-crema-200 text-marino"}`}>{ROLES[a.rol] || a.rol}</span>
-                    {!a.activo && <Chip estado="archivado" texto="Desactivado" />}</div>
+                    {!a.activo && <Chip estado="archivado" texto="Desactivado" />}
+                    {a.dos_pasos ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">2 pasos</span>
+                      : <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Sin 2 pasos</span>}</div>
                   <div className="text-sm text-slate-500">{a.email} · último acceso: {a.ultimo_acceso ? fechaHora(a.ultimo_acceso) : "nunca"}</div>
                 </div>
                 {!yo && esSuperadmin(sesion) && <select aria-label={`Rol de ${a.nombre}`} className="campo w-auto" value={a.rol} onChange={async (e) => {
@@ -58,6 +61,12 @@ export default function Admins() {
                   try { await apiP.patch(`/admins/${a.id}`, { rol: e.target.value }); setOk(`${a.nombre} ahora es ${ROLES[e.target.value]}. Deberá volver a iniciar sesión.`); cargar(); }
                   catch (err: any) { setError(err.message); }
                 }}>{Object.entries(ROLES).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select>}
+                {!yo && a.dos_pasos && esSuperadmin(sesion) && <button className="btn-sec" onClick={async () => {
+                  if (!window.confirm(`¿Quitar la verificación en dos pasos de ${a.nombre}? Se cerrarán sus sesiones.`)) return;
+                  setError(""); setOk("");
+                  try { await apiP.post(`/admins/${a.id}/dos-pasos/quitar`); setOk(`Se quitó la verificación en dos pasos de ${a.nombre}.`); cargar(); }
+                  catch (e: any) { setError(e.message); }
+                }}>Quitar 2 pasos</button>}
                 {!yo && <button className="btn-sec" onClick={async () => {
                   setError(""); setOk("");
                   try { await apiP.patch(`/admins/${a.id}`, { activo: !a.activo }); setOk(a.activo ? `${a.nombre} ya no puede entrar al panel.` : `${a.nombre} puede entrar de nuevo.`); cargar(); }
@@ -84,6 +93,7 @@ export default function Admins() {
       </section>
       {nuevo && <NuevoAdmin onCerrar={() => setNuevo(false)} onListo={(r) => { setNuevo(false); setAcceso(r.acceso); cargar(); }} />}
       {acceso && <Credenciales acceso={acceso} titulo="Administrador creado: datos de acceso" onCerrar={() => setAcceso(null)} />}
+      <div className="mt-6 max-w-2xl"><ConfigDosPasos api={apiP} ruta="/yo" onCerrarSesiones={async () => { const r = await apiP.post("/yo/cerrar-sesiones"); const x = leerSesionP(); if (x) guardarSesionP({ ...x, token: r.token, admin: r.admin }); }} /></div>
     </ShellPlataforma>
   );
 }

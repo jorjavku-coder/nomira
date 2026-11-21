@@ -39,7 +39,7 @@ def registrar_y_enviar(db: Session, tipo: str, destinatarios: list[str], asunto:
         r.estado = "enviado"
     except correo.CorreoError as e:
         r.estado, r.error, r.llave = "error", str(e)[:2000], None
-        log.warning("No se envió el correo %s (registro %s): %s", tipo, r.id, e)  # sin direcciones en los registros
+        log.warning("No se envió el correo %s (registro %s): %s", tipo, r.id, type(e).__name__)  # sin direcciones ni respuesta del proveedor
     except Exception as e:  # nunca romper la petición que lo originó
         r.estado, r.error, r.llave = "error", f"Error inesperado: {type(e).__name__}", None
         log.exception("Error inesperado al enviar el correo %s", tipo)

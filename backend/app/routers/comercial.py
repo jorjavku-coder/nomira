@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
@@ -15,6 +16,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import models as m
+from ..config import ajustes
 from ..db import get_db
 from ..services import almacenamiento as almacen, correo, envios, modulos, suscripciones as sus
 from ..services.comercial import base as cm
@@ -326,8 +328,9 @@ def resumen(desde: date | None = None, hasta: date | None = None, db: Session = 
     hoy = sus.hoy()
     desde = desde or hoy.replace(day=1)
     hasta = hasta or hoy
-    ini = datetime.combine(desde, datetime.min.time(), tzinfo=timezone.utc)
-    fin = datetime.combine(hasta + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    zona = ZoneInfo(ajustes().zona_horaria)  # los días son de México, no de UTC (de noche ya es «mañana» en UTC)
+    ini = datetime.combine(desde, datetime.min.time(), tzinfo=zona)
+    fin = datetime.combine(hasta + timedelta(days=1), datetime.min.time(), tzinfo=zona)
     conteos = dict(db.execute(select(m.CmCotizacion.estado, func.count(m.CmCotizacion.id)).group_by(m.CmCotizacion.estado)).all())
     proximas = db.scalar(select(func.count(m.CmCotizacion.id)).where(m.CmCotizacion.estado.in_(cm.ABIERTAS_CLIENTE),
                                                                      m.CmCotizacion.vence_en <= cm.ahora() + timedelta(days=3))) or 0
