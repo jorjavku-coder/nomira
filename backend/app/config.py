@@ -75,6 +75,9 @@ class Ajustes(BaseSettings):
     clave_regex: str = r"^\d{4}$"
     ocr_idioma: str = "spa"
     ocr_dpi: int = 300
+    # Catálogos (tablas de claves): a 200 se leyó MEJOR que a 300 en el catálogo de referencia
+    # (124/124 claves y 114 descripciones exactas contra 123 y 109), en ~25 % menos tiempo y ~1/3 menos memoria.
+    ocr_dpi_catalogo: int = 200
     ocr_min_caracteres: int = 40  # menos texto nativo que esto => OCR
     ocr_confianza_minima: int = 70  # por debajo, la fila queda pendiente
 

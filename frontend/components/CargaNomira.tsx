@@ -25,7 +25,7 @@ export function LogoCargando({ tam = 112 }: { tam?: number }) {
 // ------------------------------------------------------------------ registro global de peticiones
 
 type Tipo = "subida" | "entrada" | "guardado" | "lectura";
-type Trabajo = { id: number; tipo: Tipo; texto: string; inicio: number; fin?: number };
+type Trabajo = { id: number; tipo: Tipo; texto: string; inicio: number; fin?: number; detalle?: string };
 type Aviso = { id: number; tipo: "ok" | "error"; texto: string; hasta: number };
 
 const trabajos = new Map<number, Trabajo>();
@@ -96,6 +96,9 @@ function instalar() {
       texto: tipo === "subida" ? (nombres.length > 1 ? `Subiendo ${nombres.length} archivos…` : `Subiendo «${nombres[0]}»…`) : TEXTO[tipo] };
     trabajos.set(t.id, t);
     setTimeout(avisar, UMBRAL[tipo] + 10);
+    if (tipo === "subida") {  // el archivo ya llegó; lo que tarda es leerlo (OCR, video, SCORM…)
+      setTimeout(() => { if (trabajos.has(t.id)) { t.texto = nombres.length > 1 ? `Procesando ${nombres.length} archivos…` : `Leyendo «${nombres[0]}»…`; t.detalle = "Ya se subió. Los PDF escaneados pueden tardar unos segundos por página."; avisar(); } }, 4000);
+    }
     try {
       const r = await original(entrada, init);
       if (r.ok && tipo === "subida") {
@@ -141,7 +144,7 @@ export default function IndicadorCarga() {
           <div className="nm-aparecer flex flex-col items-center gap-3">
             <LogoCargando tam={principal ? 120 : 96} />
             <p className="rounded-full bg-white/95 px-4 py-1.5 text-center font-marca text-sm font-bold text-marino shadow-flotante">{principal ? principal.texto : "Cargando…"}</p>
-            {principal?.tipo === "subida" && <p className="rounded-full bg-white/90 px-3 py-1 text-xs text-slate-600">No cierre esta ventana hasta que termine.</p>}
+            {principal?.tipo === "subida" && <p className="max-w-xs rounded-2xl bg-white/90 px-3 py-1 text-center text-xs text-slate-600">{principal.detalle || "No cierre esta ventana hasta que termine."}</p>}
           </div>
         </div>
       )}

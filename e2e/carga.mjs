@@ -32,6 +32,7 @@ await sec.locator('input[type="file"]').setInputFiles(pdf);
 await page.getByText("Subiendo «Prestaciones.pdf»…").waitFor({ timeout: 5000 });
 ok(await page.locator("svg.nm-girando").count() >= 1, "mientras sube, aparece al centro el logotipo de Nomira girando");
 await page.screenshot({ path: `${dir}/carga-01-subiendo.png` });
+await page.getByText("Leyendo «Prestaciones.pdf»…").waitFor({ timeout: 15000 }).catch(() => {});
 await page.getByText("«Prestaciones.pdf» se cargó con éxito.").waitFor({ timeout: 120000 });
 ok(true, "al terminar avisa que el archivo se cargó con éxito");
 await page.screenshot({ path: `${dir}/carga-02-exito.png` });

@@ -29,5 +29,7 @@ RUN useradd --create-home --uid 10001 qc && mkdir -p /datos/almacen && chown -R 
  && chmod +x /app/iniciar_demo.sh
 USER qc
 ENV STORAGE_DIR=/datos/almacen
+# Servidor de medio procesador: el OCR (Tesseract) va más parejo con un solo hilo que peleando por el CPU.
+ENV OMP_THREAD_LIMIT=1
 EXPOSE 10000
 CMD ["/app/iniciar_demo.sh"]

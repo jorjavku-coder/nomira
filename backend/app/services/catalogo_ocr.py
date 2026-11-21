@@ -37,7 +37,7 @@ def extraer_catalogo(ruta: str) -> list[EntradaLeida]:
         if doc.page_count > 60:
             raise ValueError("El catálogo excede 60 páginas.")
         for n, pagina in enumerate(doc, start=1):
-            pe = extraer_pagina(pagina, n, psm=11, sin_lineas=True)
+            pe = extraer_pagina(pagina, n, psm=11, sin_lineas=True, dpi=ajustes().ocr_dpi_catalogo)
             palabras = [p for p in pe.palabras if _limpia(p)]
             claves_x = [p.x0 for p in palabras if re_clave.match(_limpia(p))]
             if not claves_x:

@@ -123,13 +123,13 @@ def ocr_pagina(pagina: pymupdf.Page, dpi: int | None = None, psm: int = 6,
 
 
 def extraer_pagina(pagina: pymupdf.Page, numero: int, psm: int = 6,
-                   sin_lineas: bool = False) -> PaginaExtraida:
+                   sin_lineas: bool = False, dpi: int | None = None) -> PaginaExtraida:
     r = pagina.rect
     nativas = [Palabra(w[0], w[1], w[2], w[3], w[4], None, (w[5], w[6]))
                for w in pagina.get_text("words") if w[4].strip()]
     if sum(len(p.texto) for p in nativas) >= ajustes().ocr_min_caracteres:
         return PaginaExtraida(numero, r.width, r.height, "texto", nativas)
-    palabras = ocr_pagina(pagina, psm=psm, sin_lineas=sin_lineas)
+    palabras = ocr_pagina(pagina, dpi=dpi, psm=psm, sin_lineas=sin_lineas)
     conf = round(statistics.fmean(p.conf for p in palabras)) if palabras else 0
     return PaginaExtraida(numero, r.width, r.height, "ocr", palabras, conf)
 
