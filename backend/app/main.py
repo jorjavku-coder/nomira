@@ -9,11 +9,12 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, academia_medios, afore, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+from .routers import (academia, academia_medios, afore, agenda, agenda_feed, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
+from .services.agenda import avisos as agenda_avisos
 from .services.modulos import requiere_modulo
 from .services import correo
 from .services.envios import ejecutar_recordatorios
@@ -44,10 +45,12 @@ async def ciclo(app: FastAPI):
     except Exception:
         logging.getLogger("quincena").warning("No se pudo revisar el administrador de la plataforma.")
     tarea = asyncio.create_task(_revisar_recordatorios())
+    tarea_agenda = asyncio.create_task(_revisar_agenda())
     yield
-    tarea.cancel()
-    with suppress(asyncio.CancelledError):
-        await tarea
+    for t in (tarea, tarea_agenda):
+        t.cancel()
+        with suppress(asyncio.CancelledError):
+            await t
 
 
 def _una_revision() -> None:
@@ -70,6 +73,25 @@ async def _revisar_recordatorios(espera_inicial: float = 120, cada: float = 3600
         await asyncio.sleep(cada)
 
 
+def _una_revision_agenda() -> None:
+    with SessionLocal() as db:
+        r = agenda_avisos.ejecutar(db)
+        if any(r.values()):
+            logging.getLogger("nomira.agenda").info("Agenda: %s avisos, %s correos, %s resúmenes", r["avisos"], r["correos"], r["resumenes"])
+
+
+async def _revisar_agenda(espera_inicial: float = 90, cada: float = 900) -> None:
+    """Cada 15 minutos genera los avisos escalonados de plazos y audiencias, y el resumen diario.
+    Cada aviso tiene llave única: repetir la revisión no duplica nada."""
+    await asyncio.sleep(espera_inicial)
+    while True:
+        try:
+            await asyncio.to_thread(_una_revision_agenda)
+        except Exception:
+            logging.getLogger("nomira.agenda").exception("Falló la revisión de la agenda.")
+        await asyncio.sleep(cada)
+
+
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type", "X-Enlace", "X-Sesion"])
@@ -88,6 +110,8 @@ app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))
 # Formulario de contacto, entrada de otros sistemas y anuncios de Meta: validan su enlace, clave o firma.
 app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
+app.include_router(agenda.router, dependencies=[Depends(requiere_modulo("agenda"))])
+app.include_router(agenda_feed.router)  # calendario privado por persona (lo valida su enlace)
 app.include_router(academia_medios.router)  # URL firmadas (video/SCORM) y verificación pública de diplomas
 # Centro Legal: documentos publicados (públicos), solicitudes ARCO y aceptación; y su administración en el panel
 app.include_router(legal.router)

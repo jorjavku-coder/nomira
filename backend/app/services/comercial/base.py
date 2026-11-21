@@ -58,6 +58,7 @@ PRECIOS_INICIALES = [
     {"clave": "modulo:afore", "nombre": "Nomira AFORE", "precio_mensual": "1190"},
     {"clave": "modulo:leads", "nombre": "Nomira Leads", "precio_mensual": "690"},
     {"clave": "modulo:academia", "nombre": "Nomira Academia", "precio_mensual": "590"},
+    {"clave": "modulo:agenda", "nombre": "Nomira Agenda Jurídica", "precio_mensual": "890"},
     {"clave": "usuario", "nombre": "Usuario interno adicional", "precio_mensual": "119"},
     {"clave": "almacenamiento", "nombre": "Almacenamiento adicional (bloque)", "precio_mensual": "299", "unidad_gb": 25},
     {"clave": "curso_adicional", "nombre": "Curso propio adicional (Academia)", "precio_mensual": "99"},
