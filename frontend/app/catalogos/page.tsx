@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
-import { Aviso, Chip, ConfirmarEliminar } from "@/components/ui";
+import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
 export default function Catalogos() {
@@ -14,6 +14,7 @@ export default function Catalogos() {
   const [nombre, setNombre] = useState("");
   const [borrar, setBorrar] = useState<{ tipo: "catalogo" | "version"; c: any; v?: any } | null>(null);
   const [ok, setOk] = useState("");
+  const [enUso, setEnUso] = useState<{ c: any; lista: any[] } | null>(null);
   const archivos = useRef<Record<number, HTMLInputElement | null>>({});
   const cargar = useCallback(() => api.get("/catalogos").then(setCats).catch((e) => setError(e.message)), []);
   useEffect(() => { cargar(); }, [cargar]);
@@ -56,8 +57,10 @@ export default function Catalogos() {
                     if (v?.id) window.location.href = `/catalogos/${v.id}?paso=1`;
                   }} />
                 <button className="btn-turquesa" disabled={!!ocupado} onClick={() => archivos.current[c.id]?.click()}>Leer catálogo desde PDF (OCR)</button>
-                <button className="btn-peligro" disabled={!!ocupado || c.expedientes > 0} onClick={() => setBorrar({ tipo: "catalogo", c })}
-                  title={c.expedientes > 0 ? `Lo usan ${c.expedientes} expediente(s): no se puede eliminar` : "Eliminar el catálogo y sus versiones"}>Eliminar</button>
+                <button className="btn-peligro" disabled={!!ocupado} onClick={async () => {
+                  if (c.expedientes > 0) setEnUso({ c, lista: await api.get(`/catalogos/${c.id}/expedientes`).catch(() => []) });
+                  else setBorrar({ tipo: "catalogo", c });
+                }}>Eliminar catálogo</button>
                 {(() => {
                   const borrador = [...c.versiones].reverse().find((v: any) => v.estado === "borrador");
                   const activa = c.versiones.find((v: any) => v.estado === "activo");
@@ -93,6 +96,14 @@ export default function Catalogos() {
           </table>
         </section>
       ))}
+      {enUso && <Modal titulo={`No se puede eliminar «${enUso.c.nombre}» todavía`} onCerrar={() => setEnUso(null)}>
+        <p className="text-sm text-slate-700">Lo usan <b>{enUso.c.expedientes} expediente(s)</b>. Cada expediente guarda con qué catálogo se calculó; si se borrara, perdería esa referencia.</p>
+        <p className="mt-2 text-sm text-slate-700">Para eliminarlo, primero elimine estos expedientes o cámbielos a otro catálogo:</p>
+        <ul className="mt-3 max-h-60 divide-y divide-crema-200 overflow-auto rounded-xl border border-crema-300 text-sm">{enUso.lista.map((e) => (
+          <li key={e.id} className="flex items-center justify-between gap-2 px-3 py-2"><span>{e.nombre} <span className="text-xs text-slate-500">· {String(e.estado).replace(/_/g, " ")}</span></span>
+            <Link className="font-semibold text-turquesa-700 hover:underline" href={`/expedientes/${e.id}`}>Abrir</Link></li>))}</ul>
+        <div className="mt-4 flex justify-end"><button className="btn-primario" onClick={() => setEnUso(null)}>Entendido</button></div>
+      </Modal>}
       {borrar && <ConfirmarEliminar titulo={borrar.tipo === "catalogo" ? `Eliminar «${borrar.c.nombre}»` : `Eliminar la versión ${borrar.v.numero} de «${borrar.c.nombre}»`}
         onCerrar={() => setBorrar(null)}
         onConfirmar={async () => {
