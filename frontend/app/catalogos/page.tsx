@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
-import { Aviso, Chip } from "@/components/ui";
+import { Aviso, Chip, ConfirmarEliminar } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
 export default function Catalogos() {
@@ -12,6 +12,8 @@ export default function Catalogos() {
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState("");
   const [nombre, setNombre] = useState("");
+  const [borrar, setBorrar] = useState<{ tipo: "catalogo" | "version"; c: any; v?: any } | null>(null);
+  const [ok, setOk] = useState("");
   const archivos = useRef<Record<number, HTMLInputElement | null>>({});
   const cargar = useCallback(() => api.get("/catalogos").then(setCats).catch((e) => setError(e.message)), []);
   useEffect(() => { cargar(); }, [cargar]);
@@ -29,6 +31,7 @@ export default function Catalogos() {
       </p>
       <Aviso>{error}</Aviso>
       {ocupado && <Aviso tipo="info">{ocupado}</Aviso>}
+      <Aviso tipo="ok">{ok}</Aviso>
       {admin && (
         <form className="tarjeta my-4 flex flex-wrap items-end gap-3 p-4" onSubmit={(e) => { e.preventDefault(); accion("Creando…", () => api.post("/catalogos", { nombre })).then(() => setNombre("")); }}>
           <label className="block grow"><span className="etiqueta">Nuevo catálogo</span>
@@ -53,6 +56,8 @@ export default function Catalogos() {
                     if (v?.id) window.location.href = `/catalogos/${v.id}?paso=1`;
                   }} />
                 <button className="btn-turquesa" disabled={!!ocupado} onClick={() => archivos.current[c.id]?.click()}>Leer catálogo desde PDF (OCR)</button>
+                <button className="btn-peligro" disabled={!!ocupado || c.expedientes > 0} onClick={() => setBorrar({ tipo: "catalogo", c })}
+                  title={c.expedientes > 0 ? `Lo usan ${c.expedientes} expediente(s): no se puede eliminar` : "Eliminar el catálogo y sus versiones"}>Eliminar</button>
                 {(() => {
                   const borrador = [...c.versiones].reverse().find((v: any) => v.estado === "borrador");
                   const activa = c.versiones.find((v: any) => v.estado === "activo");
@@ -69,9 +74,9 @@ export default function Catalogos() {
             )}
           </div>
           <table className="tabla">
-            <thead><tr><th>Versión</th><th>Estado</th><th>Origen</th><th>Claves</th><th>Por revisar</th><th>Creada</th><th>Validada</th></tr></thead>
+            <thead><tr><th>Versión</th><th>Estado</th><th>Origen</th><th>Claves</th><th>Por revisar</th><th>Creada</th><th>Validada</th><th>Expedientes</th>{admin && <th><span className="sr-only">Acciones</span></th>}</tr></thead>
             <tbody>
-              {c.versiones.length === 0 && <tr><td colSpan={7} className="text-slate-500">Sin versiones.</td></tr>}
+              {c.versiones.length === 0 && <tr><td colSpan={9} className="text-slate-500">Sin versiones.</td></tr>}
               {[...c.versiones].reverse().map((v: any) => (
                 <tr key={v.id}>
                   <td><Link className="font-semibold text-marino hover:underline" href={`/catalogos/${v.id}`}>Versión {v.numero}</Link></td>
@@ -79,13 +84,28 @@ export default function Catalogos() {
                   <td>{{ ocr: "OCR de PDF", manual: "Manual", copia: "Copia" }[v.origen as string]}{v.archivo_nombre ? ` · ${v.archivo_nombre}` : ""}</td>
                   <td>{v.entradas_total}{v.agregadas_manual > 0 && <span className="text-xs text-turquesa-700"> ({v.agregadas_manual} a mano)</span>}</td>
                   <td>{v.por_revisar > 0 ? <span className="font-semibold text-amber-700">{v.por_revisar}</span> : "0"}</td>
-                  <td>{fecha(v.creado_en)}</td><td>{fecha(v.validado_en)}</td>
+                  <td>{fecha(v.creado_en)}</td><td>{fecha(v.validado_en)}</td><td>{v.expedientes || "—"}</td>
+                  {admin && <td className="text-right">{v.expedientes > 0 ? <span className="text-xs text-slate-400" title="Una versión que usan expedientes no se puede eliminar">En uso</span>
+                    : <button className="text-xs font-semibold text-red-700 hover:underline" onClick={() => setBorrar({ tipo: "version", c, v })}>Eliminar</button>}</td>}
                 </tr>
               ))}
             </tbody>
           </table>
         </section>
       ))}
+      {borrar && <ConfirmarEliminar titulo={borrar.tipo === "catalogo" ? `Eliminar «${borrar.c.nombre}»` : `Eliminar la versión ${borrar.v.numero} de «${borrar.c.nombre}»`}
+        onCerrar={() => setBorrar(null)}
+        onConfirmar={async () => {
+          setOk("");
+          if (borrar.tipo === "catalogo") await api.borrar(`/catalogos/${borrar.c.id}`); else await api.borrar(`/catalogos/versiones/${borrar.v.id}`);
+          setOk(borrar.tipo === "catalogo" ? `Se eliminó el catálogo «${borrar.c.nombre}».` : `Se eliminó la versión ${borrar.v.numero}.`);
+          cargar();
+        }}>
+        {borrar.tipo === "catalogo"
+          ? <p>Se eliminarán el catálogo y sus {borrar.c.versiones.length} versión(es) con todas sus claves. Esta acción no se puede deshacer.</p>
+          : <p>Se eliminará esta versión con sus {borrar.v.entradas_total} clave(s). Esta acción no se puede deshacer.</p>}
+        <p className="mt-2 text-xs text-slate-500">Solo se pueden eliminar catálogos y versiones que no usa ningún expediente.</p>
+      </ConfirmarEliminar>}
     </Shell>
   );
 }

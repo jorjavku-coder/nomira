@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/montserrat";
 import "./globals.css";
+import IndicadorCarga from "@/components/CargaNomira";
 
 export const metadata: Metadata = {
   title: "Nomira — Cada prestación, en claro",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-MX">
-      <body>{children}</body>
+      <body>{children}<IndicadorCarga /></body>
     </html>
   );
 }
