@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BotonAyuda from "@/components/BotonAyuda";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
@@ -16,7 +17,7 @@ export function AgendaShell({ children }: { children: React.ReactNode }) {
   ];
   return (
     <Shell>
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Agenda Jurídica</p>
+      <div className="mb-1 flex items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Agenda Jurídica</p><BotonAyuda modulo="agenda" /></div>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-crema-300" aria-label="Nomira Agenda">
         {enlaces.map(([href, t, activo]) => (
           <Link key={href} href={href} aria-current={activo ? "page" : undefined}

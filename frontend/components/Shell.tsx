@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AceptacionLegal, EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { Avatar } from "@/components/ui";
@@ -13,6 +13,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   expedientes: <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />,
   catalogos: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" /><path d="M9 9h6M9 13h6" /></>,
   empresa: <><path d="M4 20V7l8-3v16M12 9l8 2v9M3 20h18M8 9v.01M8 13v.01M8 17v.01M16 14v.01M16 17v.01" /></>,
+  ayuda: <><circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6M12 17h.01" /></>,
   soporte: <><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></>,
   usuarios: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
   evidencia: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13l2 2 4-4" /></>,
@@ -112,23 +113,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"));
   const enlaces = [
     ...(activos.includes("nomina") ? [
-      { href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
-      { href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
+      { grupo: "Nómina", href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
+      { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
     ...(activos.includes("agenda") ? [
-      { href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
+      { grupo: "Módulos", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     ...(activos.includes("evidencia") ? [
-      { href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
+      { grupo: "Módulos", href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
     ...(activos.includes("afore") ? [
-      { href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
+      { grupo: "Módulos", href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
     ...(activos.includes("leads") ? [
-      { href: "/leads", texto: "Leads", icono: "leads", activo: deLeads }] : []),
+      { grupo: "Módulos", href: "/leads", texto: "Leads", icono: "leads", activo: deLeads }] : []),
     ...(activos.includes("academia") ? [
-      { href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
+      { grupo: "Módulos", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
     ...(sesion.usuario.rol === "administrador" ? [
-      { href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
-      { href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
-    { href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
-    { href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
+      { grupo: "Mi despacho", href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
+      { grupo: "Mi despacho", href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
+    { grupo: "Mi despacho", href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
+    { grupo: "Mi despacho", href: "/ayuda", texto: "Ayuda y manuales", icono: "ayuda", activo: ruta.startsWith("/ayuda") },
+    { grupo: "Mi despacho", href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
   ];
   const salir = () => { guardarSesion(null); router.replace("/login"); };
   return (
@@ -147,16 +149,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className="min-w-0 text-sm font-semibold leading-tight" title={marca.nombre}><span className="line-clamp-2">{marca.nombre}</span></span>
           </div>
         )}
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:pb-0" aria-label="Principal">
-          {enlaces.map((e) => (
-            <Link key={e.href} href={e.href} aria-current={e.activo ? "page" : undefined}
-              className={`relative flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition ${e.activo ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
+        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:overflow-y-auto lg:pb-0" aria-label="Principal">
+          {enlaces.map((e, i) => (<Fragment key={e.href}>
+            {(i === 0 || enlaces[i - 1].grupo !== e.grupo) && <p className={`hidden px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 lg:block ${i ? "pt-4" : "pt-1"}`}>{e.grupo}</p>}
+            <Link href={e.href} aria-current={e.activo ? "page" : undefined}
+              className={`relative flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition lg:py-2 ${e.activo ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
               {e.activo && <span className="absolute -left-3 top-2 hidden h-6 w-1 rounded-r bg-turquesa-brillante lg:block" aria-hidden />}
               <span className={e.activo ? "text-turquesa-brillante" : ""}><Icono nombre={e.icono} /></span>
               <span className="flex-1">{e.texto}</span>
               {!!(e as any).n && <span className="rounded-full bg-turquesa-brillante px-1.5 text-[11px] font-bold text-marino-900" aria-label={`${(e as any).n} ${e.href === "/agenda" ? "pendientes vencidos o de hoy" : "respuestas nuevas"}`}>{(e as any).n}</span>}
             </Link>
-          ))}
+          </Fragment>))}
         </nav>
         <div className="mt-auto hidden border-t border-white/10 p-4 lg:block">
           <Link href="/perfil" className="-m-2 flex items-center gap-3 rounded-xl p-2 transition hover:bg-white/5" title="Mi perfil">
@@ -170,6 +173,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-[88rem] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">
+        <Bienvenida ruta={ruta} />
         {bloqueado && modulos ? (
           <div className="tarjeta mx-auto mt-10 max-w-lg p-8 text-center">
             <h1 className="text-2xl font-extrabold text-marino">Módulo no activo</h1>
@@ -184,6 +188,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <p>© {new Date().getFullYear()} Nomira · Desarrollado por IMA</p>
       </footer>
       <AceptacionLegal />
+    </div>
+  );
+}
+
+
+/** Aviso de bienvenida para quien entra por primera vez en este navegador: lleva a los manuales. */
+function Bienvenida({ ruta }: { ruta: string }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => { try { setVer(!localStorage.getItem("nomira:bienvenida") && !ruta.startsWith("/ayuda")); } catch {} }, [ruta]);
+  const cerrar = () => { try { localStorage.setItem("nomira:bienvenida", "1"); } catch {} setVer(false); };
+  if (!ver) return null;
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-turquesa/30 bg-turquesa-50 px-4 py-3 text-sm text-marino" role="region" aria-label="Bienvenida">
+      <span className="text-xl" aria-hidden>👋</span>
+      <p className="min-w-0 flex-1"><b>¿Primera vez en Nomira?</b> Cada módulo tiene un manual paso a paso con capturas. Empiece por «Primeros pasos».</p>
+      <Link href="/ayuda/primeros-pasos" onClick={cerrar} className="btn-turquesa py-1.5 text-sm">Ver la guía</Link>
+      <button className="rounded-lg px-2 py-1 text-slate-500 hover:bg-white" onClick={cerrar} aria-label="Cerrar aviso de bienvenida">✕</button>
     </div>
   );
 }

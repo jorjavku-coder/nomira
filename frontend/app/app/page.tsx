@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BotonAyuda from "@/components/BotonAyuda";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
@@ -183,7 +184,7 @@ export default function Expedientes() {
   return (
     <Shell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-3xl font-extrabold text-marino">Expedientes</h1><p className="mt-1 text-sm text-slate-500">Sus expedientes y lo que falta por revisar en cada uno.</p></div>
+        <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Expedientes</h1><BotonAyuda modulo="nomina" /></div><p className="mt-1 text-sm text-slate-500">Sus expedientes y lo que falta por revisar en cada uno.</p></div>
         {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo expediente</button>}
       </div>
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -213,8 +214,8 @@ export default function Expedientes() {
                   : <span className="text-emerald-700">Sin pendientes</span>}</td>
                 <td className="whitespace-nowrap">{e.resumen.quincenas_con_recibo}/{e.resumen.quincenas_esperadas}
                   {e.resumen.quincenas_faltantes > 0 && <span className="ml-1 text-xs text-red-700">({e.resumen.quincenas_faltantes} faltantes)</span>}</td>
-                <td className="num">{e.total_expediente === null ? "Por plaza" : mxn(e.total_expediente)}
-                  {e.provisional && <div className="font-sans text-xs text-amber-700">provisional</div>}</td>
+                <td className="num">{e.total_expediente === null ? <span title="El trabajador tiene varias plazas; el total se ve por plaza dentro del expediente">Varias plazas</span> : mxn(e.total_expediente)}
+                  {e.provisional && <div className="font-sans text-xs text-amber-700" title="Aún no se valida: puede cambiar">provisional</div>}</td>
                 {editor && <td className="text-right">
                   {puedeBorrar(e) && <button className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600" title="Eliminar expediente"
                     aria-label={`Eliminar expediente ${e.id}`} onClick={() => setBorrar(e)}>

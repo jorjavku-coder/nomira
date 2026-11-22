@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BotonAyuda from "@/components/BotonAyuda";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
@@ -25,7 +26,7 @@ export default function Catalogos() {
   }
   return (
     <Shell>
-      <h1 className="mb-1 text-3xl font-extrabold text-marino">Catálogos de prestaciones</h1>
+      <div className="mb-1 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Catálogos de prestaciones</h1><BotonAyuda modulo="nomina" /></div>
       <p className="mb-4 max-w-3xl text-sm text-slate-600">
         Solo se suman las percepciones cuya clave coincide exactamente con una clave activa del catálogo. Si a un catálogo le faltan
         claves, use «Agregar claves faltantes»: se crea una versión nueva y, al activarla, puede aplicarla a los expedientes en revisión.

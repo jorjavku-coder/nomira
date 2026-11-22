@@ -77,6 +77,15 @@ export default function Usuarios() {
             <div className="font-marca text-xl font-extrabold text-marino sm:text-2xl">{usuarios ? conteo(v) : "—"}</div></div>
         ))}
       </div>
+      <details className="mb-5 max-w-3xl rounded-xl bg-crema/60 px-4 py-3 text-sm">
+        <summary className="cursor-pointer font-semibold text-marino">¿Qué puede hacer cada rol?</summary>
+        <ul className="mt-2 space-y-1 text-slate-700">
+          <li><b>Administrador:</b> todo lo del despacho, incluidos usuarios, ajustes de los módulos, datos de la empresa y catálogos.</li>
+          <li><b>Analista:</b> trabaja la información: crea, edita y valida expedientes, asuntos, casos, prospectos y plazos. No administra usuarios, la empresa ni los catálogos.</li>
+          <li><b>Solo consulta:</b> ve la información y puede marcar como cumplido lo que le asignan; no crea ni modifica.</li>
+        </ul>
+        <p className="mt-2 text-xs text-slate-500">Recomendación: active la verificación en dos pasos para todos (cada quien en «Mi perfil»).</p>
+      </details>
 
       <div className="space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
 
