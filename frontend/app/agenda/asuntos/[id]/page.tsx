@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgendaShell, diaLargo, Etq, FilaEvento, FormAsunto, FormEvento, useCatalogosAgenda } from "@/components/agenda";
+import { VigilanciaAsunto } from "@/components/estrados";
 import { Aviso } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
@@ -50,6 +51,8 @@ export default function Asunto() {
             <ul className="divide-y divide-crema-200">{cerr.map((e: any) => <FilaEvento key={e.id} e={e} onCambio={cargar} mostrarAsunto={false} />)}</ul></details>}
           {a.notas && <section className="tarjeta p-4 text-sm"><h2 className="mb-1 font-semibold text-marino">Notas</h2><p className="whitespace-pre-line text-slate-700">{a.notas}</p></section>}
         </div>
+        <div className="space-y-5">
+        <VigilanciaAsunto asunto={a} puedeEditar={!!cat?.puede_editar} onCambio={cargar} />
         <section className="tarjeta p-4">
           <h2 className="font-semibold text-marino">Actuaciones</h2>
           {cat?.puede_editar && a.estado === "activo" && <form className="mt-3 space-y-2 rounded-xl bg-crema/60 p-3" onSubmit={async (ev) => {
@@ -76,6 +79,7 @@ export default function Asunto() {
             </li>))}
             {!a.actuaciones.length && <li className="text-sm text-slate-500">Sin actuaciones registradas.</li>}</ol>
         </section>
+        </div>
       </div>
       {editar && <FormAsunto inicial={a} onCerrar={() => setEditar(false)} onGuardado={(x) => { setA(x); setEditar(false); setOk("Asunto actualizado."); }} />}
       {nuevo && <FormEvento inicial={nuevo} asuntoFijo={a} onCerrar={() => setNuevo(null)} onGuardado={() => { setNuevo(null); setOk("Agregado a la agenda."); cargar(); }} />}

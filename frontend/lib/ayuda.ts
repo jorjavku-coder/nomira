@@ -199,6 +199,8 @@ export const MANUALES: Manual[] = [
         texto: "Todo plazo calculado queda «sin validar» hasta que un abogado revisa el desglose y presiona «Validar fecha». Si después cambia la fecha o el cálculo, hay que validarlo de nuevo." },
       { titulo: "Lleve sus asuntos y el calendario", imagen: "agenda-calendario", alt: "Calendario mensual",
         texto: "En Asuntos registre cada juicio con su tribunal, materia y actuaciones; al capturar una notificación, Nomira propone calcular el plazo. En Calendario ve el mes completo con los días inhábiles rayados." },
+      { titulo: "Vigile sus expedientes en estrados (TRIJAEM)", imagen: "agenda-estrados", alt: "Pantalla de estrados digitales",
+        texto: "Dentro del asunto pulse «Vigilar en estrados», escriba el número de expediente (por ejemplo 1234/2026), elija la sala y, si quiere, los números de sus promociones. Nomira revisa los estrados del TRIJAEM varias veces al día y avisa al responsable en cuanto se publica un acuerdo; en Agenda → Estrados lo ve con el enlace al acuerdo. Desde cada publicación puede pasarla al historial y calcular el plazo. También puede «Cotejar lista del día» pegando la lista o subiendo el PDF." },
     ],
     consejos: [
       "Los avisos llegan los días que configure (por omisión 5, 3, 1 y el mismo día). Si a mediodía del vencimiento sigue pendiente, avisa también a quien supervisa.",
@@ -207,6 +209,7 @@ export const MANUALES: Manual[] = [
     ],
     preguntas: [
       { p: "¿Nomira decide el plazo?", r: "No. Ayuda a calcularlo con lo que usted captura. El abogado lo valida conforme a la ley y al calendario oficial del tribunal." },
+      { p: "¿Nomira revisa los estrados solo?", r: "Sí, para el TRIJAEM: con el expediente y la sala, Nomira consulta sus estrados cada 3 horas en días hábiles. Si el tribunal no responde, lo verá marcado en el expediente y puede cotejar la lista del día. Confirme siempre en la consulta oficial." },
       { p: "No me llegan los correos de aviso.", r: "Revise en Avisos y ajustes que tenga activados los correos, y su carpeta de spam. Los avisos también se ven en la vista Hoy." },
     ],
   },

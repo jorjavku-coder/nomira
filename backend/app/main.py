@@ -9,12 +9,12 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, academia_medios, afore, agenda, agenda_feed, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
-from .services.agenda import avisos as agenda_avisos
+from .services.agenda import avisos as agenda_avisos, estrados as agenda_estrados_srv
 from .services.modulos import requiere_modulo
 from .services import correo
 from .services.envios import ejecutar_recordatorios
@@ -82,6 +82,10 @@ def _una_revision_agenda() -> None:
         r = agenda_avisos.ejecutar(db)
         if any(r.values()):
             logging.getLogger("nomira.agenda").info("Agenda: %s avisos, %s correos, %s resúmenes", r["avisos"], r["correos"], r["resumenes"])
+    with SessionLocal() as db:  # estrados digitales: solo si la consulta automática está configurada
+        r = agenda_estrados_srv.ejecutar(db)
+        if r["revisadas"]:
+            logging.getLogger("nomira.estrados").info("Estrados: %s revisados, %s publicaciones nuevas, %s correos", r["revisadas"], r["nuevas"], r["correos"])
 
 
 async def _revisar_agenda(espera_inicial: float = 90, cada: float = 900) -> None:
@@ -115,6 +119,7 @@ app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))
 app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
 app.include_router(agenda.router, dependencies=[Depends(requiere_modulo("agenda"))])
+app.include_router(agenda_estrados.router, dependencies=[Depends(requiere_modulo("agenda"))])
 app.include_router(agenda_feed.router)  # calendario privado por persona (lo valida su enlace)
 app.include_router(academia_medios.router)  # URL firmadas (video/SCORM) y verificación pública de diplomas
 # Centro Legal: documentos publicados (públicos), solicitudes ARCO y aceptación; y su administración en el panel

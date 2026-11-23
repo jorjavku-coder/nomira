@@ -1677,3 +1677,45 @@ class AgAviso(Base):
     correo: Mapped[bool] = mapped_column(Boolean, default=False)
     leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AgVigilancia(Base):
+    """Expediente que Nomira revisa en los estrados digitales de un tribunal para avisar cuando hay publicación."""
+    __tablename__ = "ag_vigilancias"
+    __table_args__ = (UniqueConstraint("asunto_id", "fuente"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="CASCADE"), index=True)
+    fuente: Mapped[str] = mapped_column(String(30), default="trijaem")  # tribunal / sistema de estrados
+    expediente: Mapped[str] = mapped_column(String(80))  # como lo publica el tribunal, p. ej. 1234/2026
+    sala: Mapped[str | None] = mapped_column(String(120))
+    id_sala: Mapped[str | None] = mapped_column(String(10))  # clave de la sala en el sistema del tribunal
+    promociones: Mapped[list | None] = mapped_column(JSON)  # números de promoción presentados que se quieren seguir
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    ultima_revision: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_estado: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente | ok | error | sin_conexion
+    ultimo_error: Mapped[str | None] = mapped_column(String(300))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AgPublicacion(Base):
+    """Publicación encontrada (o registrada a mano) en estrados para un expediente vigilado."""
+    __tablename__ = "ag_publicaciones"
+    __table_args__ = (UniqueConstraint("vigilancia_id", "huella"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    vigilancia_id: Mapped[int] = mapped_column(ForeignKey("ag_vigilancias.id", ondelete="CASCADE"), index=True)
+    huella: Mapped[str] = mapped_column(String(64))
+    fecha_publicacion: Mapped[date] = mapped_column(Date)
+    sala: Mapped[str | None] = mapped_column(String(120))
+    tipo: Mapped[str | None] = mapped_column(String(80))  # acuerdo, sentencia, notificación…
+    fecha_acuerdo: Mapped[date | None] = mapped_column(Date)
+    promocion: Mapped[str | None] = mapped_column(String(30))  # número de promoción al que responde el acuerdo
+    descripcion: Mapped[str] = mapped_column(String(2000))
+    enlace: Mapped[str | None] = mapped_column(String(500))
+    origen: Mapped[str] = mapped_column(String(12), default="automatica")  # automatica | manual
+    actuacion_id: Mapped[int | None] = mapped_column(ForeignKey("ag_actuaciones.id", ondelete="SET NULL"))
+    vista_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    vista_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    encontrada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

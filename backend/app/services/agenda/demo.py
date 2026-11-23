@@ -56,3 +56,22 @@ def sembrar(db: Session, email: str = "admin@demo.local") -> bool:
     ])
     db.commit()
     return True
+
+
+def sembrar_estrados(db: Session, email: str = "admin@demo.local") -> bool:
+    """Vigilancia de estrados de ejemplo (sin publicaciones: esas las encuentra el cotejo o la revisión). Se crea una sola vez."""
+    admin = db.scalar(select(m.Usuario).where(m.Usuario.email == email))
+    if not admin or db.scalar(select(m.AgVigilancia.id).where(m.AgVigilancia.organizacion_id == admin.organizacion_id)):
+        return False
+    oid = admin.organizacion_id
+    a = db.scalar(select(m.AgAsunto).where(m.AgAsunto.organizacion_id == oid, m.AgAsunto.titulo == "Nulidad Demo vs. Ayuntamiento Ficticio"))
+    if a is None:
+        a = m.AgAsunto(organizacion_id=oid, titulo="Nulidad Demo vs. Ayuntamiento Ficticio", numero="JA-1234/2026", jurisdiccion="estatal",
+                       entidad="Estado de México", tribunal="TRIJAEM · Primera Sala Regional", materia="administrativo",
+                       responsable_id=admin.id, creado_por_id=admin.id, actualizado_en=m.ahora())
+        db.add(a)
+        db.flush()
+    db.add(m.AgVigilancia(organizacion_id=oid, asunto_id=a.id, fuente="trijaem", expediente="JA-1234/2026", sala="Primera Sala Regional Toluca",
+                          creado_por_id=admin.id))
+    db.commit()
+    return True

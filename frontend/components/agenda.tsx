@@ -13,6 +13,7 @@ export function AgendaShell({ children }: { children: React.ReactNode }) {
   const enlaces: [string, string, boolean][] = [
     ["/agenda", "Hoy", ruta === "/agenda"], ["/agenda/calendario", "Calendario", ruta.startsWith("/agenda/calendario")],
     ["/agenda/asuntos", "Asuntos", ruta.startsWith("/agenda/asuntos")], ["/agenda/pendientes", "Todos los pendientes", ruta.startsWith("/agenda/pendientes")],
+    ["/agenda/estrados", "Estrados", ruta.startsWith("/agenda/estrados")],
     ["/agenda/calendarios", "Días hábiles", ruta.startsWith("/agenda/calendarios")], ["/agenda/configuracion", "Avisos y ajustes", ruta.startsWith("/agenda/configuracion")],
   ];
   return (
