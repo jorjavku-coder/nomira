@@ -3,6 +3,7 @@ import Link from "next/link";
 import BotonAyuda from "@/components/BotonAyuda";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
+import { type ClienteBreve, SelectorCliente, useClienteDeUrl } from "@/components/clientes";
 import { Aviso, Chip, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api, fecha, mxn } from "@/lib/api";
 
@@ -16,9 +17,10 @@ function quincenasEntre(ini: string, fin: string): number | null {
   return n > 0 ? n : null;
 }
 
-function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: (id: number) => void }) {
+function NuevoExpediente({ onCerrar, onCreado, clienteInicial }: { onCerrar: () => void; onCreado: (id: number) => void; clienteInicial?: ClienteBreve | null }) {
   const [versiones, setVersiones] = useState<any[]>([]);
-  const [f, setF] = useState({ trabajador_nombre: "", identificador_laboral: "", periodo_inicio: "", periodo_fin: "", quincenas_esperadas: "", catalogo_version_id: "" });
+  const [cliente, setCliente] = useState<ClienteBreve | null>(clienteInicial || null);
+  const [f, setF] = useState({ trabajador_nombre: clienteInicial?.nombre || "", identificador_laboral: "", periodo_inicio: "", periodo_fin: "", quincenas_esperadas: "", catalogo_version_id: "" });
   const [error, setError] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
   const [lectura, setLectura] = useState<any>(null);
@@ -66,7 +68,7 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
       const r = await api.post("/expedientes", {
         ...f, identificador_laboral: f.identificador_laboral || null,
         quincenas_esperadas: f.quincenas_esperadas ? Number(f.quincenas_esperadas) : null,
-        catalogo_version_id: Number(f.catalogo_version_id),
+        catalogo_version_id: Number(f.catalogo_version_id), cr_cliente_id: cliente?.id ?? null,
       });
       id = r.id;
       if (archivos.length) {
@@ -127,6 +129,7 @@ function NuevoExpediente({ onCerrar, onCreado }: { onCerrar: () => void; onCread
             )}
           </div>
         )}
+        <SelectorCliente valor={cliente} onCambio={(c) => { setCliente(c); if (c && !f.trabajador_nombre) setF({ ...f, trabajador_nombre: c.nombre }); }} etiqueta="Cliente (opcional, de su directorio)" />
         <label className="block"><span className="etiqueta">Nombre del trabajador</span>
           <input className="campo" required minLength={2} value={f.trabajador_nombre} onChange={cambiar("trabajador_nombre")} /></label>
         <label className="block"><span className="etiqueta">Identificador laboral (opcional)</span>
@@ -164,6 +167,8 @@ export default function Expedientes() {
   const [lista, setLista] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState(false);
+  const desdeCliente = useClienteDeUrl();
+  useEffect(() => { if (desdeCliente.nuevo) setNuevo(true); }, [desdeCliente.nuevo]);
   const [ok, setOk] = useState("");
   const [borrar, setBorrar] = useState<any>(null);
   const cargar = useCallback(() => api.get("/expedientes").then(setLista).catch((e) => setError(e.message)), []);
@@ -235,7 +240,7 @@ export default function Expedientes() {
           {borrar.estado === "validado" && <p className="mt-2 font-semibold text-red-700">Este expediente ya está validado.</p>}
         </ConfirmarEliminar>
       )}
-      {nuevo && <NuevoExpediente onCerrar={() => setNuevo(false)} onCreado={(id) => (window.location.href = `/expedientes/${id}`)} />}
+      {nuevo && desdeCliente.listo && <NuevoExpediente clienteInicial={desdeCliente.cliente} onCerrar={() => setNuevo(false)} onCreado={(id) => (window.location.href = `/expedientes/${id}`)} />}
     </Shell>
   );
 }

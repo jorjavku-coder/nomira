@@ -4,6 +4,7 @@ import BotonAyuda from "@/components/BotonAyuda";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import { type ClienteBreve, SelectorCliente } from "@/components/clientes";
 import { Aviso, Modal } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
@@ -265,19 +266,22 @@ export function FormAsunto({ inicial, onCerrar, onGuardado }: { inicial?: any; o
   const [f, setF] = useState<any>({ titulo: "", numero: "", jurisdiccion: "federal", entidad: "", tribunal: "", materia: "", calendario_id: cat?.calendario_defecto ?? "",
     responsable_id: "", expediente_id: "", ev_asunto_id: "", notas: "", ...(inicial || {}) });
   const [error, setError] = useState("");
+  const [cliente, setCliente] = useState<ClienteBreve | null>(inicial?.cr_cliente_id ? { id: inicial.cr_cliente_id, nombre: inicial.cliente || "Cliente" } : null);
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
   if (!cat) return null;
   async function guardar(ev: React.FormEvent) {
     ev.preventDefault(); setError("");
     const n = (v: any) => (v === "" || v === null || v === undefined ? null : Number(v));
     const cuerpo = { ...f, numero: f.numero || null, entidad: f.entidad || null, tribunal: f.tribunal || null, notas: f.notas || null,
-      calendario_id: n(f.calendario_id), responsable_id: n(f.responsable_id), expediente_id: n(f.expediente_id), ev_asunto_id: n(f.ev_asunto_id) };
+      calendario_id: n(f.calendario_id), responsable_id: n(f.responsable_id), expediente_id: n(f.expediente_id), ev_asunto_id: n(f.ev_asunto_id),
+      cr_cliente_id: cliente?.id ?? null };
     try { onGuardado(inicial?.id ? await api.patch(`/agenda/asuntos/${inicial.id}`, cuerpo) : await api.post("/agenda/asuntos", cuerpo)); }
     catch (e: any) { setError(e.message); }
   }
   return (
     <Modal titulo={inicial?.id ? "Editar asunto" : "Nuevo asunto"} onCerrar={onCerrar} ancho="max-w-2xl">
       <form onSubmit={guardar} className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2"><SelectorCliente valor={cliente} onCambio={(c) => { setCliente(c); if (c && !f.titulo) setF({ ...f, titulo: `${c.nombre} vs. ` }); }} etiqueta="Cliente (de su directorio)" /></div>
         <label className="sm:col-span-2"><span className="etiqueta">Nombre del asunto</span><input className="campo" required minLength={3} value={f.titulo} onChange={set("titulo")} placeholder="Ej. Pérez vs. Empresa X" /></label>
         <label><span className="etiqueta">Número de expediente o juicio</span><input className="campo" value={f.numero || ""} onChange={set("numero")} placeholder="Ej. 1450/2026" /></label>
         <label><span className="etiqueta">Materia</span><select className="campo" required value={f.materia} onChange={set("materia")}><option value="">Elija…</option>{Object.entries(cat.materias).map(([k, t]: any) => <option key={k} value={k}>{t}</option>)}</select></label>

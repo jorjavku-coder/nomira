@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
+from ..services.clientes import base as clientes_base
 from ..deps import auditar, obtener, puede_editar, usuario_actual
 from ..services import exportar, prelectura
 from ..services.calculo import periodo_alineado, quincenas_esperadas
@@ -31,6 +32,7 @@ class ExpedienteNuevo(BaseModel):
     periodo_fin: date
     quincenas_esperadas: int | None = Field(None, ge=1, le=600)
     catalogo_version_id: int
+    cr_cliente_id: int | None = None  # cliente del directorio (Clientes)
 
 
 class ExpedienteCambio(BaseModel):
@@ -109,7 +111,7 @@ def _exp(db: Session, e: m.Expediente, con_resumen=True, res: dict | None = None
          "catalogo": {"version_id": v.id, "nombre": v.catalogo.nombre, "version": v.numero, "estado": v.estado},
          "documentos": len(e.documentos), "creado_en": e.creado_en.isoformat(),
          "actualizado_en": e.actualizado_en.isoformat(),
-         "validado_en": e.validado_en.isoformat() if e.validado_en else None}
+         "validado_en": e.validado_en.isoformat() if e.validado_en else None, "cr_cliente_id": e.cr_cliente_id}
     if con_resumen:
         res = res if res is not None else calcular_expediente(db, e)
         d["resumen"] = res["resumen"]
@@ -160,7 +162,8 @@ def crear(d: ExpedienteNuevo, request: Request, u: m.Usuario = Depends(puede_edi
     e = m.Expediente(organizacion_id=u.organizacion_id, trabajador_nombre=d.trabajador_nombre.strip(),
                      identificador_laboral=(d.identificador_laboral or "").strip() or None,
                      periodo_inicio=d.periodo_inicio, periodo_fin=d.periodo_fin,
-                     quincenas_esperadas=d.quincenas_esperadas or n, catalogo_version_id=v.id, creado_por_id=u.id)
+                     quincenas_esperadas=d.quincenas_esperadas or n, catalogo_version_id=v.id, creado_por_id=u.id,
+                     cr_cliente_id=d.cr_cliente_id if clientes_base.de_org(db, d.cr_cliente_id, u.organizacion_id) else None)
     db.add(e)
     db.flush()
     auditar(db, u, "expediente_creado", "expediente", e.id, {"catalogo_version_id": v.id}, request)

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
+from ..services.clientes import base as clientes_base
 from ..deps import auditar, obtener, puede_editar, solo_admin, usuario_actual
 from ..services.evidencia import analisis, jurisdiccion, reporte
 from ..services import correo, envios, plantillas_correo
@@ -277,7 +278,7 @@ def asunto_dict(a: m.EvAsunto, nombres: dict[int, str]) -> dict:
             "identificador_interno": a.identificador_interno, "responsable_id": a.responsable_id,
             "responsable": nombres.get(a.responsable_id), "notas": a.notas, "campos": a.campos or {},
             "creado_por": nombres.get(a.creado_por_id), "creado_en": a.creado_en.isoformat(),
-            "actualizado_en": a.actualizado_en.isoformat()}
+            "actualizado_en": a.actualizado_en.isoformat(), "cr_cliente_id": a.cr_cliente_id}
 
 
 def pendiente_dict(x: m.EvPendiente) -> dict:
@@ -299,6 +300,7 @@ class AsuntoIn(BaseModel):
     expediente_judicial: str | None = Field(None, max_length=80)
     nombre: str = Field(min_length=2, max_length=200)
     cliente: str | None = Field(None, max_length=200)
+    cr_cliente_id: int | None = None  # cliente del directorio (Clientes)
     tipo_caso: str | None = Field(None, max_length=120)
     jurisdiccion: str | None = Field(None, max_length=160)
     identificador_interno: str | None = Field(None, max_length=80)
@@ -315,6 +317,7 @@ class AsuntoCambio(BaseModel):
     expediente_judicial: str | None = Field(None, max_length=80)
     nombre: str | None = Field(None, min_length=2, max_length=200)
     cliente: str | None = Field(None, max_length=200)
+    cr_cliente_id: int | None = None  # cliente del directorio (Clientes)
     tipo_caso: str | None = Field(None, max_length=120)
     jurisdiccion: str | None = Field(None, max_length=160)
     identificador_interno: str | None = Field(None, max_length=80)
@@ -383,7 +386,9 @@ def listar(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)
 
 @router.post("/asuntos", status_code=201)
 def crear(d: AsuntoIn, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
-    a = m.EvAsunto(organizacion_id=u.organizacion_id, nombre=d.nombre.strip(), cliente=_txt(d.cliente, 200),
+    cli = clientes_base.de_org(db, d.cr_cliente_id, u.organizacion_id)
+    a = m.EvAsunto(organizacion_id=u.organizacion_id, nombre=d.nombre.strip(), cliente=cli.nombre[:200] if cli else _txt(d.cliente, 200),
+                   cr_cliente_id=cli.id if cli else None,
                    tipo_caso=_txt(d.tipo_caso, 120), jurisdiccion=_txt(d.jurisdiccion, 160),
                    identificador_interno=_txt(d.identificador_interno, 80),
                    responsable_id=_responsable(db, d.responsable_id, u), notas=_txt(d.notas, 5000),
@@ -413,6 +418,13 @@ def cambiar(aid: int, d: AsuntoCambio, request: Request, u: m.Usuario = Depends(
     limites = {"nombre": 200, "cliente": 200, "tipo_caso": 120, "jurisdiccion": 160, "identificador_interno": 80, "notas": 5000}
     cambios = [k for k in ("ambito", "entidad_federativa", "municipio_distrito", "organo", "expediente_judicial")
                if k in d.model_fields_set]
+    if "cr_cliente_id" in datos:
+        cli = clientes_base.de_org(db, datos.pop("cr_cliente_id"), u.organizacion_id)
+        if (cli.id if cli else None) != a.cr_cliente_id:
+            a.cr_cliente_id = cli.id if cli else None
+            cambios.append("cr_cliente_id")
+        if cli:
+            datos["cliente"] = cli.nombre
     for k, v in datos.items():
         if k == "responsable_id":
             v = _responsable(db, v, u)

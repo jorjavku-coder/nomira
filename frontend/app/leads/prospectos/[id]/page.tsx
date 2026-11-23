@@ -66,6 +66,7 @@ export default function Prospecto() {
           {p.asunto_titulo && <> · Asunto: <b>{p.asunto_titulo}</b>{p.asunto_referencia ? ` (${p.asunto_referencia})` : ""}</>}
           {p.ev_asunto_id && <> · <Link className="font-semibold text-turquesa-700 underline" href={`/evidencia/${p.ev_asunto_id}`}>Abrir en Evidencia</Link></>}
           {p.af_caso_id && <> · <Link className="font-semibold text-turquesa-700 underline" href={`/afore/casos/${p.af_caso_id}`}>Abrir caso AFORE</Link></>}
+          {p.cr_cliente_id && <> · <Link className="font-semibold text-turquesa-700 underline" href={`/clientes/${p.cr_cliente_id}`}>Ver en Clientes y cobranza</Link></>}
         </section>)}
       {p.etapa_tipo === "perdida" && (
         <section className="tarjeta mt-4 p-4 text-sm text-slate-700"><b>No contratado</b> · Motivo: {p.motivo_perdida}{p.motivo_nota ? ` — ${p.motivo_nota}` : ""}</section>)}
@@ -264,7 +265,7 @@ function ModalContratar({ p, cat, onCerrar, accion, router }: any) {
           referencia: d.referencia || null, nota: d.nota || null }), "Contratación registrada.");
         if (r) { onCerrar(); if (r.destino) router.push(r.destino); }
       }}>
-        <p className="text-sm text-slate-600">Se usan los datos que ya tiene el prospecto: no hay que capturarlos de nuevo.</p>
+        <p className="text-sm text-slate-600">Se usan los datos que ya tiene el prospecto: no hay que capturarlos de nuevo. También se da de alta en <b>Clientes</b> para llevar sus documentos y pagos.</p>
         <label className="block"><span className="etiqueta">Servicio contratado</span><input className="campo" required minLength={2} value={d.servicio} onChange={(e) => setD({ ...d, servicio: e.target.value })} /></label>
         <label className="block"><span className="etiqueta">Nombre del asunto (opcional)</span><input className="campo" placeholder={`${d.servicio || "Servicio"} — ${p.nombre}`} value={d.asunto_titulo} onChange={(e) => setD({ ...d, asunto_titulo: e.target.value })} /></label>
         <label className="block"><span className="etiqueta">Referencia interna (opcional)</span><input className="campo" maxLength={80} value={d.referencia} onChange={(e) => setD({ ...d, referencia: e.target.value })} /></label>

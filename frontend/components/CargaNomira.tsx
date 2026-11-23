@@ -58,7 +58,7 @@ function recuperar() {
 }
 
 // Peticiones que corren solas en segundo plano: no deben tapar la pantalla.
-const SILENCIOSAS = [/\/contador$/, /\/sin-leer$/, /\/avisos\/leidos$/, /\/agenda\/calcular$/, /\/lecciones\/\d+\/scorm$/, /\/no-leidos/, /\/salud$/];
+const SILENCIOSAS = [/\/contador$/, /\/sin-leer$/, /\/avisos\/leidos$/, /\/agenda\/calcular$/, /\/lecciones\/\d+\/scorm$/, /\/no-leidos/, /\/salud$/, /\/clientes\/buscar/];
 const ENTRADA = /^\/api\/(auth\/login|plataforma\/login)(\/codigo)?$/;
 const ultimaLectura = new Map<string, number>();
 const UMBRAL = { subida: 0, entrada: 0, guardado: 400, lectura: 500 };

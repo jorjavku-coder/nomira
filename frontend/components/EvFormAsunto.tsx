@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { type ClienteBreve, SelectorCliente } from "@/components/clientes";
 import { Aviso, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -22,6 +23,7 @@ export function FormAsunto({ inicial, onGuardar, onCerrar, titulo }: {
   });
   const entidadInvalida = !!f.entidad_federativa && !ENTIDADES.includes(f.entidad_federativa);
   const [campos, setCampos] = useState<[string, string][]>(Object.entries(inicial?.campos || {}) as [string, string][]);
+  const [cliente, setCliente] = useState<ClienteBreve | null>(inicial?.cr_cliente_id ? { id: inicial.cr_cliente_id, nombre: inicial.cliente || "Cliente" } : null);
   const [responsables, setResponsables] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -34,6 +36,7 @@ export function FormAsunto({ inicial, onGuardar, onCerrar, titulo }: {
     try {
       await onGuardar({
         ...f, responsable_id: f.responsable_id ? Number(f.responsable_id) : null, ambito: f.ambito || null,
+        cr_cliente_id: cliente?.id ?? null, cliente: cliente ? cliente.nombre : f.cliente,
         entidad_federativa: f.ambito === "local" ? f.entidad_federativa || null : null,
         campos: Object.fromEntries(campos.filter(([k, v]) => k.trim() && v.trim())),
       });
@@ -46,7 +49,8 @@ export function FormAsunto({ inicial, onGuardar, onCerrar, titulo }: {
         <label className="block"><span className="etiqueta">Nombre del asunto</span>
           <input className="campo" required minLength={2} maxLength={200} value={f.nombre} onChange={cambiar("nombre")} placeholder="p. ej. Pérez vs. Empresa SA" autoFocus /></label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block"><span className="etiqueta">Cliente</span><input className="campo" maxLength={200} value={f.cliente} onChange={cambiar("cliente")} /></label>
+          <div className="sm:col-span-2"><SelectorCliente valor={cliente} onCambio={setCliente} etiqueta="Cliente (de su directorio)" />
+            {!cliente && f.cliente && <p className="mt-1 text-xs text-slate-500">Capturado antes como texto: «{f.cliente}». Elíjalo del directorio para ligarlo.</p>}</div>
           <label className="block"><span className="etiqueta">Tipo de caso</span>
             <input className="campo" list="tipos-caso" maxLength={120} value={f.tipo_caso} onChange={cambiar("tipo_caso")} placeholder="Escriba o elija" />
             <datalist id="tipos-caso">{TIPOS_CASO.map((t) => <option key={t} value={t} />)}</datalist></label>

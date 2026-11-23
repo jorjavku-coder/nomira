@@ -83,6 +83,7 @@ export default function Expediente() {
             <h1 className="text-3xl font-extrabold text-marino">Expediente #{exp.id} · {exp.trabajador_nombre}</h1>
             <Chip estado={exp.estado} />
             {!validado && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Resultado provisional</span>}
+            {exp.cr_cliente_id && <Link href={`/clientes/${exp.cr_cliente_id}`} className="text-sm font-semibold text-turquesa-700 hover:underline">👤 Ver cliente</Link>}
           </div>
           <p className="mt-1 text-sm text-slate-600">
             Periodo {fecha(exp.periodo_inicio)} – {fecha(exp.periodo_fin)} · {exp.quincenas_esperadas} quincenas esperadas

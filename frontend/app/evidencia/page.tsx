@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso } from "@/components/ui";
 import { FormAsunto } from "@/components/EvFormAsunto";
+import { useClienteDeUrl } from "@/components/clientes";
 import { api, fecha } from "@/lib/api";
 
 export default function Evidencia() {
@@ -14,6 +15,8 @@ export default function Evidencia() {
   const [lista, setLista] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState(false);
+  const desdeCliente = useClienteDeUrl();
+  useEffect(() => { if (desdeCliente.nuevo) setNuevo(true); }, [desdeCliente.nuevo]);
   const [filtro, setFiltro] = useState("");
   const cargar = useCallback(() => api.get("/evidencia/asuntos").then(setLista).catch((e) => setError(e.message)), []);
   useEffect(() => { cargar(); }, [cargar]);
@@ -77,8 +80,8 @@ export default function Evidencia() {
           </Link>
         ))}
       </div>
-      {nuevo && (
-        <FormAsunto titulo="Nuevo asunto" onCerrar={() => setNuevo(false)}
+      {nuevo && desdeCliente.listo && (
+        <FormAsunto titulo="Nuevo asunto" inicial={desdeCliente.cliente ? { cr_cliente_id: desdeCliente.cliente.id, cliente: desdeCliente.cliente.nombre } : undefined} onCerrar={() => setNuevo(false)}
           onGuardar={async (datos) => { const r = await api.post("/evidencia/asuntos", datos); router.push(`/evidencia/${r.id}`); }} />
       )}
     </Shell>
