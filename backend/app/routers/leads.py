@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
+from ..services.clientes import base as clientes_base
 from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services import correo, envios, modulos
 from ..services.afore.cifrado import cifrar
@@ -401,7 +402,7 @@ def ver(pid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(
     d.update({
         "descripcion": p.descripcion, "preferencia_contacto": p.preferencia_contacto, "motivo_nota": p.motivo_nota,
         "origen_detalle": p.origen_detalle, "servicio_contratado": p.servicio_contratado, "asunto_titulo": p.asunto_titulo,
-        "asunto_referencia": p.asunto_referencia, "ev_asunto_id": p.ev_asunto_id, "af_caso_id": p.af_caso_id,
+        "asunto_referencia": p.asunto_referencia, "ev_asunto_id": p.ev_asunto_id, "af_caso_id": p.af_caso_id, "cr_cliente_id": p.cr_cliente_id,
         "creado_por": nombres.get(p.creado_por_id),
         "pendientes": [accion_dict(a, nombres) for a in pend],
         "acciones": [accion_dict(a, nombres) for a in acciones if a.completada_en or a.cancelada],
@@ -770,6 +771,8 @@ class Contratar(BaseModel):
     referencia: str | None = Field(None, max_length=80)
     nota: str | None = Field(None, max_length=1000)
     crear_en: str | None = None  # evidencia | afore (opcional: solo si ese módulo está activo)
+    cr_cliente_id: int | None = None  # cliente del directorio; si no se indica, se da de alta con los datos del prospecto
+    alta_en_clientes: bool = True
 
 
 @router.post("/prospectos/{pid}/contratar")
@@ -791,16 +794,27 @@ def contratar(pid: int, d: Contratar, request: Request, u: m.Usuario = Depends(p
     _respondido(p)
     for a in db.scalars(select(m.LdAccion).where(m.LdAccion.prospecto_id == p.id, m.LdAccion.completada_en.is_(None), m.LdAccion.cancelada.is_(False))):
         a.cancelada = True
+    cli = clientes_base.de_org(db, d.cr_cliente_id, u.organizacion_id)
+    if cli is None and d.alta_en_clientes:
+        cli = p.cr_cliente_id and db.get(m.CrCliente, p.cr_cliente_id)
+        if not cli:
+            cli = m.CrCliente(organizacion_id=u.organizacion_id, nombre=p.nombre[:250], email=p.email, telefono=p.telefono, origen="leads",
+                              notas=f"Alta desde Nomira Leads. Servicio contratado: {p.servicio_contratado}.",
+                              responsable_id=p.responsable_id or u.id, creado_por_id=u.id)
+            db.add(cli)
+            db.flush()
+    if cli:
+        p.cr_cliente_id = cli.id
     destino = None
     if d.crear_en == "evidencia":
-        ev = m.EvAsunto(organizacion_id=u.organizacion_id, nombre=titulo, cliente=p.nombre, tipo_caso=p.materia,
+        ev = m.EvAsunto(organizacion_id=u.organizacion_id, nombre=titulo, cliente=p.nombre, tipo_caso=p.materia, cr_cliente_id=p.cr_cliente_id,
                         identificador_interno=p.asunto_referencia, responsable_id=p.responsable_id,
                         notas=f"Creado desde Nomira Leads. Servicio contratado: {p.servicio_contratado}.", creado_por_id=u.id)
         db.add(ev)
         db.flush()
         p.ev_asunto_id, destino = ev.id, f"/evidencia/{ev.id}"
     elif d.crear_en == "afore":
-        cl = m.AfCliente(organizacion_id=u.organizacion_id, nombre=p.nombre, telefono=p.telefono, email=p.email,
+        cl = m.AfCliente(organizacion_id=u.organizacion_id, nombre=p.nombre, telefono=p.telefono, email=p.email, cr_cliente_id=p.cr_cliente_id,
                          preferencia_contacto=p.preferencia_contacto if p.preferencia_contacto in ("whatsapp", "correo") else "correo",
                          notas="Creado desde Nomira Leads.", creado_por_id=u.id)
         db.add(cl)

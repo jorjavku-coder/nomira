@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
+from ..services.clientes import base as clientes_base
 from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services import modulos
 from ..services.agenda import base, dias as calc
@@ -74,6 +75,11 @@ def _cal_dict(db: Session, c: m.AgCalendario) -> dict:
             "actualizado_en": (c.actualizado_en or c.creado_en).isoformat()}
 
 
+def _cliente_nombre(db: Session, cid: int | None) -> str | None:
+    c = db.get(m.CrCliente, cid) if cid else None
+    return c.nombre if c else None
+
+
 def _asunto_dict(db: Session, a: m.AgAsunto, nombres: dict | None = None, resumen: bool = True) -> dict:
     nombres = nombres if nombres is not None else _nombres(db, a.organizacion_id)
     cal = db.get(m.AgCalendario, a.calendario_id) if a.calendario_id else None
@@ -81,6 +87,7 @@ def _asunto_dict(db: Session, a: m.AgAsunto, nombres: dict | None = None, resume
          "materia": a.materia, "materia_texto": base.MATERIAS.get(a.materia, a.materia), "calendario_id": a.calendario_id,
          "calendario": cal.nombre if cal else None, "responsable_id": a.responsable_id, "responsable": nombres.get(a.responsable_id),
          "expediente_id": a.expediente_id, "ev_asunto_id": a.ev_asunto_id, "notas": a.notas, "estado": a.estado,
+         "cr_cliente_id": a.cr_cliente_id, "cliente": _cliente_nombre(db, a.cr_cliente_id),
          "creado_en": a.creado_en.isoformat()}
     if resumen:
         pend = db.scalars(select(m.AgEvento).where(m.AgEvento.asunto_id == a.id, m.AgEvento.estado == "pendiente").order_by(m.AgEvento.fecha)).all()
@@ -387,6 +394,7 @@ class AsuntoIn(BaseModel):
     responsable_id: int | None = None
     expediente_id: int | None = None
     ev_asunto_id: int | None = None
+    cr_cliente_id: int | None = None  # cliente del directorio (Clientes)
     notas: str | None = Field(None, max_length=5000)
 
 
@@ -404,7 +412,8 @@ def _val_asunto(db: Session, d: AsuntoIn, u: m.Usuario) -> dict:
     return {"titulo": d.titulo.strip(), "numero": _txt(d.numero, 80), "jurisdiccion": d.jurisdiccion,
             "entidad": d.entidad if d.jurisdiccion == "estatal" else None, "tribunal": _txt(d.tribunal, 200), "materia": d.materia,
             "calendario_id": d.calendario_id, "responsable_id": _usuario(db, d.responsable_id, u), "expediente_id": d.expediente_id,
-            "ev_asunto_id": d.ev_asunto_id, "notas": _txt(d.notas, 5000)}
+            "ev_asunto_id": d.ev_asunto_id, "notas": _txt(d.notas, 5000),
+            "cr_cliente_id": d.cr_cliente_id if clientes_base.de_org(db, d.cr_cliente_id, u.organizacion_id) else None}
 
 
 @router.get("/asuntos")

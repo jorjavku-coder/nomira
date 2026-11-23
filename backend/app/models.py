@@ -110,6 +110,7 @@ class Expediente(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
     trabajador_nombre: Mapped[str] = mapped_column(String(200))
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)  # directorio de Clientes
     identificador_laboral: Mapped[str | None] = mapped_column(String(40))
     periodo_inicio: Mapped[date] = mapped_column(Date)
     periodo_fin: Mapped[date] = mapped_column(Date)
@@ -381,6 +382,7 @@ class EvAsunto(Base):
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
     nombre: Mapped[str] = mapped_column(String(200))
     cliente: Mapped[str | None] = mapped_column(String(200))
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)  # directorio de Clientes
     tipo_caso: Mapped[str | None] = mapped_column(String(120))  # texto libre: ninguna materia impuesta
     jurisdiccion: Mapped[str | None] = mapped_column(String(160))
     identificador_interno: Mapped[str | None] = mapped_column(String(80))
@@ -592,6 +594,7 @@ class AfCliente(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
     nombre: Mapped[str] = mapped_column(String(200))
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)  # directorio de Clientes
     telefono: Mapped[str | None] = mapped_column(String(20))  # solo dígitos, con lada de país
     email: Mapped[str | None] = mapped_column(String(254))
     curp_cifrado: Mapped[str | None] = mapped_column(Text)
@@ -897,6 +900,7 @@ class LdProspecto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id"), index=True)
     nombre: Mapped[str] = mapped_column(String(200))
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)  # directorio de Clientes
     telefono: Mapped[str | None] = mapped_column(String(20))  # solo dígitos, con lada de país
     email: Mapped[str | None] = mapped_column(String(254))
     ciudad: Mapped[str | None] = mapped_column(String(120))
@@ -1577,6 +1581,7 @@ class AgAsunto(Base):
     organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
     titulo: Mapped[str] = mapped_column(String(200))  # p. ej. «Pérez vs. Empresa X»
     numero: Mapped[str | None] = mapped_column(String(80))  # número de expediente o juicio
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)  # directorio de Clientes
     jurisdiccion: Mapped[str] = mapped_column(String(20), default="federal")
     entidad: Mapped[str | None] = mapped_column(String(40))
     tribunal: Mapped[str | None] = mapped_column(String(200))
@@ -1719,3 +1724,86 @@ class AgPublicacion(Base):
     vista_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     vista_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     encontrada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------
+# Clientes del despacho (mini CRM): directorio único que usan todos los módulos, sus documentos y su cobranza.
+# Incluido en todos los planes. CURP cifrada como en AFORE.
+
+class CrCliente(Base):
+    __tablename__ = "cr_clientes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(10), default="fisica")  # fisica | moral
+    nombre: Mapped[str] = mapped_column(String(250))  # nombre completo o razón social
+    rfc: Mapped[str | None] = mapped_column(String(13), index=True)
+    curp_cifrado: Mapped[str | None] = mapped_column(Text)
+    curp_pista: Mapped[str | None] = mapped_column(String(12))
+    email: Mapped[str | None] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(20))
+    domicilio: Mapped[str | None] = mapped_column(String(500))
+    codigo_postal: Mapped[str | None] = mapped_column(String(5))
+    regimen_fiscal: Mapped[str | None] = mapped_column(String(200))
+    contacto: Mapped[str | None] = mapped_column(String(200))  # persona de contacto (personas morales)
+    notas: Mapped[str | None] = mapped_column(Text)
+    etiquetas: Mapped[list | None] = mapped_column(JSON)
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    estado: Mapped[str] = mapped_column(String(10), default="activo")  # activo | inactivo
+    origen: Mapped[str] = mapped_column(String(12), default="manual")  # manual | constancia | excel | leads | modulos
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CrDocumento(Base):
+    """Documento del cliente (identificación, constancia fiscal, contrato…). El archivo vive en el almacén del despacho."""
+    __tablename__ = "cr_documentos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(20), default="otro")  # identificacion | constancia | domicilio | contrato | poder | otro
+    nombre: Mapped[str] = mapped_column(String(200))
+    archivo: Mapped[str] = mapped_column(String(300))  # ruta relativa dentro del almacén
+    tamano: Mapped[int] = mapped_column(BigInteger, default=0)
+    mime: Mapped[str] = mapped_column(String(100), default="application/octet-stream")
+    sha256: Mapped[str] = mapped_column(String(64))
+    subido_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CrCargo(Base):
+    """Honorario o cargo al cliente (pago único, parcialidad o mensualidad de una iguala)."""
+    __tablename__ = "cr_cargos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    concepto: Mapped[str] = mapped_column(String(250))
+    monto: Mapped[Decimal] = mapped_column(DINERO)
+    fecha: Mapped[date] = mapped_column(Date)
+    vence: Mapped[date] = mapped_column(Date, index=True)
+    relacionado: Mapped[dict | None] = mapped_column(JSON)  # {"modulo": "agenda", "id": 3, "titulo": "..."}
+    grupo: Mapped[str | None] = mapped_column(String(36))  # mensualidades creadas juntas (iguala)
+    cancelado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_cancelacion: Mapped[str | None] = mapped_column(String(300))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CrPago(Base):
+    """Pago recibido. Nunca se borra: se cancela con motivo. Sin cargo indicado se aplica a lo más antiguo."""
+    __tablename__ = "cr_pagos"
+    __table_args__ = (UniqueConstraint("organizacion_id", "folio"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    cargo_id: Mapped[int | None] = mapped_column(ForeignKey("cr_cargos.id", ondelete="SET NULL"))
+    folio: Mapped[int] = mapped_column(Integer)
+    monto: Mapped[Decimal] = mapped_column(DINERO)
+    fecha: Mapped[date] = mapped_column(Date)
+    metodo: Mapped[str] = mapped_column(String(15), default="transferencia")  # transferencia | efectivo | tarjeta | cheque | deposito | otro
+    referencia: Mapped[str | None] = mapped_column(String(120))
+    nota: Mapped[str | None] = mapped_column(String(500))
+    cancelado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_cancelacion: Mapped[str | None] = mapped_column(String(300))
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

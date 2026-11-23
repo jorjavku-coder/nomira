@@ -44,6 +44,8 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     for c in db.scalars(select(m.AcCurso.id).where(m.AcCurso.organizacion_id == oid)).all():
         db.execute(delete(m.AcCurso).where(m.AcCurso.id == c))  # módulos, lecciones y preguntas: CASCADE
+    for modelo in (m.CrPago, m.CrCargo, m.CrDocumento, m.CrCliente):  # Clientes del despacho (archivos: borrar_archivos)
+        db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     db.execute(delete(m.EvAsunto).where(m.EvAsunto.organizacion_id == oid))  # documentos, hechos, matriz, pendientes: CASCADE
     db.execute(delete(m.OrganizacionModulo).where(m.OrganizacionModulo.organizacion_id == oid))
     db.execute(delete(m.Correccion).where(m.Correccion.organizacion_id == oid))

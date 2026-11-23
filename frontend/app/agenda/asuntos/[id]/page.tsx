@@ -33,6 +33,7 @@ export default function Asunto() {
         <div><div className="flex items-center gap-2"><h1 className="text-3xl font-extrabold text-marino">{a.titulo}</h1><Etq clase={ESTADO[a.estado]}>{a.estado}</Etq></div>
           <p className="mt-1 text-sm text-slate-600">{a.numero && <span className="font-mono">{a.numero} · </span>}{a.materia_texto} · {a.tribunal || "Tribunal sin capturar"}
             {a.entidad ? ` · ${a.entidad}` : " · Federal"}{a.responsable ? ` · Responsable: ${a.responsable}` : ""}</p>
+          {a.cr_cliente_id && <p className="text-sm"><Link href={`/clientes/${a.cr_cliente_id}`} className="font-semibold text-turquesa-700 hover:underline">👤 {a.cliente}</Link></p>}
           <p className="text-xs text-slate-500">Días hábiles: {a.calendario || "sin calendario del tribunal (solo fines de semana y art. 74 LFT)"}</p></div>
         {cat?.puede_editar && <div className="flex flex-wrap gap-2">
           <button className="btn-sec" onClick={() => setEditar(true)}>Editar</button>

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
+from ..services.clientes import base as clientes_base
 from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services import modulos
 from ..services.afore import catalogos as cat
@@ -108,7 +109,7 @@ def checklist_de(db: Session, org: int, tipo: str) -> list[str]:
 
 def cliente_dict(c: m.AfCliente, db: Session, completo: bool = False) -> dict:
     cons = db.scalars(select(m.AfConsentimiento).where(m.AfConsentimiento.cliente_id == c.id).order_by(m.AfConsentimiento.id.desc())).all()
-    d = {"id": c.id, "nombre": c.nombre, "telefono": c.telefono if completo else enmascarar_telefono(c.telefono),
+    d = {"id": c.id, "cr_cliente_id": c.cr_cliente_id, "nombre": c.nombre, "telefono": c.telefono if completo else enmascarar_telefono(c.telefono),
          "telefono_mascara": enmascarar_telefono(c.telefono), "email": c.email,
          "curp": c.curp_pista and f"{c.curp_pista.split('…')[0]}••••••••••••{c.curp_pista.split('…')[-1]}",
          "nss": c.nss_pista and f"•••••••{c.nss_pista.lstrip('…')}", "tiene_curp": bool(c.curp_cifrado), "tiene_nss": bool(c.nss_cifrado),
@@ -276,6 +277,7 @@ class ClienteIn(BaseModel):
     relacion: str = "titular"
     preferencia_contacto: str = "correo"
     notas: str | None = Field(None, max_length=3000)
+    cr_cliente_id: int | None = None  # tomar los datos del directorio de Clientes
 
 
 class ClienteCambio(BaseModel):
@@ -338,10 +340,13 @@ def listar_clientes(q: str | None = None, u: m.Usuario = Depends(usuario_actual)
 
 @router.post("/clientes", status_code=201)
 def crear_cliente(d: ClienteIn, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
+    cli = clientes_base.de_org(db, d.cr_cliente_id, u.organizacion_id)
     c = m.AfCliente(organizacion_id=u.organizacion_id, nombre=d.nombre.strip(), creado_por_id=u.id)
-    rev = _aplicar_cliente(c, d.model_dump())
+    rev = _aplicar_cliente(c, d.model_dump(exclude={"cr_cliente_id"}))
     db.add(c)
     db.flush()
+    if cli:  # completa correo, teléfono y CURP con lo que ya está en Clientes
+        clientes_base.vincular(db, u.organizacion_id, "afore", c.id, cli)
     _aud(db, u, "af_cliente_creado", "af_cliente", c.id, request=request)  # sin CURP/NSS en la bitácora
     db.commit()
     return {**cliente_dict(c, db, True), "revision": rev}

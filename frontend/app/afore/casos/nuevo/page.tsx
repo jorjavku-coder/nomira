@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AforeShell, CampoDato, useCatalogos } from "@/components/afore";
+import { type ClienteBreve, SelectorCliente } from "@/components/clientes";
 import { Aviso } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -19,20 +20,32 @@ export default function NuevoCaso() {
   const [modoCliente, setModoCliente] = useState<"nuevo" | "existente">("nuevo");
   const [clienteId, setClienteId] = useState<string>("");
   const [c, setC] = useState<any>(vacio);
+  const [directorio, setDirectorio] = useState<ClienteBreve | null>(null);
+  function tomarDirectorio(x: ClienteBreve | null) {
+    setDirectorio(x);
+    if (x) setC({ ...c, nombre: x.nombre, telefono: x.telefono || c.telefono, email: x.email || c.email });
+  }
   const [consent, setConsent] = useState({ whatsapp: false, correo: false, medio: "verbal" });
   const [revision, setRevision] = useState<any>(null);
   const [caso, setCaso] = useState<any>({ tipo_problema: "", tipo_otro: "", titular_nombre: "", datos: {}, identificador_interno: "", responsable_id: "",
     siguiente_actividad: "", siguiente_fecha: "", restringido: false });
   const [solicitar, setSolicitar] = useState<string[]>([]);
   useEffect(() => { api.get("/afore/clientes").then(setClientes).catch(() => {}); }, []);
-  useEffect(() => { const id = new URLSearchParams(window.location.search).get("cliente"); if (id) { setModoCliente("existente"); setClienteId(id); } }, []);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const id = p.get("cliente");
+    if (id) { setModoCliente("existente"); setClienteId(id); }
+    const dir = Number(p.get("directorio"));
+    if (dir) api.get(`/clientes/${dir}`).then((x) => tomarDirectorio({ id: x.id, nombre: x.nombre, telefono: x.telefono, email: x.email })).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const checklist: string[] = cat && caso.tipo_problema ? cat.checklists[caso.tipo_problema] || [] : [];
   useEffect(() => { setSolicitar(checklist); }, [caso.tipo_problema, cat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function asegurarCliente(): Promise<number> {
     if (modoCliente === "existente") return Number(clienteId);
     if (clienteId) return Number(clienteId);
-    const r = await api.post("/afore/clientes", { ...c, telefono: c.telefono || null, email: c.email || null, curp: c.curp || null, nss: c.nss || null });
+    const r = await api.post("/afore/clientes", { ...c, telefono: c.telefono || null, email: c.email || null, curp: c.curp || null, nss: c.nss || null,
+      cr_cliente_id: directorio?.id ?? null });
     setRevision(r.revision);
     for (const canal of ["whatsapp", "correo"] as const) {
       if (consent[canal]) await api.post(`/afore/clientes/${r.id}/consentimientos`, { canal, medio: consent.medio });
@@ -93,7 +106,8 @@ export default function NuevoCaso() {
                 </select></label>
             ) : (
               <>
-                <p className="text-sm text-slate-500">Capture solo lo necesario para el caso. Puede dejar en blanco lo que aún no sepa.</p>
+                <SelectorCliente valor={directorio} onCambio={tomarDirectorio} etiqueta="Tomar datos de mi directorio de Clientes (opcional)" />
+                <p className="text-sm text-slate-500">Capture solo lo necesario para el caso. Puede dejar en blanco lo que aún no sepa.{directorio ? " Si la CURP ya está en Clientes, se copia sola (cifrada)." : ""}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block sm:col-span-2"><span className="etiqueta">Nombre completo de quien se comunica</span><input className="campo" maxLength={200} value={c.nombre} onChange={cambiarC("nombre")} autoFocus /></label>
                   <label className="block"><span className="etiqueta">Teléfono (10 dígitos)</span><input className="campo" inputMode="tel" maxLength={20} value={c.telefono} onChange={cambiarC("telefono")} /></label>
