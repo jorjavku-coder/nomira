@@ -26,6 +26,11 @@ from ..services import modulos
 from ..services.agenda import base, dias as calc
 from ..services.academia.sesiones import plataforma
 
+def estrados_sin_ver(db: Session, u: m.Usuario) -> int:
+    from .agenda_estrados import sin_ver
+    return sin_ver(db, u)
+
+
 router = APIRouter(prefix="/api/agenda", tags=["Nomira Agenda Jurídica"])
 HORA = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -441,6 +446,9 @@ def ver_asunto(aid: int, u: m.Usuario = Depends(usuario_actual), db: Session = D
     ref = base.hoy()
     d["eventos"] = [_evento_dict(db, e, nombres, ref) for e in db.scalars(select(m.AgEvento).where(m.AgEvento.asunto_id == a.id)
                                                                           .order_by(m.AgEvento.estado != "pendiente", m.AgEvento.fecha))]
+    from .agenda_estrados import _vig_dict
+    v = db.scalar(select(m.AgVigilancia).where(m.AgVigilancia.asunto_id == a.id))
+    d["vigilancia"] = _vig_dict(db, v, a) if v else None
     return d
 
 
@@ -714,7 +722,7 @@ def vista_hoy(solo_mios: bool = False, u: m.Usuario = Depends(usuario_actual), d
             "proximos": [x for x in ev if x["situacion"] == "proximo"],
             "por_validar": [_evento_dict(db, e, nombres, ref) for e in por_validar if not solo_mios or u.id in base.involucrados(e)][:50],
             "sin_responsable": [_evento_dict(db, e, nombres, ref) for e in sin_resp][:50],
-            "cumplidos_hoy": len(cumplidos),
+            "cumplidos_hoy": len(cumplidos), "estrados_sin_ver": estrados_sin_ver(db, u),
             "avisos": [{"id": a.id, "nivel": a.nivel, "evento_id": a.evento_id, "creado_en": a.creado_en.isoformat()} for a in avisos]}
 
 
@@ -723,7 +731,7 @@ def contador(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_d
     ref = base.hoy()
     filas = db.scalars(select(m.AgEvento).where(m.AgEvento.organizacion_id == u.organizacion_id, m.AgEvento.estado == "pendiente",
                                                 m.AgEvento.fecha <= ref)).all()
-    return {"total": sum(1 for e in filas if u.id in base.involucrados(e) or (u.rol == "administrador" and e.fecha < ref))}
+    return {"total": sum(1 for e in filas if u.id in base.involucrados(e) or (u.rol == "administrador" and e.fecha < ref)) + estrados_sin_ver(db, u)}
 
 
 @router.post("/avisos/leidos")

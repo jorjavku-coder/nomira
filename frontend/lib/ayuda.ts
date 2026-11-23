@@ -199,6 +199,8 @@ export const MANUALES: Manual[] = [
         texto: "Todo plazo calculado queda «sin validar» hasta que un abogado revisa el desglose y presiona «Validar fecha». Si después cambia la fecha o el cálculo, hay que validarlo de nuevo." },
       { titulo: "Lleve sus asuntos y el calendario", imagen: "agenda-calendario", alt: "Calendario mensual",
         texto: "En Asuntos registre cada juicio con su tribunal, materia y actuaciones; al capturar una notificación, Nomira propone calcular el plazo. En Calendario ve el mes completo con los días inhábiles rayados." },
+      { titulo: "Vigile sus expedientes en estrados (TRIJAEM)", imagen: "agenda-estrados", alt: "Pantalla de estrados digitales",
+        texto: "Dentro del asunto pulse «Vigilar en estrados» y escriba el número de expediente como lo publica el tribunal (por ejemplo 1234/2026) y la sala. En Agenda → Estrados use «Cotejar lista del día»: pegue la lista o suba el PDF de los estrados y Nomira encuentra todos sus expedientes y avisa al responsable. Desde cada publicación puede pasarla al historial y calcular el plazo." },
     ],
     consejos: [
       "Los avisos llegan los días que configure (por omisión 5, 3, 1 y el mismo día). Si a mediodía del vencimiento sigue pendiente, avisa también a quien supervisa.",
@@ -207,6 +209,7 @@ export const MANUALES: Manual[] = [
     ],
     preguntas: [
       { p: "¿Nomira decide el plazo?", r: "No. Ayuda a calcularlo con lo que usted captura. El abogado lo valida conforme a la ley y al calendario oficial del tribunal." },
+      { p: "¿Nomira revisa los estrados solo?", r: "La revisión automática del TRIJAEM se activa cuando Nomira termina la conexión con el tribunal; la pantalla Estrados le dice si ya está activa. Mientras tanto, el cotejo de la lista del día funciona siempre. En ambos casos confirme en la consulta oficial." },
       { p: "No me llegan los correos de aviso.", r: "Revise en Avisos y ajustes que tenga activados los correos, y su carpeta de spam. Los avisos también se ven en la vista Hoy." },
     ],
   },

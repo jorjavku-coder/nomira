@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AgendaShell, FormEvento, ListaEventos, useCatalogosAgenda } from "@/components/agenda";
 import { Aviso } from "@/components/ui";
@@ -33,6 +34,9 @@ export default function Hoy() {
       </div>
       <Aviso>{error}</Aviso>
       {r && <>
+        {r.estrados_sin_ver > 0 && <Link href="/agenda/estrados" className="mb-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-turquesa bg-turquesa-50 p-4 text-marino">
+          <span><b>📜 {r.estrados_sin_ver} publicación(es) nueva(s) en estrados</b> de expedientes que vigila. Revíselas para no perder el plazo.</span>
+          <span className="whitespace-nowrap font-semibold text-turquesa-700">Ver →</span></Link>}
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {tarjetas.map(([t, n, c]: any) => <div key={t} className="tarjeta p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t}</p>
             <p className={`mt-1 text-3xl font-extrabold ${n ? c : "text-slate-300"}`}>{n}</p></div>)}

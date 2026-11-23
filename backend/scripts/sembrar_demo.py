@@ -19,6 +19,7 @@ if __name__ == "__main__":
         leads_demo.sembrar(db)  # Nomira Leads: prospectos y campañas ficticios
         academia_demo.sembrar(db)  # Nomira Academia: un curso interno y asignaciones de ejemplo
         agenda_demo.sembrar(db)  # Nomira Agenda: calendario, dos asuntos, plazos y una audiencia ficticios
+        agenda_demo.sembrar_estrados(db)  # un expediente ficticio vigilado en estrados del TRIJAEM
         proteger_demo(db)  # en producción: nunca con la contraseña publicada en el README
         if "--restaurar" in sys.argv:
             print("Archivos:", restaurar_archivos(db), "· Evidencia:", evidencia_demo.restaurar_archivos(db))
