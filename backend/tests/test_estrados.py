@@ -1,5 +1,6 @@
 """Vigilancia de estrados digitales (TRIJAEM) en Nomira Agenda: expedientes vigilados, cotejo de la lista del día
 (texto o PDF), consulta automática configurable, sin duplicados, avisos, paso al historial del asunto y aislamiento."""
+import json
 from datetime import date, datetime, timedelta
 
 import httpx
@@ -107,55 +108,77 @@ def test_aviso_al_responsable_y_vistas(ag, buzon):
                      json={"fecha_publicacion": (base.hoy() + timedelta(days=2)).isoformat(), "descripcion": "Futuro"}).status_code == 422
 
 
-def test_consulta_automatica_configurable(ag, buzon, monkeypatch):
+_CLIENTE_REAL = httpx.Client
+
+
+def _tribunal(monkeypatch, responder):
+    monkeypatch.setattr(est.httpx, "Client", lambda **kw: _CLIENTE_REAL(transport=httpx.MockTransport(responder), **kw))
+
+
+def fila(**kw):
+    return {"UNE": "922/2025", "fecha_acuerdo": "2026-11-05", "fecha_registro_ok": base.hoy().isoformat(), "id_acuerdo": "1577686",
+            "no_expediente": "491/2026", "no_promocion": "811204", "nombreSala": "Tercera Sección de la Sala Superior Ecatepec de Morelos",
+            "id_sala": "12", "TEJA": "https://trijaem.gob.mx/api/aws/doc.pdf", "nombreJuicio": "Recurso de Revisión", **kw}
+
+
+def test_revision_automatica_trijaem(ag, buzon, monkeypatch):
+    pedidas = []
+    respuesta = {"data": [
+        fila(),
+        fila(id_acuerdo="1400000", fecha_registro_ok="2026-09-22", fecha_acuerdo="2026-09-20", no_promocion="700000"),  # antecedente
+        fila(id_acuerdo="999", id_sala="4"),  # otra sala con el mismo número
+        fila(id_acuerdo="998", no_expediente="777/2026"),
+    ], "error": {"code": 0, "message": ""}}
+
+    def responder(req: httpx.Request):
+        pedidas.append((str(req.url), req.headers["content-type"], json.loads(req.content)))
+        return httpx.Response(200, json=respuesta)
+
+    _tribunal(monkeypatch, responder)
     a = asunto(ag)
-    vig = vigilar(ag, a["id"], "123/2026", sala="Primera Sala Regional")
-    # sin configurar: se dice claramente y el proceso no hace nada
-    assert ag.c.post(f"{A}/vigilancias/{vig['id']}/revisar", headers=ag.h).status_code == 409
+    r = ag.c.put(f"{A}/asuntos/{a['id']}/vigilancia", headers=ag.h,
+                 json={"expediente": "JA-0491/2026", "id_sala": "12", "promociones": ["811204", " 811204 ", ""]}).json()
+    # al activarla se revisa de inmediato, con el formato exacto que usa la página del tribunal
+    assert pedidas == [(est.URL_TRIJAEM, "application/x-www-form-urlencoded", {"no_expediente": "491/2026", "id_sala": "12"})]
+    assert r["ultimo_estado"] == "ok" and r["sala"].startswith("Tercera Sección") and r["promociones"] == ["811204"]
+    pubs = {p["promocion"]: p for p in ag.c.get(f"{A}/estrados", headers=ag.h).json()["publicaciones"]}
+    assert set(pubs) == {"811204", "700000"}
+    assert pubs["811204"]["vista"] is False and pubs["811204"]["de_mi_promocion"] and pubs["811204"]["enlace"].startswith("https://trijaem.gob.mx/")
+    assert pubs["700000"]["vista"] is True  # lo de septiembre queda como antecedente, sin aviso
+    assert pubs["811204"]["fecha_acuerdo"] == "2026-11-05" and "promoción 811204" in pubs["811204"]["descripcion"]
+    assert buzon == []  # quien la activó ya lo está viendo
+    # la ronda periódica no repite lo ya revisado y no duplica
+    with SessionLocal() as db:
+        assert est.ejecutar(db, datetime(2026, 11, 23, 10, tzinfo=base.ZONA), pausa=0)["revisadas"] == 0
+        db.get(m.AgVigilancia, r["id"]).ultima_revision = None
+        db.commit()
+    respuesta["data"].append(fila(id_acuerdo="1600000", no_promocion="820000"))
+    with SessionLocal() as db:
+        assert est.ejecutar(db, datetime(2026, 11, 22, 10, tzinfo=base.ZONA), pausa=0)["revisadas"] == 0  # domingo
+        assert est.ejecutar(db, datetime(2026, 11, 23, 10, tzinfo=base.ZONA), pausa=0) == {"revisadas": 1, "nuevas": 1, "correos": 1}
+    assert buzon[0]["para"] == ["admin1@org1.test"] and "Exp. JA-0491/2026" in buzon[0]["texto"]
+
+
+def test_sin_sala_o_apagada(ag, monkeypatch):
+    _tribunal(monkeypatch, lambda r: pytest.fail("no debe consultar"))
+    a = asunto(ag)
+    v = vigilar(ag, a["id"], "491/2026", sala="Escrita a mano")
+    assert ag.c.post(f"{A}/vigilancias/{v['id']}/revisar", headers=ag.h).status_code == 409
+    assert ag.c.put(f"{A}/asuntos/{a['id']}/vigilancia", headers=ag.h, json={"expediente": "491/2026", "id_sala": "99"}).status_code == 422
+    monkeypatch.setattr(ajustes(), "trijaem_estrados_activo", False)
+    ag.c.put(f"{A}/asuntos/{a['id']}/vigilancia", headers=ag.h, json={"expediente": "491/2026", "id_sala": "1"})
     assert ag.c.get(f"{A}/estrados", headers=ag.h).json()["automatica"] is False
     with SessionLocal() as db:
         assert est.ejecutar(db, datetime(2026, 11, 23, 10, tzinfo=base.ZONA), pausa=0)["revisadas"] == 0
 
-    pedidas = []
-
-    def responder(req: httpx.Request):
-        pedidas.append(str(req.url))
-        return httpx.Response(200, json={"data": [
-            {"numeroExpediente": "123/2026", "sala": "Primera Sala Regional", "fechaPublicacion": "20/11/2026", "sintesis": "Se fija fecha de audiencia."},
-            {"numeroExpediente": "123/2026", "sala": "Cuarta Sala Regional", "fechaPublicacion": "20/11/2026", "sintesis": "Otro juicio con el mismo número."},
-            {"numeroExpediente": "777/2026", "fechaPublicacion": "20/11/2026", "sintesis": "Otro expediente."}]})
-
-    real = httpx.Client
-    monkeypatch.setattr(est.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(responder), **kw))
-    monkeypatch.setattr(ajustes(), "trijaem_estrados_api", "https://evil.example/api?e={expediente}")
-    assert ag.c.post(f"{A}/vigilancias/{vig['id']}/revisar", headers=ag.h).json()["vigilancia"]["ultimo_estado"] == "sin_conexion"
-    assert pedidas == []  # a otra dirección nunca se le pregunta
-    with SessionLocal() as db:
-        db.get(m.AgVigilancia, vig["id"]).ultima_revision = None
-        db.commit()
-    monkeypatch.setattr(ajustes(), "trijaem_estrados_api", "https://trijaem.gob.mx/servicios/api/estrados?expediente={expediente}")
-    # fuera de horario (domingo) no consulta
-    with SessionLocal() as db:
-        assert est.ejecutar(db, datetime(2026, 11, 22, 10, tzinfo=base.ZONA), pausa=0)["revisadas"] == 0
-    with SessionLocal() as db:
-        r = est.ejecutar(db, datetime(2026, 11, 23, 10, tzinfo=base.ZONA), pausa=0)
-    assert r == {"revisadas": 1, "nuevas": 1, "correos": 1}
-    assert pedidas == ["https://trijaem.gob.mx/servicios/api/estrados?expediente=123%2F2026"]
-    pubs = ag.c.get(f"{A}/estrados", headers=ag.h).json()["publicaciones"]
-    assert [p["descripcion"] for p in pubs] == ["Se fija fecha de audiencia."] and pubs[0]["fecha_publicacion"] == "2026-11-20"
-    # recién revisado: la siguiente ronda no lo vuelve a consultar; si se fuerza, no duplica
-    with SessionLocal() as db:
-        assert est.ejecutar(db, datetime(2026, 11, 23, 10, tzinfo=base.ZONA), pausa=0)["revisadas"] == 0
-    assert ag.c.post(f"{A}/vigilancias/{vig['id']}/revisar", headers=ag.h).json()["nuevas"] == 0
-
 
 def test_error_del_tribunal_queda_registrado(ag, monkeypatch):
+    _tribunal(monkeypatch, lambda r: httpx.Response(500, text=""))
     a = asunto(ag)
-    vig = vigilar(ag, a["id"])
-    real = httpx.Client
-    monkeypatch.setattr(est.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(lambda r: httpx.Response(200, text="<html>")), **kw))
-    monkeypatch.setattr(ajustes(), "trijaem_estrados_api", "https://trijaem.gob.mx/x?e={expediente}")
-    v = ag.c.post(f"{A}/vigilancias/{vig['id']}/revisar", headers=ag.h).json()["vigilancia"]
+    v = ag.c.put(f"{A}/asuntos/{a['id']}/vigilancia", headers=ag.h, json={"expediente": "491/2026", "id_sala": "12"}).json()
+    assert v["ultimo_estado"] == "error" and "500" in v["ultimo_error"]
+    _tribunal(monkeypatch, lambda r: httpx.Response(200, text="<html>"))
+    v = ag.c.post(f"{A}/vigilancias/{v['id']}/revisar", headers=ag.h).json()["vigilancia"]
     assert v["ultimo_estado"] == "error" and "formato" in v["ultimo_error"]
 
 

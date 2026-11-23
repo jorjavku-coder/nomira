@@ -71,7 +71,7 @@ def sembrar_estrados(db: Session, email: str = "admin@demo.local") -> bool:
                        responsable_id=admin.id, creado_por_id=admin.id, actualizado_en=m.ahora())
         db.add(a)
         db.flush()
-    db.add(m.AgVigilancia(organizacion_id=oid, asunto_id=a.id, fuente="trijaem", expediente="JA-1234/2026", sala="Primera Sala Regional",
+    db.add(m.AgVigilancia(organizacion_id=oid, asunto_id=a.id, fuente="trijaem", expediente="JA-1234/2026", sala="Primera Sala Regional Toluca",
                           creado_por_id=admin.id))
     db.commit()
     return True

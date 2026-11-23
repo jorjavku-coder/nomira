@@ -33,8 +33,8 @@ export default function Estrados() {
       {r && <>
         <div className={`mb-5 rounded-2xl border p-4 text-sm ${r.automatica ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
           {r.automatica
-            ? <p><b>Revisión automática activa.</b> Nomira consulta cada expediente vigilado cada {r.revisar_cada_horas} horas, de lunes a viernes de {r.horario[0]}:00 a {r.horario[1]}:00, y le avisa aquí y por correo cuando hay algo nuevo.</p>
-            : <p><b>Revisión automática en preparación.</b> Mientras Nomira termina la conexión con el TRIJAEM, use <b>«Cotejar lista del día»</b>: pegue la lista o suba el PDF de estrados y Nomira encuentra al instante todos los expedientes que su despacho vigila y avisa a cada responsable.</p>}
+            ? <p><b>Revisión automática activa.</b> Nomira consulta los estrados del TRIJAEM para cada expediente vigilado cada {r.revisar_cada_horas} horas, de lunes a viernes de {r.horario[0]}:00 a {r.horario[1]}:00, y le avisa aquí y por correo cuando se publica un acuerdo. También puede cotejar la lista del día cuando quiera.</p>
+            : <p><b>Revisión automática apagada.</b> Use <b>«Cotejar lista del día»</b>: pegue la lista o suba el PDF de estrados y Nomira encuentra al instante todos los expedientes que su despacho vigila y avisa a cada responsable.</p>}
           <p className="mt-1 text-xs opacity-80">{r.fuentes[0]?.efectos} Nomira no sustituye la consulta oficial: la fecha en que surte efectos es una estimación que el abogado debe confirmar. <a className="underline" href={r.fuentes[0]?.consulta} target="_blank" rel="noopener noreferrer">Abrir estrados del TRIJAEM ↗</a></p>
         </div>
         <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">

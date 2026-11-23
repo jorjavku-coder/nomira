@@ -74,9 +74,8 @@ class Ajustes(BaseSettings):
     # Lectura
     clave_regex: str = r"^\d{4}$"
     ocr_idioma: str = "spa"
-    # Estrados digitales del TRIJAEM. Vacío = la consulta automática está desactivada (se puede registrar a mano).
-    # Se llena con la dirección de datos que usa la página https://trijaem.gob.mx/servicios/Estrados.
-    trijaem_estrados_api: str = ""
+    # Estrados digitales del TRIJAEM: revisión automática de los expedientes vigilados (false = solo cotejo manual).
+    trijaem_estrados_activo: bool = True
     ocr_dpi: int = 300
     # Catálogos (tablas de claves): a 200 se leyó MEJOR que a 300 en el catálogo de referencia
     # (124/124 claves y 114 descripciones exactas contra 123 y 109), en ~25 % menos tiempo y ~1/3 menos memoria.

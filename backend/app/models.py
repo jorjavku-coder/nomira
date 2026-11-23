@@ -1689,6 +1689,8 @@ class AgVigilancia(Base):
     fuente: Mapped[str] = mapped_column(String(30), default="trijaem")  # tribunal / sistema de estrados
     expediente: Mapped[str] = mapped_column(String(80))  # como lo publica el tribunal, p. ej. 1234/2026
     sala: Mapped[str | None] = mapped_column(String(120))
+    id_sala: Mapped[str | None] = mapped_column(String(10))  # clave de la sala en el sistema del tribunal
+    promociones: Mapped[list | None] = mapped_column(JSON)  # números de promoción presentados que se quieren seguir
     activa: Mapped[bool] = mapped_column(Boolean, default=True)
     ultima_revision: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ultimo_estado: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente | ok | error | sin_conexion
@@ -1708,6 +1710,8 @@ class AgPublicacion(Base):
     fecha_publicacion: Mapped[date] = mapped_column(Date)
     sala: Mapped[str | None] = mapped_column(String(120))
     tipo: Mapped[str | None] = mapped_column(String(80))  # acuerdo, sentencia, notificación…
+    fecha_acuerdo: Mapped[date | None] = mapped_column(Date)
+    promocion: Mapped[str | None] = mapped_column(String(30))  # número de promoción al que responde el acuerdo
     descripcion: Mapped[str] = mapped_column(String(2000))
     enlace: Mapped[str | None] = mapped_column(String(500))
     origen: Mapped[str] = mapped_column(String(12), default="automatica")  # automatica | manual

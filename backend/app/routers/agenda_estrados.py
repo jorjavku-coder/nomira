@@ -46,7 +46,8 @@ def _vig_dict(db: Session, v: m.AgVigilancia, a: m.AgAsunto | None = None) -> di
     n = db.scalar(select(func.count(m.AgPublicacion.id)).where(m.AgPublicacion.vigilancia_id == v.id)) or 0
     nv = db.scalar(select(func.count(m.AgPublicacion.id)).where(m.AgPublicacion.vigilancia_id == v.id, m.AgPublicacion.vista_en.is_(None))) or 0
     return {"id": v.id, "asunto_id": v.asunto_id, "asunto": a.titulo if a else None, "asunto_estado": a.estado if a else None,
-            "fuente": v.fuente, "fuente_texto": est.FUENTES[v.fuente]["nombre"], "expediente": v.expediente, "sala": v.sala, "activa": v.activa,
+            "fuente": v.fuente, "fuente_texto": est.FUENTES[v.fuente]["nombre"], "expediente": v.expediente, "sala": v.sala, "id_sala": v.id_sala,
+            "promociones": v.promociones or [], "activa": v.activa,
             "ultima_revision": v.ultima_revision.isoformat() if v.ultima_revision else None, "ultimo_estado": v.ultimo_estado,
             "ultimo_error": v.ultimo_error, "publicaciones": n, "sin_ver": nv}
 
@@ -59,6 +60,8 @@ def _pub_dict(db: Session, p: m.AgPublicacion, nombres: dict | None = None) -> d
             "fuente_texto": est.FUENTES[v.fuente]["nombre"], "consulta_oficial": est.FUENTES[v.fuente]["consulta"],
             "fecha_publicacion": p.fecha_publicacion.isoformat(), "surte_efectos": est.surte_efectos(db, v, p.fecha_publicacion).isoformat(),
             "sala": p.sala, "tipo": p.tipo, "descripcion": p.descripcion, "enlace": p.enlace, "origen": p.origen,
+            "fecha_acuerdo": p.fecha_acuerdo.isoformat() if p.fecha_acuerdo else None, "promocion": p.promocion,
+            "de_mi_promocion": bool(p.promocion and p.promocion in (v.promociones or [])),
             "vista": p.vista_en is not None, "vista_por": nombres.get(p.vista_por_id), "actuacion_id": p.actuacion_id,
             "encontrada_en": p.encontrada_en.isoformat()}
 
@@ -77,7 +80,7 @@ def resumen(solo_sin_ver: bool = False, u: m.Usuario = Depends(usuario_actual), 
         q = q.where(m.AgPublicacion.vigilancia_id.in_(_mias(db, u)), m.AgPublicacion.vista_en.is_(None))
     pubs = db.scalars(q.order_by(m.AgPublicacion.fecha_publicacion.desc(), m.AgPublicacion.id.desc()).limit(100)).all()
     nombres = _nombres(db, u.organizacion_id)
-    return {"automatica": est.configurado(), "fuentes": [{"clave": k, **f} for k, f in est.FUENTES.items()],
+    return {"automatica": est.configurado(), "salas": [{"id": k, "nombre": n} for k, n in est.SALAS_TRIJAEM.items()], "fuentes": [{"clave": k, **f} for k, f in est.FUENTES.items()],
             "revisar_cada_horas": est.REVISAR_CADA_HORAS, "horario": list(est.HORARIO),
             "vigilancias": [_vig_dict(db, v) for v in vig], "publicaciones": [_pub_dict(db, p, nombres) for p in pubs],
             "sin_ver": sin_ver(db, u), "puede_editar": u.rol in ("administrador", "analista")}
@@ -87,7 +90,9 @@ def resumen(solo_sin_ver: bool = False, u: m.Usuario = Depends(usuario_actual), 
 
 class VigilanciaIn(BaseModel):
     expediente: str = Field(min_length=3, max_length=80)
-    sala: str | None = Field(None, max_length=120)
+    id_sala: str | None = Field(None, max_length=10)
+    sala: str | None = Field(None, max_length=120)  # solo si no se elige de la lista
+    promociones: list[str] = Field(default_factory=list, max_length=50)
     fuente: str = "trijaem"
     activa: bool = True
 
@@ -103,13 +108,22 @@ def vigilar(aid: int, d: VigilanciaIn, request: Request, u: m.Usuario = Depends(
     if v is None:
         v = m.AgVigilancia(organizacion_id=u.organizacion_id, asunto_id=a.id, fuente=d.fuente, creado_por_id=u.id)
         db.add(v)
-    cambio = v.expediente != est.normalizar_expediente(d.expediente) or (v.sala or None) != ((d.sala or "").strip() or None)
-    v.expediente, v.sala, v.activa = est.normalizar_expediente(d.expediente), (d.sala or "").strip()[:120] or None, d.activa
+    if d.id_sala and d.id_sala not in est.SALAS_TRIJAEM:
+        raise HTTPException(422, "Elija la sala de la lista.")
+    sala = est.SALAS_TRIJAEM[d.id_sala] if d.id_sala else ((d.sala or "").strip()[:120] or None)
+    promos = list(dict.fromkeys(x.strip()[:30] for x in d.promociones if x and x.strip()))
+    cambio = v.expediente != est.normalizar_expediente(d.expediente) or v.id_sala != (d.id_sala or None)
+    v.expediente, v.sala, v.id_sala, v.promociones, v.activa = est.normalizar_expediente(d.expediente), sala, d.id_sala or None, promos, d.activa
     if cambio:
         v.ultima_revision, v.ultimo_estado, v.ultimo_error = None, "pendiente", None
     db.flush()
     auditar(db, u, "ag_estrados_vigilar", "ag_asunto", a.id, {"activa": d.activa}, request)
     db.commit()
+    if cambio and v.activa and v.id_sala and est.configurado(v.fuente):  # primera revisión en ese momento
+        nuevas = est.revisar(db, v)
+        db.commit()
+        est.avisar(db, nuevas, excepto=u.id)
+        db.commit()
     return _vig_dict(db, v, a)
 
 
@@ -127,7 +141,9 @@ def dejar_de_vigilar(vid: int, request: Request, u: m.Usuario = Depends(puede_ed
 def revisar_ahora(vid: int, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
     v = _de_org(db, m.AgVigilancia, vid, u)
     if not est.configurado(v.fuente):
-        raise HTTPException(409, "La consulta automática del TRIJAEM aún no está activa en Nomira. Mientras tanto use «Cotejar lista del día».")
+        raise HTTPException(409, "La revisión automática del TRIJAEM está apagada en Nomira. Mientras tanto use «Cotejar lista del día».")
+    if not v.id_sala:
+        raise HTTPException(409, "Para revisar en automático indique la sala del TRIJAEM en el asunto.")
     nuevas = est.revisar(db, v)
     db.commit()
     est.avisar(db, nuevas, excepto=u.id)

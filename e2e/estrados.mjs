@@ -21,15 +21,16 @@ await page.getByRole("button", { name: "Entrar" }).click();
 await page.waitForURL(/\/app/);
 
 await page.goto(base + "/agenda/estrados");
-await page.getByText("Revisión automática en preparación").waitFor();
-ok(true, "dice con claridad que la revisión automática aún no está activa");
+await page.getByText("Revisión automática activa").waitFor();
+ok(true, "indica que la revisión automática está activa");
 ok(await page.getByText("Exp. JA-1234/2026").count() === 1, "expediente de ejemplo vigilado");
 
 // vigilar otro asunto desde su ficha
 await page.goto(base + "/agenda/asuntos");
 await page.getByRole("link", { name: /Ruiz Ficticio/ }).first().click();
 await page.getByRole("button", { name: "Vigilar en estrados" }).click();
-await page.getByLabel(/Sala o sección/).fill("Tercera Sala Regional");
+await page.getByLabel(/Sala o sección/).selectOption({ label: "Tercera Sala Regional Tlalnepantla de Baz" });
+await page.getByLabel(/Números de promoción/).fill("811204");
 await page.getByRole("button", { name: "Guardar", exact: true }).click();
 await page.getByText("Vigilando").waitFor();
 ok(true, "se activa la vigilancia desde el asunto");
