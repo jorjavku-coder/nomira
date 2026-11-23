@@ -35,7 +35,7 @@ async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {
   }
   const headers = new Headers(init.headers);
   if (s && !login) headers.set("Authorization", `Bearer ${s.token}`);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const r = await fetch(`/api/plataforma${ruta}`, { ...init, headers, cache: "no-store" });
   if (r.status === 401 && !login) {
     guardarSesionP(null);
@@ -58,6 +58,8 @@ export const apiP = {
   put: async <T = any>(ruta: string, cuerpo: unknown): Promise<T> =>
     (await pedir(ruta, { method: "PUT", body: JSON.stringify(cuerpo) })).json(),
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
+  /** Subida de archivos (multipart). */
+  subir: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "POST", body: datos })).json(),
   texto: async (ruta: string): Promise<string> => (await pedir(ruta)).text(),
   /** Descarga binaria (PDF): devuelve un Blob. */
   blob: async (ruta: string): Promise<Blob> => (await pedir(ruta)).blob(),

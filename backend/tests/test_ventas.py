@@ -25,39 +25,96 @@ def op(p, **kw):
     return r.json()
 
 
-def test_solicitud_del_sitio_entra_a_ventas(plataforma, cliente):
+def test_solicitud_del_sitio_entra_como_lead_mql(plataforma, cliente):
     r = cliente.post("/api/solicitudes", json={"tipo": "suscripcion", "nombre": "Pedro Interesado", "empresa": "Bufete Demo", "email": "Pedro@Bufete.test",
                                                "telefono": "5511112222", "mensaje": "Quiero una demo", "acepta_contacto": True})
     assert r.status_code == 201, r.text
+    # entra a Leads (MQL), no al embudo
     t = plataforma.c.get(f"{V}/tablero", headers=plataforma.h).json()
-    nuevo = t["columnas"]["nuevo"]
-    assert len(nuevo) == 1 and nuevo[0]["titulo"] == "Suscripción · Bufete Demo" and nuevo[0]["contacto"]["email"] == "pedro@bufete.test"
-    o = plataforma.c.get(f"{V}/oportunidades/{nuevo[0]['id']}", headers=plataforma.h).json()
-    assert [a["titulo"] for a in o["actividades"]] == ["Primer contacto con el prospecto", "Llegó una solicitud desde el sitio"]
-    assert o["actividades"][0]["es_tarea"] and o["actividades"][1]["detalle"] == "Quiero una demo"
-    # importar de nuevo no duplica; una segunda solicitud con el mismo correo usa el mismo contacto
+    assert sum(len(v) for v in t["columnas"].values()) == 0
+    ls = plataforma.c.get(f"{V}/leads", headers=plataforma.h).json()
+    assert [x["email"] for x in ls] == ["pedro@bufete.test"] and ls[0]["fase"] == "mql" and ls[0]["tarea"]
+    assert plataforma.c.get(f"{V}/contador", headers=plataforma.h).json()["nuevas"] == 1
+    lid = ls[0]["id"]
     assert plataforma.c.post(f"{V}/importar-solicitudes", headers=plataforma.h).json() == {"nuevas": 0}
     cliente.post("/api/solicitudes", json={"tipo": "informes", "nombre": "Pedro", "email": "pedro@bufete.test", "acepta_contacto": True})
-    assert len(plataforma.c.get(f"{V}/contactos", headers=plataforma.h).json()) == 1
-    # registrar una llamada lo pasa a «contactado» y marca la solicitud como atendida
-    plataforma.c.post(f"{V}/actividades", headers=plataforma.h, json={"oportunidad_id": o["id"], "tipo": "llamada", "titulo": "Llamada inicial"})
-    x = plataforma.c.get(f"{V}/oportunidades/{o['id']}", headers=plataforma.h).json()
-    assert x["etapa"] == "contactado" and x["propietario"] == "Dueño de Nomira"
-    assert not any(a["es_tarea"] and not a["completada_en"] for a in x["actividades"])  # el primer contacto quedó hecho
+    assert len(plataforma.c.get(f"{V}/leads", headers=plataforma.h).json()) == 1
+    # un correo enviado o una llamada sin respuesta NO lo califica
+    plataforma.c.post(f"{V}/actividades", headers=plataforma.h, json={"contacto_id": lid, "tipo": "intento", "titulo": "No contestó"})
+    plataforma.c.post(f"{V}/actividades", headers=plataforma.h, json={"contacto_id": lid, "tipo": "correo", "titulo": "Le mandé presentación"})
+    l2 = plataforma.c.get(f"{V}/leads", headers=plataforma.h).json()[0]
+    assert l2["fase"] == "mql" and l2["intentos"] == 2
+    assert plataforma.c.get(f"{V}/contador", headers=plataforma.h).json()["nuevas"] == 0
+    # una llamada efectiva sí: pasa a SQL y abre su oportunidad en «Contactado» con todo el historial
+    plataforma.c.post(f"{V}/actividades", headers=plataforma.h, json={"contacto_id": lid, "tipo": "llamada", "titulo": "Hablamos 10 minutos"})
+    c = plataforma.c.get(f"{V}/contactos/{lid}", headers=plataforma.h).json()
+    assert c["fase"] == "sql" and c["calificacion"] == "llamada" and c["propietario"] == "Dueño de Nomira"
+    assert plataforma.c.get(f"{V}/leads", headers=plataforma.h).json() == []
+    o = plataforma.c.get(f"{V}/oportunidades/{c['oportunidades'][0]['id']}", headers=plataforma.h).json()
+    assert o["etapa"] == "contactado" and o["titulo"] == "Bufete Demo"
+    titulos = [a["titulo"] for a in o["actividades"]]
+    assert "Calificado como SQL: llamada efectiva" in titulos and "No contestó" in titulos and "Llegó una solicitud desde el sitio (suscripción)" in titulos
+    assert not any(a["es_tarea"] and not a["completada_en"] for a in o["actividades"])  # el primer contacto quedó hecho
     with SessionLocal() as s:
         assert s.get(m.Solicitud, s.get(m.VtOportunidad, o["id"]).solicitud_id).estado == "atendida"
 
 
+def test_leads_importar_calificar_y_descartar(plataforma):
+    import io
+    from openpyxl import Workbook, load_workbook
+    plataforma.c.post(f"{V}/leads", headers=plataforma.h, json={"nombre": "Ya Existe", "email": "ya@existe.test"})
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Nombre", "Despacho", "Correo", "Teléfono", "Ciudad", "Abogados", "Especialidad"])
+    ws.append(["Lic. Uno", "Bufete Uno", "uno@b.test", 5511111111, "Toluca", 4, "Laboral"])
+    ws.append(["Lic. Dos", "Bufete Dos", "", "55 2222 2222", "", "", ""])
+    ws.append(["Lic. Uno bis", "", "UNO@b.test", "", "", "", ""])  # repetido en el archivo
+    ws.append(["Ya Existe", "", "ya@existe.test", "", "", "", ""])  # ya está en el CRM
+    ws.append(["Mal", "", "no-es-correo", "", "", "", ""])
+    b = io.BytesIO()
+    wb.save(b)
+    arch = {"archivo": ("leads.xlsx", b.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+    c = plataforma.c.post(f"{V}/campanas", headers=plataforma.h, json={"nombre": "Prospección LinkedIn", "canal": "linkedin"}).json()
+    v = plataforma.c.post(f"{V}/leads/importar", headers=plataforma.h, files=arch, data={"confirmar": "false"}).json()
+    assert (v["nuevos"], v["repetidos"], v["errores"]) == (2, 2, 1), v
+    assert len(plataforma.c.get(f"{V}/leads", headers=plataforma.h).json()) == 1
+    r = plataforma.c.post(f"{V}/leads/importar", headers=plataforma.h, files=arch, data={"confirmar": "true", "campana_id": str(c["id"])}).json()
+    assert r["nuevos"] == 2
+    ls = {x["nombre"]: x for x in plataforma.c.get(f"{V}/leads", headers=plataforma.h).json()}
+    assert ls["Lic. Uno"]["abogados"] == 4 and ls["Lic. Uno"]["campana"] == "Prospección LinkedIn" and ls["Lic. Uno"]["origen"] == "prospeccion"
+    assert ls["Lic. Dos"]["telefono"] == "55 2222 2222"
+    # exportar a Excel
+    x = plataforma.c.get(f"{V}/leads/exportar", headers=plataforma.h)
+    assert x.status_code == 200 and load_workbook(io.BytesIO(x.content)).active.max_row == 4
+    assert plataforma.c.get(f"{V}/leads/plantilla", headers=plataforma.h).status_code == 200
+    # calificar exige contacto real
+    uno = ls["Lic. Uno"]["id"]
+    assert plataforma.c.post(f"{V}/leads/{uno}/calificar", headers=plataforma.h, json={"via": "correo"}).status_code == 422
+    q = plataforma.c.post(f"{V}/leads/{uno}/calificar", headers=plataforma.h, json={"via": "respuesta", "detalle": "Aceptó la reunión por correo",
+                                                                                  "titulo": "Bufete Uno · plan Medio", "valor_mensual": "3490"}).json()
+    o = plataforma.c.get(f"{V}/oportunidades/{q['oportunidad_id']}", headers=plataforma.h).json()
+    assert o["titulo"] == "Bufete Uno · plan Medio" and o["valor_mensual"] == "3490.00" and o["campana_id"] == c["id"]
+    assert plataforma.c.get(f"{V}/contactos", headers=plataforma.h).json()[0]["nombre"] == "Lic. Uno"
+    # descartar y reactivar
+    dos = ls["Lic. Dos"]["id"]
+    assert plataforma.c.post(f"{V}/leads/{dos}/descartar", headers=plataforma.h, json={"motivo": "no_contactar"}).json()["no_contactar"]
+    assert [x["nombre"] for x in plataforma.c.get(f"{V}/leads?estado=descartado", headers=plataforma.h).json()] == ["Lic. Dos"]
+    assert plataforma.c.post(f"{V}/leads/{dos}/reactivar", headers=plataforma.h).json()["fase"] == "mql"
+    r = plataforma.c.get(f"{V}/resumen", headers=plataforma.h).json()
+    assert r["mql"] == 2 and r["sql_mes"] == 1 and r["mql_a_sql_90"] == 33
+
+
 def test_embudo_etapas_y_cierre(plataforma):
     o = op(plataforma)
-    assert o["etapa"] == "nuevo" and o["probabilidad"] == 10 and o["contacto"]["nombre"] == "Lic. Ana Prospecto"
+    assert o["etapa"] == "contactado" and o["probabilidad"] == 20 and o["contacto"]["nombre"] == "Lic. Ana Prospecto"
     assert plataforma.c.post(f"{V}/oportunidades/{o['id']}/etapa", headers=plataforma.h, json={"etapa": "perdido"}).status_code == 422
     x = plataforma.c.post(f"{V}/oportunidades/{o['id']}/etapa", headers=plataforma.h, json={"etapa": "demo"}).json()
-    assert x["etapa"] == "demo" and x["actividades"][0]["titulo"] == "Etapa: Nuevo → Demo agendada"
+    assert x["etapa"] == "demo" and x["actividades"][0]["titulo"] == "Etapa: Contactado (SQL) → Demo agendada"
     o2 = op(plataforma, titulo="Otro despacho", valor_mensual="1790", contacto={"nombre": "Luis Otro", "email": "luis@otro.test"})
     plataforma.c.post(f"{V}/oportunidades/{o2['id']}/etapa", headers=plataforma.h, json={"etapa": "perdido", "motivo": "precio", "nota": "Muy caro"})
     r = plataforma.c.get(f"{V}/resumen", headers=plataforma.h).json()
     assert r["pipeline"] == "3490.00" and r["ponderado"] == "1396.00" and r["abiertas"] == 1 and r["conversion_90"] == 0
+    assert plataforma.c.get(f"{V}/contactos/{o['contacto']['id']}", headers=plataforma.h).json()["fase"] == "sql"  # abrir oportunidad = calificar
     assert r["motivos_perdida"] == [{"motivo": "Precio", "n": 1}]
     plataforma.c.post(f"{V}/oportunidades/{o['id']}/etapa", headers=plataforma.h, json={"etapa": "ganado"})
     r = plataforma.c.get(f"{V}/resumen", headers=plataforma.h).json()

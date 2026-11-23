@@ -15,14 +15,13 @@ export default function Contactos() {
   const [nuevo, setNuevo] = useState(false);
   const cargar = useCallback(() => apiP.get(`/ventas/contactos?q=${encodeURIComponent(q)}`).then(setLista).catch((e) => setError(e.message)), [q]);
   useEffect(() => { const t = setTimeout(cargar, 200); return () => clearTimeout(t); }, [cargar]);
-  function exportar() {
-    const filas = [["Nombre", "Despacho", "Cargo", "Correo", "Teléfono", "Ciudad", "Origen", "Campaña", "Responsable", "No contactar"],
-      ...(lista || []).map((c) => [c.nombre, c.despacho, c.cargo, c.email, c.telefono, c.ciudad, c.origen_texto, c.campana, c.propietario, c.no_contactar ? "Sí" : ""])];
-    const csv = "﻿" + filas.map((f) => f.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "contactos-nomira.csv"; a.click();
+  async function exportar() {
+    try { const b = await apiP.blob("/ventas/leads/exportar?estado=sql"); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "contactos-sql-nomira.xlsx"; a.click(); }
+    catch (e: any) { setError(e.message); }
   }
   return (
-    <VentasShell acciones={<><button className="btn-sec" onClick={exportar} disabled={!lista?.length}>Exportar CSV</button>{cat && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo contacto</button>}</>}>
+    <VentasShell acciones={<><button className="btn-sec" onClick={exportar} disabled={!lista?.length}>Exportar Excel</button>{cat && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo contacto</button>}</>}>
+      <p className="mb-3 max-w-3xl text-sm text-slate-600"><b>Contactos (SQL)</b>: personas con las que ya hubo una llamada efectiva o que aceptaron/respondieron por correo. Cada uno tiene su oportunidad en el embudo. Los prospectos sin contacto real están en <a className="font-semibold text-turquesa-700 underline" href="/plataforma/ventas/leads">Leads (MQL)</a>.</p>
       <input className="campo mb-4 max-w-sm" placeholder="Buscar por nombre, despacho, correo, teléfono o ciudad" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar contactos" />
       <Aviso>{error}</Aviso>
       {lista && <div className="tarjeta overflow-x-auto"><table className="w-full text-sm">
@@ -36,7 +35,7 @@ export default function Contactos() {
             <td className="px-4 py-2 text-slate-600">{c.propietario || "—"}</td>
             <td className="px-4 py-2 text-right font-semibold">{c.oportunidades_abiertas || "—"}</td>
           </tr>))}
-          {!lista.length && <tr><td colSpan={5} className="p-8 text-center text-slate-500">{q ? "Sin resultados." : "Aún no hay contactos. Las solicitudes del sitio llegan aquí solas."}</td></tr>}</tbody></table></div>}
+          {!lista.length && <tr><td colSpan={5} className="p-8 text-center text-slate-500">{q ? "Sin resultados." : "Aún no hay contactos SQL. Califique sus leads para que aparezcan aquí."}</td></tr>}</tbody></table></div>}
       {nuevo && cat && <FormContacto cat={cat} onCerrar={() => setNuevo(false)} onListo={(c) => router.push(`/plataforma/ventas/contactos/${c.id}`)} />}
     </VentasShell>
   );

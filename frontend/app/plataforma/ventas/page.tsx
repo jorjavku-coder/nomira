@@ -26,20 +26,20 @@ export default function Embudo() {
     if (etapa === "perdido") return router.push(`/plataforma/ventas/oportunidades/${o.id}?perder=1`);
     try { await apiP.post(`/ventas/oportunidades/${o.id}/etapa`, { etapa }); avisarContadores(); cargar(); } catch (e: any) { setError(e.message); }
   }
-  async function importar() {
-    try { const x = await apiP.post("/ventas/importar-solicitudes"); setOk(x.nuevas ? `Se agregaron ${x.nuevas} solicitud(es) del sitio.` : "No había solicitudes pendientes de agregar."); cargar(); }
-    catch (e: any) { setError(e.message); }
-  }
   return (
-    <VentasShell acciones={<><button className="btn-sec" onClick={importar}>Traer solicitudes del sitio</button>
-      {cat && <button className="btn-turquesa" onClick={() => setNueva(true)}>+ Nueva oportunidad</button>}</>}>
+    <VentasShell acciones={cat && <button className="btn-sec" onClick={() => setNueva(true)}>+ Oportunidad directa</button>}>
       <div className="mb-4 space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
+      {r && <div className="mb-3 grid gap-3 sm:grid-cols-3">
+        <Link href="/plataforma/ventas/leads"><Kpi titulo="Leads (MQL)" valor={String(r.mql)} nota={`${r.mql_sin_trabajar} sin ningún intento todavía`} alerta={r.mql_sin_trabajar > 0} /></Link>
+        <Link href="/plataforma/ventas/contactos"><Kpi titulo="Pasaron a SQL este mes" valor={String(r.sql_mes)} nota="Con llamada efectiva o respuesta por correo" verde /></Link>
+        <Kpi titulo="MQL → SQL (90 días)" valor={r.mql_a_sql_90 === null ? "—" : `${r.mql_a_sql_90}%`} nota="De los leads que entraron en los últimos 90 días" />
+      </div>}
       {r && <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi titulo="En el embudo" valor={dinero(r.pipeline)} nota={`${r.abiertas} oportunidades abiertas (mensual)`} />
         <Kpi titulo="Pronóstico" valor={dinero(r.ponderado)} nota="Valor × probabilidad de cada etapa" />
         <Kpi titulo="Ganado este mes" valor={dinero(r.mrr_ganado_mes)} nota={`${r.ganadas_mes} cliente(s) nuevo(s)`} verde />
         <Kpi titulo="Conversión 90 días" valor={r.conversion_90 === null ? "—" : `${r.conversion_90}%`} nota="Ganadas ÷ cerradas" />
-        <Link href="/plataforma/ventas/tareas"><Kpi titulo="Mis tareas" valor={`${r.tareas_vencidas} vencidas`} nota={`${r.tareas_hoy} para hoy · ${r.sin_contactar} sin contactar`} alerta={r.tareas_vencidas > 0} /></Link>
+        <Link href="/plataforma/ventas/tareas"><Kpi titulo="Mis tareas" valor={`${r.tareas_vencidas} vencidas`} nota={`${r.tareas_hoy} para hoy`} alerta={r.tareas_vencidas > 0} /></Link>
       </div>}
       <div className="mb-3 flex flex-wrap gap-2">
         <input className="campo max-w-xs" placeholder="Buscar despacho, persona o correo" value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} aria-label="Buscar" />
@@ -69,9 +69,9 @@ export default function Embudo() {
             {!t.columnas[e.clave].length && <li className="px-1 py-3 text-center text-xs text-slate-400">—</li>}</ul>
         </section>))}</div>}
       {r?.por_vendedor?.length > 0 && <section className="tarjeta mt-2 overflow-hidden">
-        <h2 className="border-b border-crema-300 px-4 py-3 font-semibold text-marino">Por persona del equipo</h2>
-        <table className="w-full text-sm"><thead className="bg-crema/60 text-left text-xs uppercase text-slate-500"><tr><th className="px-4 py-2">Responsable</th><th className="px-4 py-2 text-right">Abiertas</th><th className="px-4 py-2 text-right">En embudo</th><th className="px-4 py-2 text-right">Ganadas este mes</th></tr></thead>
-          <tbody className="divide-y divide-crema-200">{r.por_vendedor.map((v: any) => <tr key={v.id ?? "x"}><td className="px-4 py-2">{v.nombre}</td><td className="px-4 py-2 text-right">{v.abiertas}</td><td className="px-4 py-2 text-right">{dinero(v.valor)}</td><td className="px-4 py-2 text-right">{v.ganadas_mes}</td></tr>)}</tbody></table>
+        <h2 className="border-b border-crema-300 px-4 py-3 font-semibold text-marino">Por ejecutivo</h2>
+        <table className="w-full text-sm"><thead className="bg-crema/60 text-left text-xs uppercase text-slate-500"><tr><th className="px-4 py-2">Responsable</th><th className="px-4 py-2 text-right">Leads MQL</th><th className="px-4 py-2 text-right">SQL este mes</th><th className="px-4 py-2 text-right">Abiertas</th><th className="px-4 py-2 text-right">En embudo</th><th className="px-4 py-2 text-right">Ganadas este mes</th></tr></thead>
+          <tbody className="divide-y divide-crema-200">{r.por_vendedor.map((v: any) => <tr key={v.id ?? "x"}><td className="px-4 py-2">{v.nombre}</td><td className="px-4 py-2 text-right">{v.mql}</td><td className="px-4 py-2 text-right">{v.sql_mes}</td><td className="px-4 py-2 text-right">{v.abiertas}</td><td className="px-4 py-2 text-right">{dinero(v.valor)}</td><td className="px-4 py-2 text-right">{v.ganadas_mes}</td></tr>)}</tbody></table>
       </section>}
       {nueva && cat && <FormOportunidad cat={cat} onCerrar={() => setNueva(false)} onListo={(o) => router.push(`/plataforma/ventas/oportunidades/${o.id}`)} />}
     </VentasShell>

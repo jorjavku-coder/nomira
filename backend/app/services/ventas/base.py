@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from ... import models as m
 
+# Metodología MQL → SQL: los leads (MQL) viven fuera del embudo. Solo cuando hay contacto real (llamada efectiva,
+# respuesta o aceptación por correo, reunión o demo) pasan a contacto (SQL) y abren su oportunidad en «Contactado».
 ETAPAS = [  # clave, nombre, probabilidad de cierre (%)
-    ("nuevo", "Nuevo", 10), ("contactado", "Contactado", 20), ("demo", "Demo agendada", 40), ("propuesta", "Propuesta enviada", 60),
+    ("contactado", "Contactado (SQL)", 20), ("demo", "Demo agendada", 40), ("propuesta", "Propuesta enviada", 60),
     ("negociacion", "Negociación", 80), ("ganado", "Ganado", 100), ("perdido", "Perdido", 0)]
-ABIERTAS = [e[0] for e in ETAPAS[:5]]
+ABIERTAS = [e[0] for e in ETAPAS[:4]]
 ORDEN = {e[0]: i for i, e in enumerate(ETAPAS)}
 NOMBRE_ETAPA = {e[0]: e[1] for e in ETAPAS}
 PROB = {e[0]: e[2] for e in ETAPAS}
@@ -20,7 +22,11 @@ CANALES = {"facebook": "Facebook / Instagram", "google": "Google Ads", "linkedin
            "referidos": "Programa de referidos", "sitio": "Sitio web", "otro": "Otro"}
 ORIGENES = {"sitio": "Formulario del sitio", "campana": "Campaña", "referido": "Referido", "evento": "Evento", "prospeccion": "Prospección (llamada o correo en frío)",
             "redes": "Redes sociales", "otro": "Otro"}
-TIPOS = {"llamada": "Llamada", "correo": "Correo", "whatsapp": "WhatsApp", "reunion": "Reunión", "demo": "Demo", "nota": "Nota", "tarea": "Tarea", "sistema": "Sistema"}
+TIPOS = {"llamada": "Llamada efectiva", "intento": "Intento sin respuesta", "correo": "Correo enviado", "respuesta": "Respuesta o aceptación por correo",
+         "whatsapp": "WhatsApp", "reunion": "Reunión", "demo": "Demo", "nota": "Nota", "tarea": "Tarea", "sistema": "Sistema"}
+CALIFICA = {"llamada": "Llamada efectiva", "respuesta": "Aceptó o respondió por correo", "reunion": "Reunión", "demo": "Demo"}  # MQL → SQL
+DESCARTE = {"no_interesado": "No le interesa", "sin_respuesta": "Nunca respondió", "datos_erroneos": "Datos incorrectos",
+            "no_es_perfil": "No es su perfil", "no_contactar": "Pidió no ser contactado", "otro": "Otro"}
 MOTIVOS = {"precio": "Precio", "sin_respuesta": "Dejó de responder", "competencia": "Eligió otra opción", "no_es_momento": "No es el momento",
            "no_aplica": "No es su perfil", "otro": "Otro"}
 COT_PROPUESTA = ("enviada", "vista", "aceptada", "pendiente_pago")
@@ -46,7 +52,7 @@ def mover(db: Session, o: m.VtOportunidad, etapa: str, admin_id: int | None, mot
         return
     antes = o.etapa
     o.etapa = etapa
-    if o.solicitud_id and etapa != "nuevo":  # la solicitud del sitio queda atendida
+    if o.solicitud_id:  # la solicitud del sitio queda atendida
         sol = db.get(m.Solicitud, o.solicitud_id)
         if sol and sol.estado == "nueva":
             sol.estado = "atendida"
@@ -97,32 +103,73 @@ def sincronizar(db: Session, oportunidades: list[m.VtOportunidad] | None = None)
     return cambios
 
 
-def desde_solicitud(db: Session, sol: m.Solicitud) -> m.VtOportunidad | None:
-    """Cada solicitud del sitio entra a Ventas como oportunidad nueva (una sola vez), con una tarea de primer contacto."""
-    if db.scalar(select(m.VtOportunidad.id).where(m.VtOportunidad.solicitud_id == sol.id)):
+def desde_solicitud(db: Session, sol: m.Solicitud) -> m.VtContacto | None:
+    """Cada solicitud del sitio entra como lead (MQL) con una tarea de primer contacto. Pasa a SQL al hablar con la persona."""
+    if db.scalar(select(m.VtContacto.id).where(m.VtContacto.solicitud_id == sol.id)) or \
+            db.scalar(select(m.VtOportunidad.id).where(m.VtOportunidad.solicitud_id == sol.id)):
         return None
     ct = db.scalar(select(m.VtContacto).where(func.lower(m.VtContacto.email) == sol.email.lower()).limit(1)) if sol.email else None
     if ct is None:
-        ct = m.VtContacto(nombre=sol.nombre, despacho=sol.empresa, email=sol.email, telefono=sol.telefono, origen="sitio",
+        ct = m.VtContacto(nombre=sol.nombre, despacho=sol.empresa, email=sol.email, telefono=sol.telefono, origen="sitio", fase="mql", solicitud_id=sol.id,
                           notas=f"Volumen indicado: {sol.expedientes_mes} expedientes al mes." if sol.expedientes_mes else None)
         db.add(ct)
         db.flush()
-    o = m.VtOportunidad(contacto_id=ct.id, titulo=f"{'Suscripción' if sol.tipo == 'suscripcion' else 'Informes'} · {sol.empresa or sol.nombre}"[:200],
-                        etapa="nuevo", origen="sitio", solicitud_id=sol.id, propietario_id=ct.propietario_id)
-    db.add(o)
-    db.flush()
-    actividad(db, ct.id, o.id, "nota", "Llegó una solicitud desde el sitio", sol.mensaje)
-    actividad(db, ct.id, o.id, "tarea", "Primer contacto con el prospecto", None, vence_en=m.ahora() + timedelta(hours=24), asignado_id=ct.propietario_id)
+    elif ct.fase == "descartado":
+        ct.fase, ct.motivo_descarte = "mql", None
+    ct.solicitud_id = ct.solicitud_id or sol.id
+    actividad(db, ct.id, None, "nota", f"Llegó una solicitud desde el sitio ({'suscripción' if sol.tipo == 'suscripcion' else 'informes'})", sol.mensaje)
+    actividad(db, ct.id, None, "tarea", "Primer contacto con el prospecto", None, vence_en=m.ahora() + timedelta(hours=24), asignado_id=ct.propietario_id)
+    return ct
+
+
+def calificar(db: Session, ct: m.VtContacto, via: str, admin_id: int | None, titulo: str | None = None, valor=None,
+              detalle: str | None = None, registrar: bool = True) -> m.VtOportunidad:
+    """MQL → SQL: queda como contacto y abre su oportunidad en «Contactado». Si ya tenía una abierta, se usa esa."""
+    ct.fase, ct.calificacion, ct.calificado_en, ct.calificado_por_id, ct.motivo_descarte = "sql", via, m.ahora(), admin_id, None
+    ct.propietario_id = ct.propietario_id or admin_id
+    if registrar:
+        actividad(db, ct.id, None, via if via in TIPOS else "nota", CALIFICA.get(via, "Calificado"), detalle, admin_id)
+    o = db.scalar(select(m.VtOportunidad).where(m.VtOportunidad.contacto_id == ct.id, m.VtOportunidad.etapa.in_(ABIERTAS)).limit(1))
+    if o is None:
+        sol_libre = ct.solicitud_id and not db.scalar(select(m.VtOportunidad.id).where(m.VtOportunidad.solicitud_id == ct.solicitud_id))
+        o = m.VtOportunidad(contacto_id=ct.id, titulo=(titulo or ct.despacho or ct.nombre)[:200], etapa="contactado", valor_mensual=valor,
+                            origen=ct.origen, campana_id=ct.campana_id, propietario_id=ct.propietario_id, creado_por_id=admin_id,
+                            solicitud_id=ct.solicitud_id if sol_libre else None)
+        db.add(o)
+        db.flush()
+    for x in db.scalars(select(m.VtActividad).where(m.VtActividad.contacto_id == ct.id)):
+        if x.oportunidad_id is None:
+            x.oportunidad_id = o.id  # el historial del lead pasa a la oportunidad
+        if x.completada_en is None and x.titulo == "Primer contacto con el prospecto":
+            x.completada_en, x.resultado = m.ahora(), CALIFICA.get(via, "Calificado")
+    actividad(db, ct.id, o.id, "sistema", f"Calificado como SQL: {CALIFICA.get(via, 'manual').lower()}", None, admin_id)
+    if ct.solicitud_id:
+        sol = db.get(m.Solicitud, ct.solicitud_id)
+        if sol and sol.estado == "nueva":
+            sol.estado = "atendida"
     return o
 
 
 def importar_solicitudes(db: Session) -> int:
     ya = select(m.VtOportunidad.solicitud_id).where(m.VtOportunidad.solicitud_id.is_not(None))
+    ya2 = select(m.VtContacto.solicitud_id).where(m.VtContacto.solicitud_id.is_not(None))
     n = 0
-    for s in db.scalars(select(m.Solicitud).where(m.Solicitud.id.not_in(ya)).order_by(m.Solicitud.id)):
+    for s in db.scalars(select(m.Solicitud).where(m.Solicitud.id.not_in(ya), m.Solicitud.id.not_in(ya2)).order_by(m.Solicitud.id)):
         if desde_solicitud(db, s):
             n += 1
     return n
+
+
+TRABAJO = ("llamada", "intento", "correo", "respuesta", "whatsapp", "reunion", "demo")
+
+
+def leads_sin_trabajar(db: Session, solo_sitio: bool = False) -> int:
+    """Leads (MQL) a los que nadie ha intentado contactar todavía."""
+    trabajados = select(m.VtActividad.contacto_id).where(m.VtActividad.tipo.in_(TRABAJO), m.VtActividad.completada_en.is_not(None))
+    q = select(func.count(m.VtContacto.id)).where(m.VtContacto.fase == "mql", m.VtContacto.id.not_in(trabajados))
+    if solo_sitio:
+        q = q.where(m.VtContacto.solicitud_id.is_not(None))
+    return db.scalar(q) or 0
 
 
 def dinero(v) -> str | None:
