@@ -1438,6 +1438,7 @@ class CmCotizacion(Base):
     enlace_vence_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     enlace_revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"), index=True)
+    oportunidad_id: Mapped[int | None] = mapped_column(ForeignKey("vt_oportunidades.id", ondelete="SET NULL"), index=True)  # Ventas
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
@@ -1807,3 +1808,87 @@ class CrPago(Base):
     motivo_cancelacion: Mapped[str | None] = mapped_column(String(300))
     registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------------------
+# Ventas de Nomira (CRM interno del panel de la plataforma): campañas, contactos, oportunidades y actividades.
+# Lo usan los empleados de Nomira. Son prospectos de Nomira: nunca datos de los expedientes de los despachos.
+
+class VtCampana(Base):
+    __tablename__ = "vt_campanas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(160))
+    canal: Mapped[str] = mapped_column(String(20), default="otro")  # facebook | google | linkedin | correo | evento | referidos | sitio | otro
+    estado: Mapped[str] = mapped_column(String(12), default="activa")  # activa | pausada | terminada
+    inicio: Mapped[date | None] = mapped_column(Date)
+    fin: Mapped[date | None] = mapped_column(Date)
+    presupuesto: Mapped[Decimal | None] = mapped_column(DINERO)
+    utm_campaign: Mapped[str | None] = mapped_column(String(120))
+    notas: Mapped[str | None] = mapped_column(Text)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class VtContacto(Base):
+    __tablename__ = "vt_contactos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    despacho: Mapped[str | None] = mapped_column(String(200))
+    cargo: Mapped[str | None] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(254), index=True)
+    telefono: Mapped[str | None] = mapped_column(String(40))
+    ciudad: Mapped[str | None] = mapped_column(String(120))
+    entidad: Mapped[str | None] = mapped_column(String(40))
+    abogados: Mapped[int | None] = mapped_column(Integer)  # tamaño del despacho
+    especialidad: Mapped[str | None] = mapped_column(String(160))
+    origen: Mapped[str] = mapped_column(String(20), default="otro")  # sitio | campana | referido | evento | prospeccion | redes | otro
+    campana_id: Mapped[int | None] = mapped_column(ForeignKey("vt_campanas.id", ondelete="SET NULL"), index=True)
+    propietario_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"), index=True)
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"))  # ya es cliente
+    etiquetas: Mapped[list | None] = mapped_column(JSON)
+    notas: Mapped[str | None] = mapped_column(Text)
+    no_contactar: Mapped[bool] = mapped_column(Boolean, default=False)  # pidió no ser contactado
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class VtOportunidad(Base):
+    """Posible venta a un contacto, desde que llega hasta que se gana o se pierde."""
+    __tablename__ = "vt_oportunidades"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contacto_id: Mapped[int] = mapped_column(ForeignKey("vt_contactos.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    etapa: Mapped[str] = mapped_column(String(15), default="nuevo", index=True)
+    valor_mensual: Mapped[Decimal | None] = mapped_column(DINERO)  # estimado, antes de IVA
+    paquete_interes: Mapped[str | None] = mapped_column(String(80))
+    modulos_interes: Mapped[list | None] = mapped_column(JSON)
+    cierre_estimado: Mapped[date | None] = mapped_column(Date)
+    origen: Mapped[str] = mapped_column(String(20), default="otro")
+    campana_id: Mapped[int | None] = mapped_column(ForeignKey("vt_campanas.id", ondelete="SET NULL"), index=True)
+    solicitud_id: Mapped[int | None] = mapped_column(ForeignKey("solicitudes.id", ondelete="SET NULL"), unique=True)
+    propietario_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"), index=True)
+    motivo_perdida: Mapped[str | None] = mapped_column(String(30))
+    nota_cierre: Mapped[str | None] = mapped_column(String(500))
+    cerrada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"))
+    ultima_actividad_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class VtActividad(Base):
+    """Historial (llamadas, correos, reuniones, notas) y tareas por hacer con fecha."""
+    __tablename__ = "vt_actividades"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contacto_id: Mapped[int] = mapped_column(ForeignKey("vt_contactos.id", ondelete="CASCADE"), index=True)
+    oportunidad_id: Mapped[int | None] = mapped_column(ForeignKey("vt_oportunidades.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(15))  # llamada | correo | whatsapp | reunion | demo | nota | tarea | sistema
+    titulo: Mapped[str] = mapped_column(String(200))
+    detalle: Mapped[str | None] = mapped_column(Text)
+    vence_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)  # con fecha = tarea por hacer
+    completada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resultado: Mapped[str | None] = mapped_column(String(500))
+    asignado_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"), index=True)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)

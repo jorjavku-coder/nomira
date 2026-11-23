@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..db import get_db
+from ..services.ventas import base as ventas
 from ..deps import ip_cliente
 from ..services import legal as lg
 
@@ -69,6 +70,7 @@ def crear(d: SolicitudNueva, request: Request, db: Session = Depends(get_db)):
                       expedientes_mes=d.expedientes_mes or None, mensaje=_limpio(d.mensaje), ip=ip[:60])
     db.add(sol)
     db.flush()
+    ventas.desde_solicitud(db, sol)  # entra a Ventas (CRM de Nomira) como oportunidad nueva
     # Evidencia mínima: qué versión del aviso se mostró junto al formulario y, si aplica, el consentimiento opcional
     aviso = lg.vigente(db, "privacidad_simplificado")
     if aviso and d.aviso_version_id == aviso.id:

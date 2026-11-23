@@ -16,6 +16,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   admins: <><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></>,
   legal: <><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0zM8 21h8" /></>,
   comercial: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3M9 11h6M9 15h6M9 19h3" /></>,
+  ventas: <><path d="M4 19h16M7 15l3-4 3 2 4-6" /><circle cx="17" cy="7" r="1.6" fill="currentColor" stroke="none" /></>,
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
@@ -51,6 +52,7 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
   const enlaces = [
     { href: "/plataforma", texto: "Resumen", icono: "resumen", activo: ruta === "/plataforma" },
     { href: "/plataforma/solicitudes", texto: "Solicitudes", icono: "solicitudes", activo: ruta.startsWith("/plataforma/solicitudes"), n: cont?.solicitudes_nuevas },
+    { href: "/plataforma/ventas", texto: "Ventas (CRM)", icono: "ventas", activo: ruta.startsWith("/plataforma/ventas"), n: cont?.ventas_pendientes },
     { href: "/plataforma/clientes", texto: "Clientes", icono: "clientes", activo: ruta.startsWith("/plataforma/clientes") },
     { href: "/plataforma/suscripciones", texto: "Suscripciones", icono: "suscripciones", activo: ruta.startsWith("/plataforma/suscripciones"), n: cont ? cont.por_vencer + cont.vencidas : 0 },
     { href: "/plataforma/correos", texto: "Correos", icono: "correos", activo: ruta.startsWith("/plataforma/correos") },

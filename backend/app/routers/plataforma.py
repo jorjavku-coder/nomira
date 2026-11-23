@@ -182,6 +182,10 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
         "tickets_sin_leer": contar(select(m.TicketSoporte.id).where(m.TicketSoporte.leido_plataforma.is_(False))),
         "usuarios_activos": contar(select(m.Usuario.id).where(m.Usuario.activo.is_(True))),
         "arco_pendientes": contar(select(m.LgSolicitud.id).where(m.LgSolicitud.estado.not_in(("atendida", "improcedente")))),
+        # Ventas: oportunidades nuevas sin atender + tareas vencidas de esta persona
+        "ventas_pendientes": contar(select(m.VtOportunidad.id).where(m.VtOportunidad.etapa == "nuevo"))
+        + contar(select(m.VtActividad.id).where(m.VtActividad.completada_en.is_(None), m.VtActividad.vence_en < m.ahora(),
+                                                (m.VtActividad.asignado_id == a.id) | m.VtActividad.asignado_id.is_(None))),
         **_conteo_suscripciones(db),
     }
 

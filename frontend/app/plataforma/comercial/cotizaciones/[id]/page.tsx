@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ComercialShell, Constructor, Desglose, EstadoCot, abrirPdf, useCatalogoCM } from "@/components/comercial";
 import { Aviso, Modal } from "@/components/ui";
 import { fecha, fechaHora, hoyLocal, mxn } from "@/lib/api";
-import { apiP } from "@/lib/plataforma";
+import { useSesionP } from "@/components/plataforma";
+import { apiP, esSuperadmin } from "@/lib/plataforma";
 
 const ACTOR: Record<string, string> = { admin: "", cliente: "Cliente", stripe: "Stripe", sistema: "Sistema" };
 const METODO: Record<string, string> = { spei: "Transferencia SPEI", otro: "Otra forma", tarjeta: "Tarjeta" };
@@ -14,6 +15,7 @@ export default function Cotizacion() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [cat] = useCatalogoCM();
+  const sesion = useSesionP();
   const [c, setC] = useState<any>(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -26,11 +28,12 @@ export default function Cotizacion() {
     try { const r = await fn(); if (r?.folio) setC(r); setOk(msg); return r; } catch (e: any) { setError(e.message); return null; }
   }
   if (!c) return <ComercialShell><Aviso>{error}</Aviso>{!error && <p className="text-sm text-slate-500">Cargando…</p>}</ComercialShell>;
-  const a = c.acciones;
+  const a = !sesion || esSuperadmin(sesion) ? c.acciones : { ...c.acciones, registrar_pago: false, convertir: false, asignar_promocional: false };
   const v = c.version;
   return (
     <ComercialShell>
       <Link href="/plataforma/comercial/cotizaciones" className="text-sm text-turquesa-700 hover:underline">← Cotizaciones</Link>
+      {c.oportunidad_id && <Link href={`/plataforma/ventas/oportunidades/${c.oportunidad_id}`} className="ml-4 text-sm text-turquesa-700 hover:underline">Ver oportunidad en Ventas</Link>}
       <div className="mb-4 mt-1 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold text-marino">{c.folio} <EstadoCot estado={c.estado} texto={c.estado_texto} /></h1>

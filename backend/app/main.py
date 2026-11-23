@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -126,7 +126,8 @@ app.include_router(academia_medios.router)  # URL firmadas (video/SCORM) y verif
 # Centro Legal: documentos publicados (públicos), solicitudes ARCO y aceptación; y su administración en el panel
 app.include_router(legal.router)
 app.include_router(plataforma_legal.router)
-app.include_router(comercial.router)  # solo superadministrador (dependencia en el propio router)
+app.include_router(comercial.router)  # superadministrador; cotizaciones: todo el equipo (dependencia en el propio router)
+app.include_router(ventas.router)  # CRM de Nomira: todo el equipo del panel
 app.include_router(plataforma_academia.router)  # solo superadministrador (dependencia en el propio router)
 app.include_router(comercial_publico.router)
 
