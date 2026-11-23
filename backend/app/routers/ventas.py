@@ -5,12 +5,14 @@ las cotizaciones del módulo Comercial. Son datos de prospectos de Nomira: no to
 Borrar contactos y campañas: solo superadministrador."""
 from __future__ import annotations
 
+import io
 import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, condecimal
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -69,6 +71,7 @@ def catalogos(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = De
     paquetes = [p.nombre for p in db.scalars(select(m.CmPaquete).where(m.CmPaquete.estado == "activo").order_by(m.CmPaquete.precio_mensual))]
     return {"etapas": [{"clave": k, "nombre": n, "probabilidad": p} for k, n, p in vb.ETAPAS], "abiertas": vb.ABIERTAS,
             "canales": vb.CANALES, "origenes": vb.ORIGENES, "tipos": vb.TIPOS, "motivos": vb.MOTIVOS, "paquetes": paquetes,
+            "califica": vb.CALIFICA, "descarte": vb.DESCARTE,
             "equipo": [{"id": x.id, "nombre": x.nombre} for x in db.scalars(select(m.AdminPlataforma).where(m.AdminPlataforma.activo.is_(True)).order_by(m.AdminPlataforma.nombre))],
             "campanas": [{"id": c.id, "nombre": c.nombre, "estado": c.estado} for c in db.scalars(select(m.VtCampana).order_by(m.VtCampana.id.desc()))],
             "yo": a.id, "es_super": a.rol == "superadministrador"}
@@ -130,9 +133,18 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
                                        or_(m.VtActividad.asignado_id == a.id, m.VtActividad.asignado_id.is_(None)))
     vencidas = db.scalar(select(func.count()).select_from(mias.where(m.VtActividad.vence_en < hoy).subquery()))
     para_hoy = db.scalar(select(func.count()).select_from(mias.where(m.VtActividad.vence_en >= hoy, m.VtActividad.vence_en <= fin_hoy).subquery()))
-    sin_contactar = sum(1 for o in abiertas if o.etapa == "nuevo")
+    # MQL → SQL
+    mql = db.scalars(select(m.VtContacto).where(m.VtContacto.fase == "mql")).all()
+    sql_mes = db.scalars(select(m.VtContacto).where(m.VtContacto.fase == "sql", m.VtContacto.calificado_en >= inicio_mes)).all()
+    hace90 = m.ahora() - timedelta(days=90)
+    leads_90 = dict(db.execute(select(m.VtContacto.fase, func.count()).where(m.VtContacto.creado_en >= hace90).group_by(m.VtContacto.fase)).all())
+    total_90 = sum(leads_90.values())
     admins = _admins(db)
-    por_vendedor = defaultdict(lambda: {"abiertas": 0, "valor": Decimal(0), "ganadas_mes": 0})
+    por_vendedor = defaultdict(lambda: {"abiertas": 0, "valor": Decimal(0), "ganadas_mes": 0, "mql": 0, "sql_mes": 0})
+    for c in mql:
+        por_vendedor[c.propietario_id]["mql"] += 1
+    for c in sql_mes:
+        por_vendedor[c.calificado_por_id or c.propietario_id]["sql_mes"] += 1
     for o in abiertas:
         x = por_vendedor[o.propietario_id]
         x["abiertas"] += 1
@@ -142,11 +154,14 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
     motivos = dict(db.execute(select(m.VtOportunidad.motivo_perdida, func.count()).where(m.VtOportunidad.etapa == "perdido",
                                                                                          m.VtOportunidad.cerrada_en >= m.ahora() - timedelta(days=90))
                               .group_by(m.VtOportunidad.motivo_perdida)).all())
-    return {"pipeline": vb.dinero(pipeline), "ponderado": vb.dinero(ponderado), "abiertas": len(abiertas), "sin_contactar": sin_contactar,
+    return {"pipeline": vb.dinero(pipeline), "ponderado": vb.dinero(ponderado), "abiertas": len(abiertas),
+            "mql": len(mql), "mql_sin_trabajar": vb.leads_sin_trabajar(db), "sql_mes": len(sql_mes),
+            "mql_a_sql_90": round(100 * leads_90.get("sql", 0) / total_90) if total_90 else None,
             "ganadas_mes": len(ganadas_mes), "mrr_ganado_mes": vb.dinero(sum((o.valor_mensual or Decimal(0) for o in ganadas_mes), Decimal(0))),
             "conversion_90": conversion, "tareas_vencidas": vencidas, "tareas_hoy": para_hoy,
-            "por_etapa": [{"clave": k, "nombre": n, "n": sum(1 for o in abiertas if o.etapa == k)} for k, n, _p in vb.ETAPAS[:5]],
-            "por_vendedor": [{"id": k, "nombre": admins.get(k, "Sin asignar"), "abiertas": v["abiertas"], "valor": vb.dinero(v["valor"]), "ganadas_mes": v["ganadas_mes"]}
+            "por_etapa": [{"clave": k, "nombre": n, "n": sum(1 for o in abiertas if o.etapa == k)} for k, n, _p in vb.ETAPAS[:4]],
+            "por_vendedor": [{"id": k, "nombre": admins.get(k, "Sin asignar"), "abiertas": v["abiertas"], "valor": vb.dinero(v["valor"]), "ganadas_mes": v["ganadas_mes"],
+                              "mql": v["mql"], "sql_mes": v["sql_mes"]}
                              for k, v in sorted(por_vendedor.items(), key=lambda kv: -kv[1]["valor"])],
             "motivos_perdida": [{"motivo": vb.MOTIVOS.get(k or "otro", k), "n": n} for k, n in motivos.items()]}
 
@@ -190,12 +205,16 @@ def _ct_dict(c: m.VtContacto, admins: dict, campanas: dict | None = None) -> dic
             "entidad": c.entidad, "abogados": c.abogados, "especialidad": c.especialidad, "origen": c.origen, "origen_texto": vb.ORIGENES.get(c.origen),
             "campana_id": c.campana_id, "campana": (campanas or {}).get(c.campana_id), "propietario_id": c.propietario_id, "propietario": admins.get(c.propietario_id),
             "organizacion_id": c.organizacion_id, "etiquetas": c.etiquetas or [], "notas": c.notas, "no_contactar": c.no_contactar,
-            "creado_en": c.creado_en.isoformat()}
+            "fase": c.fase, "calificacion": c.calificacion, "calificacion_texto": vb.CALIFICA.get(c.calificacion or "", "Manual" if c.calificacion else None),
+            "calificado_en": c.calificado_en.isoformat() if c.calificado_en else None, "motivo_descarte": c.motivo_descarte,
+            "motivo_descarte_texto": vb.DESCARTE.get(c.motivo_descarte or ""), "creado_en": c.creado_en.isoformat()}
 
 
 @router.get("/contactos")
-def contactos(q: str | None = None, propietario_id: int | None = None, campana_id: int | None = None, db: Session = Depends(get_db)):
+def contactos(q: str | None = None, propietario_id: int | None = None, campana_id: int | None = None, fase: str = "sql", db: Session = Depends(get_db)):
     s = select(m.VtContacto)
+    if fase != "todas":
+        s = s.where(m.VtContacto.fase == fase)
     if q and q.strip():
         t = f"%{q.strip()[:80]}%"
         s = s.where(or_(m.VtContacto.nombre.ilike(t), m.VtContacto.despacho.ilike(t), m.VtContacto.email.ilike(t), m.VtContacto.telefono.ilike(t),
@@ -214,7 +233,7 @@ def contactos(q: str | None = None, propietario_id: int | None = None, campana_i
 
 @router.post("/contactos", status_code=201)
 def crear_contacto(d: ContactoIn, request: Request, permitir_duplicado: bool = False, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
-    c = m.VtContacto(creado_por_id=a.id)
+    c = m.VtContacto(creado_por_id=a.id, fase="sql", calificacion="manual", calificado_en=m.ahora(), calificado_por_id=a.id)
     _aplicar_contacto(db, c, d)
     c.propietario_id = c.propietario_id or a.id
     if c.email and not permitir_duplicado:
@@ -267,7 +286,7 @@ class OportunidadIn(BaseModel):
     contacto_id: int | None = None
     contacto: ContactoIn | None = None  # alta rápida del contacto junto con la oportunidad
     titulo: str = Field(min_length=2, max_length=200)
-    etapa: str = "nuevo"
+    etapa: str = "contactado"
     valor_mensual: Monto | None = None
     paquete_interes: str | None = Field(None, max_length=80)
     modulos_interes: list[str] = Field(default_factory=list, max_length=12)
@@ -302,6 +321,8 @@ def crear_op(d: OportunidadIn, request: Request, a: m.AdminPlataforma = Depends(
         db.flush()
     else:
         raise HTTPException(422, "Elija o capture el contacto.")
+    if ct.fase != "sql":  # abrir una oportunidad a mano equivale a calificarlo
+        ct.fase, ct.calificacion, ct.calificado_en, ct.calificado_por_id, ct.motivo_descarte = "sql", "manual", m.ahora(), a.id, None
     o = m.VtOportunidad(contacto_id=ct.id, etapa=d.etapa, creado_por_id=a.id, origen=ct.origen, campana_id=ct.campana_id)
     _aplicar_op(db, o, d)
     o.propietario_id = o.propietario_id or ct.propietario_id or a.id
@@ -400,11 +421,11 @@ def crear_actividad(d: ActividadIn, request: Request, a: m.AdminPlataforma = Dep
     if o and o.propietario_id is None:  # quien atiende primero una oportunidad sin responsable se queda con ella
         o.propietario_id = a.id
         ct.propietario_id = ct.propietario_id or a.id
-    if o and o.etapa == "nuevo" and d.tipo in ("llamada", "correo", "whatsapp", "reunion", "demo") and not d.vence_en:
-        vb.mover(db, o, "contactado", a.id, automatico="Primer contacto registrado.")
-        for t in db.scalars(select(m.VtActividad).where(m.VtActividad.oportunidad_id == o.id, m.VtActividad.completada_en.is_(None),
-                                                        m.VtActividad.titulo == "Primer contacto con el prospecto")):
-            t.completada_en, t.resultado, t.asignado_id = m.ahora(), d.titulo.strip()[:500], t.asignado_id or a.id
+    if ct.fase != "sql" and d.tipo in vb.CALIFICA and not d.vence_en:  # hubo contacto real: el lead pasa a SQL
+        db.flush()
+        vb.calificar(db, ct, d.tipo, a.id, registrar=False)
+    elif not o and ct.propietario_id is None:
+        ct.propietario_id = a.id
     db.flush()
     _registrar(db, a, "ventas_actividad", request, entidad="vt_actividad", entidad_id=x.id)
     db.commit()
@@ -545,5 +566,251 @@ def importar(request: Request, a: m.AdminPlataforma = Depends(admin_plataforma),
 def contador(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     vencidas = db.scalar(select(func.count(m.VtActividad.id)).where(m.VtActividad.completada_en.is_(None), m.VtActividad.vence_en < m.ahora(),
                                                                      or_(m.VtActividad.asignado_id == a.id, m.VtActividad.asignado_id.is_(None))))
-    nuevas = db.scalar(select(func.count(m.VtOportunidad.id)).where(m.VtOportunidad.etapa == "nuevo"))
+    nuevas = vb.leads_sin_trabajar(db, solo_sitio=True)
     return {"total": (vencidas or 0) + (nuevas or 0), "tareas_vencidas": vencidas or 0, "nuevas": nuevas or 0}
+
+
+# ------------------------------------------------------------------ leads (MQL)
+
+COLUMNAS_LEAD = {
+    "nombre": ("nombre", "nombre completo", "contacto", "persona"),
+    "despacho": ("despacho", "empresa", "bufete", "firma", "razon social"),
+    "cargo": ("cargo", "puesto"),
+    "email": ("correo", "email", "correo electronico", "e-mail"),
+    "telefono": ("telefono", "celular", "whatsapp", "tel"),
+    "ciudad": ("ciudad", "municipio"),
+    "entidad": ("estado", "entidad"),
+    "abogados": ("abogados", "numero de abogados", "tamano"),
+    "especialidad": ("especialidad", "materia", "area"),
+    "notas": ("notas", "comentarios", "observaciones"),
+}
+
+
+def _lead_dict(c: m.VtContacto, admins: dict, campanas: dict, trabajo: dict) -> dict:
+    t = trabajo.get(c.id) or {}
+    return {**_ct_dict(c, admins, campanas), "intentos": t.get("intentos", 0), "ultimo_intento": t.get("ultimo"), "tarea": t.get("tarea")}
+
+
+def _trabajo(db: Session, ids: list[int]) -> dict:
+    if not ids:
+        return {}
+    r: dict[int, dict] = defaultdict(dict)
+    for cid, n, ult in db.execute(select(m.VtActividad.contacto_id, func.count(), func.max(m.VtActividad.completada_en))
+                                  .where(m.VtActividad.contacto_id.in_(ids), m.VtActividad.tipo.in_(vb.TRABAJO), m.VtActividad.completada_en.is_not(None))
+                                  .group_by(m.VtActividad.contacto_id)):
+        r[cid].update(intentos=n, ultimo=ult.isoformat() if ult else None)
+    for cid, v in db.execute(select(m.VtActividad.contacto_id, func.min(m.VtActividad.vence_en))
+                             .where(m.VtActividad.contacto_id.in_(ids), m.VtActividad.completada_en.is_(None), m.VtActividad.vence_en.is_not(None))
+                             .group_by(m.VtActividad.contacto_id)):
+        r[cid]["tarea"] = v.isoformat() if v else None
+    return r
+
+
+@router.get("/leads")
+def leads(q: str | None = None, estado: str = "mql", propietario_id: int | None = None, campana_id: int | None = None, db: Session = Depends(get_db)):
+    s = select(m.VtContacto).where(m.VtContacto.fase == ("descartado" if estado == "descartado" else "mql"))
+    if q and q.strip():
+        t = f"%{q.strip()[:80]}%"
+        s = s.where(or_(m.VtContacto.nombre.ilike(t), m.VtContacto.despacho.ilike(t), m.VtContacto.email.ilike(t), m.VtContacto.telefono.ilike(t),
+                        m.VtContacto.ciudad.ilike(t), m.VtContacto.especialidad.ilike(t)))
+    if propietario_id:
+        s = s.where(m.VtContacto.propietario_id == propietario_id)
+    if campana_id:
+        s = s.where(m.VtContacto.campana_id == campana_id)
+    filas = db.scalars(s.order_by(m.VtContacto.creado_en.desc()).limit(3000)).all()
+    admins = _admins(db)
+    campanas = dict(db.execute(select(m.VtCampana.id, m.VtCampana.nombre)).all())
+    trabajo = _trabajo(db, [c.id for c in filas])
+    return [_lead_dict(c, admins, campanas, trabajo) for c in filas]
+
+
+@router.post("/leads", status_code=201)
+def crear_lead(d: ContactoIn, request: Request, permitir_duplicado: bool = False, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    c = m.VtContacto(creado_por_id=a.id, fase="mql")
+    _aplicar_contacto(db, c, d)
+    c.propietario_id = c.propietario_id or a.id
+    c.origen = d.origen if d.origen != "otro" else "prospeccion"
+    if not permitir_duplicado:
+        dup = _duplicado(db, c.email, c.telefono)
+        if dup:
+            raise HTTPException(409, f"Ya existe «{dup.nombre}» con ese correo o teléfono (#{dup.id}, {'contacto SQL' if dup.fase == 'sql' else 'lead'}).")
+    db.add(c)
+    db.flush()
+    _registrar(db, a, "ventas_lead_creado", request, entidad="vt_contacto", entidad_id=c.id)
+    db.commit()
+    return ver_contacto(c.id, db)
+
+
+def _solo_digitos(t: str | None) -> str:
+    return re.sub(r"\D", "", t or "")[-10:]
+
+
+def _duplicado(db: Session, email: str | None, telefono: str | None, ignorar: int | None = None) -> m.VtContacto | None:
+    if email:
+        x = db.scalar(select(m.VtContacto).where(func.lower(m.VtContacto.email) == email.lower(), m.VtContacto.id != (ignorar or 0)).limit(1))
+        if x:
+            return x
+    tel = _solo_digitos(telefono)
+    if len(tel) == 10:
+        for x in db.scalars(select(m.VtContacto).where(m.VtContacto.telefono.ilike(f"%{tel[-4:]}%"), m.VtContacto.id != (ignorar or 0))):
+            if _solo_digitos(x.telefono) == tel:
+                return x
+    return None
+
+
+@router.get("/leads/plantilla")
+def plantilla_leads():
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Leads"
+    ws.append(["Nombre", "Despacho", "Cargo", "Correo", "Teléfono", "Ciudad", "Estado", "Abogados", "Especialidad", "Notas"])
+    ws.append(["Lic. Ejemplo Pérez", "Bufete Ejemplo SC", "Socio", "ejemplo@bufete.test", "5512345678", "Toluca", "Estado de México", 5, "Laboral", "Borre esta fila"])
+    for col, ancho in zip("ABCDEFGHIJ", (28, 30, 14, 30, 16, 16, 18, 10, 18, 30)):
+        ws.column_dimensions[col].width = ancho
+    b = io.BytesIO()
+    wb.save(b)
+    return Response(b.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="plantilla-leads-nomira.xlsx"'})
+
+
+@router.post("/leads/importar")
+async def importar_leads(request: Request, archivo: UploadFile = File(...), confirmar: bool = Form(False), propietario_id: int | None = Form(None),
+                         campana_id: int | None = Form(None), origen: str = Form("prospeccion"),
+                         a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    """Primero muestra la vista previa (nuevos, repetidos, con error); con confirmar=true los da de alta como leads (MQL)."""
+    from ..services.clientes.lectura import _filas_archivo, _plano
+    contenido = await archivo.read(5 * 1024 * 1024 + 1)
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(413, "El archivo pesa más de 5 MB.")
+    if origen not in vb.ORIGENES:
+        raise HTTPException(422, "Origen no válido.")
+    dueno, camp = _admin_valido(db, propietario_id) or a.id, _campana_valida(db, campana_id)
+    try:
+        filas = [r for r in _filas_archivo(archivo.filename or "leads.xlsx", contenido) if any(str(x or "").strip() for x in r)]
+    except Exception:
+        raise HTTPException(422, "No se pudo leer el archivo. Use Excel (.xlsx) o CSV.")
+    if len(filas) < 2:
+        raise HTTPException(422, "El archivo no tiene filas de datos.")
+    enc = [_plano(str(x or "")).rstrip(":") for x in filas[0]]
+    mapa = {}
+    for campo, alias in COLUMNAS_LEAD.items():
+        for i, e in enumerate(enc):
+            if e in alias:
+                mapa.setdefault(campo, i)
+                break
+    if "nombre" not in mapa and "despacho" not in mapa:
+        raise HTTPException(422, "No encontramos la columna «Nombre» ni «Despacho». Use la plantilla.")
+    vistos_email, vistos_tel = set(), set()
+    resultado = []
+    for n, fila in enumerate(filas[1:3001], start=2):
+        d = {k: ("" if (fila[i] if i < len(fila) else None) is None else str(fila[i]).strip()) for k, i in mapa.items()}
+        if d.get("telefono", "").endswith(".0"):
+            d["telefono"] = d["telefono"][:-2]
+        nombre = d.get("nombre") or d.get("despacho") or ""
+        item = {"fila": n, "nombre": nombre, "despacho": d.get("despacho") or None, "email": d.get("email") or None, "estado": "nuevo", "motivo": None}
+        try:
+            abog = int(float(d["abogados"])) if d.get("abogados") else None
+            datos = ContactoIn(nombre=nombre, despacho=d.get("despacho") or None, cargo=d.get("cargo") or None, email=d.get("email") or None,
+                               telefono=d.get("telefono") or None, ciudad=d.get("ciudad") or None, entidad=(d.get("entidad") or None) and d["entidad"][:40],
+                               abogados=abog if abog and abog > 0 else None, especialidad=d.get("especialidad") or None, notas=d.get("notas") or None,
+                               origen=origen, campana_id=camp, propietario_id=dueno)
+            c = m.VtContacto(creado_por_id=a.id, fase="mql")
+            _aplicar_contacto(db, c, datos)
+        except HTTPException as e:
+            item.update(estado="error", motivo=e.detail)
+        except Exception:
+            item.update(estado="error", motivo="Falta el nombre o algún dato tiene formato no válido.")
+        else:
+            tel = _solo_digitos(c.telefono)
+            if (c.email and c.email in vistos_email) or (len(tel) == 10 and tel in vistos_tel):
+                item.update(estado="repetido", motivo="Repetido dentro del mismo archivo.")
+            elif _duplicado(db, c.email, c.telefono):
+                item.update(estado="repetido", motivo="Ya existe en el CRM (mismo correo o teléfono).")
+            else:
+                vistos_email.add(c.email)
+                vistos_tel.add(tel)
+                if confirmar:
+                    db.add(c)
+        resultado.append(item)
+    nuevos = sum(1 for r in resultado if r["estado"] == "nuevo")
+    if confirmar:
+        _registrar(db, a, "ventas_leads_importados", request, detalle={"nuevos": nuevos})
+        db.commit()
+    return {"filas": resultado, "nuevos": nuevos, "repetidos": sum(1 for r in resultado if r["estado"] == "repetido"),
+            "errores": sum(1 for r in resultado if r["estado"] == "error"), "guardado": confirmar,
+            "avisos": ["Se leyeron solo las primeras 3,000 filas."] if len(filas) - 1 > 3000 else []}
+
+
+@router.get("/leads/exportar")
+def exportar_leads(estado: str = "mql", request: Request = None, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    from openpyxl import Workbook
+    filas = leads(None, estado, None, None, db) if estado != "sql" else contactos(None, None, None, "sql", db)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Contactos SQL" if estado == "sql" else ("Descartados" if estado == "descartado" else "Leads MQL")
+    ws.append(["Nombre", "Despacho", "Cargo", "Correo", "Teléfono", "Ciudad", "Estado", "Abogados", "Especialidad", "Origen", "Campaña",
+               "Responsable", "Intentos", "No contactar", "Alta"])
+    for c in filas:
+        ws.append([c["nombre"], c["despacho"], c["cargo"], c["email"], c["telefono"], c["ciudad"], c["entidad"], c["abogados"], c["especialidad"],
+                   c["origen_texto"], c["campana"], c["propietario"], c.get("intentos"), "Sí" if c["no_contactar"] else "", c["creado_en"][:10]])
+    b = io.BytesIO()
+    wb.save(b)
+    _registrar(db, a, "ventas_exportacion", request, detalle={"estado": estado, "filas": len(filas)})
+    db.commit()
+    return Response(b.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{ "contactos-sql" if estado == "sql" else "leads-mql"}-nomira.xlsx"'})
+
+
+class CalificarIn(BaseModel):
+    via: str  # llamada | respuesta | reunion | demo
+    detalle: str | None = Field(None, max_length=5000)
+    titulo: str | None = Field(None, max_length=200)
+    valor_mensual: Monto | None = None
+
+
+@router.post("/leads/{cid}/calificar")
+def calificar(cid: int, d: CalificarIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    c = _get(db, m.VtContacto, cid)
+    if c.fase == "sql":
+        raise HTTPException(409, "Ya es contacto (SQL).")
+    if d.via not in vb.CALIFICA:
+        raise HTTPException(422, "Para pasar a SQL debe haber una llamada efectiva, una respuesta o aceptación por correo, una reunión o una demo.")
+    o = vb.calificar(db, c, d.via, a.id, _txt(d.titulo, 200), d.valor_mensual, (d.detalle or "").strip() or None)
+    _registrar(db, a, "ventas_lead_calificado", request, entidad="vt_contacto", entidad_id=c.id, detalle={"via": d.via})
+    db.commit()
+    return {"oportunidad_id": o.id, "contacto_id": c.id}
+
+
+class DescartarIn(BaseModel):
+    motivo: str
+    nota: str | None = Field(None, max_length=500)
+
+
+@router.post("/leads/{cid}/descartar")
+def descartar(cid: int, d: DescartarIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    c = _get(db, m.VtContacto, cid)
+    if c.fase != "mql":
+        raise HTTPException(409, "Solo se descartan leads (MQL).")
+    if d.motivo not in vb.DESCARTE:
+        raise HTTPException(422, "Indique el motivo.")
+    c.fase, c.motivo_descarte = "descartado", d.motivo
+    if d.motivo == "no_contactar":
+        c.no_contactar = True
+    for t in db.scalars(select(m.VtActividad).where(m.VtActividad.contacto_id == c.id, m.VtActividad.completada_en.is_(None))):
+        t.completada_en, t.resultado = m.ahora(), "Lead descartado"
+    vb.actividad(db, c.id, None, "sistema", f"Lead descartado: {vb.DESCARTE[d.motivo]}", _txt(d.nota, 500), a.id)
+    _registrar(db, a, "ventas_lead_descartado", request, entidad="vt_contacto", entidad_id=c.id)
+    db.commit()
+    return ver_contacto(c.id, db)
+
+
+@router.post("/leads/{cid}/reactivar")
+def reactivar(cid: int, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    c = _get(db, m.VtContacto, cid)
+    if c.fase != "descartado":
+        raise HTTPException(409, "Este lead no está descartado.")
+    c.fase, c.motivo_descarte = "mql", None
+    vb.actividad(db, c.id, None, "sistema", "Lead reactivado", None, a.id)
+    db.commit()
+    return ver_contacto(c.id, db)

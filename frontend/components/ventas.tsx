@@ -8,7 +8,7 @@ import { mxn } from "@/lib/api";
 import { apiP } from "@/lib/plataforma";
 
 export const COLOR_ETAPA: Record<string, string> = {
-  nuevo: "bg-sky-100 text-sky-800", contactado: "bg-indigo-100 text-indigo-800", demo: "bg-violet-100 text-violet-800",
+  contactado: "bg-indigo-100 text-indigo-800", demo: "bg-violet-100 text-violet-800",
   propuesta: "bg-amber-100 text-amber-800", negociacion: "bg-orange-100 text-orange-800", ganado: "bg-emerald-100 text-emerald-800", perdido: "bg-slate-200 text-slate-600",
 };
 
@@ -31,9 +31,10 @@ export function useCatalogosVentas() {
 export function VentasShell({ children, acciones }: { children: React.ReactNode; acciones?: React.ReactNode }) {
   const ruta = usePathname();
   const tabs: [string, string, boolean][] = [
+    ["/plataforma/ventas/leads", "Leads (MQL)", ruta.startsWith("/plataforma/ventas/leads")],
+    ["/plataforma/ventas/contactos", "Contactos (SQL)", ruta.startsWith("/plataforma/ventas/contactos")],
     ["/plataforma/ventas", "Embudo", ruta === "/plataforma/ventas" || ruta.startsWith("/plataforma/ventas/oportunidades")],
     ["/plataforma/ventas/tareas", "Mis tareas", ruta.startsWith("/plataforma/ventas/tareas")],
-    ["/plataforma/ventas/contactos", "Contactos", ruta.startsWith("/plataforma/ventas/contactos")],
     ["/plataforma/ventas/campanas", "Campañas", ruta.startsWith("/plataforma/ventas/campanas")],
     ["/plataforma/comercial/cotizaciones", "Cotizaciones", false],
   ];
@@ -142,9 +143,9 @@ export function FormContacto({ cat, contacto, onCerrar, onListo }: { cat: any; c
 }
 
 /** Registrar lo que pasó (llamada, correo, reunión, nota) o programar una tarea con fecha. */
-export function FormActividad({ cat, oportunidadId, contactoId, onCerrar, onListo, tarea = false }: { cat: any; oportunidadId?: number; contactoId?: number; onCerrar: () => void; onListo: () => void; tarea?: boolean }) {
+export function FormActividad({ cat, oportunidadId, contactoId, onCerrar, onListo, tarea = false, esLead = false }: { cat: any; oportunidadId?: number; contactoId?: number; onCerrar: () => void; onListo: () => void; tarea?: boolean; esLead?: boolean }) {
   const manana = (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })();
-  const [f, setF] = useState<any>({ tipo: tarea ? "tarea" : "llamada", titulo: "", detalle: "", programar: tarea, vence_en: manana, asignado_id: String(cat.yo) });
+  const [f, setF] = useState<any>({ tipo: tarea ? "tarea" : esLead ? "intento" : "llamada", titulo: "", detalle: "", programar: tarea, vence_en: manana, asignado_id: String(cat.yo) });
   const [error, setError] = useState("");
   async function guardar(e: React.FormEvent) {
     e.preventDefault(); setError("");
@@ -164,6 +165,8 @@ export function FormActividad({ cat, oportunidadId, contactoId, onCerrar, onList
             {Object.entries(cat.tipos).filter(([k]) => k !== "sistema").map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select></label>
           <label><span className="etiqueta">{f.programar ? "Qué hay que hacer" : "Qué pasó"}</span><input className="campo" required minLength={2} placeholder={f.programar ? "Ej. Llamar para agendar demo" : "Ej. Llamada: le interesa Agenda"} value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} /></label>
         </div>
+        {!f.programar && cat.califica[f.tipo] && esLead && <Aviso tipo="ok">Con esta actividad el lead pasa a <b>Contactos (SQL)</b> y se abre su oportunidad en el embudo.</Aviso>}
+        {!f.programar && !cat.califica[f.tipo] && esLead && ["intento", "correo", "whatsapp"].includes(f.tipo) && <p className="text-xs text-slate-500">Se registra como intento: el lead sigue en MQL hasta tener una llamada efectiva o respuesta por correo.</p>}
         {f.programar && <div className="grid gap-3 sm:grid-cols-2">
           <label><span className="etiqueta">Fecha y hora</span><input className="campo" type="datetime-local" required value={f.vence_en} onChange={(e) => setF({ ...f, vence_en: e.target.value })} /></label>
           <label><span className="etiqueta">Para</span><select className="campo" value={f.asignado_id} onChange={(e) => setF({ ...f, asignado_id: e.target.value })}>{cat.equipo.map((x: any) => <option key={x.id} value={x.id}>{x.nombre}</option>)}</select></label>
@@ -215,6 +218,56 @@ export function CompletarTarea({ tarea, onCerrar, onListo }: { tarea: any; onCer
         <label className="block"><span className="etiqueta">¿Cómo salió? (opcional)</span><input className="campo" autoFocus value={resultado} onChange={(e) => setResultado(e.target.value)} placeholder="Ej. Agendamos demo para el jueves" /></label>
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-turquesa">Marcar como hecha</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+/** MQL → SQL: solo con contacto real (llamada efectiva, respuesta por correo, reunión o demo). */
+export function Calificar({ cat, lead, onCerrar, onListo }: { cat: any; lead: any; onCerrar: () => void; onListo: (r: any) => void }) {
+  const [f, setF] = useState<any>({ via: "llamada", detalle: "", titulo: lead.despacho || lead.nombre, valor_mensual: "" });
+  const [error, setError] = useState("");
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    try { onListo(await apiP.post(`/ventas/leads/${lead.id}/calificar`, { ...f, detalle: f.detalle || null, valor_mensual: f.valor_mensual || null })); }
+    catch (x: any) { setError(x.message); }
+  }
+  return (
+    <Modal titulo={`Pasar a SQL: ${lead.nombre}`} onCerrar={onCerrar} ancho="max-w-xl">
+      <form className="space-y-3" onSubmit={guardar}>
+        <p className="text-sm text-slate-600">Un lead pasa a contacto (SQL) cuando ya hubo contacto real. ¿Qué pasó?</p>
+        <div className="grid gap-2 sm:grid-cols-2">{Object.entries(cat.califica).map(([k, v]) => (
+          <label key={k} className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2 text-sm ${f.via === k ? "border-turquesa bg-turquesa-50" : "border-crema-300"}`}>
+            <input type="radio" name="via" checked={f.via === k} onChange={() => setF({ ...f, via: k })} /> {v as string}</label>))}</div>
+        <label className="block"><span className="etiqueta">Detalle (opcional)</span><textarea className="campo" rows={2} placeholder="Ej. Le interesa Agenda; somos 6 abogados" value={f.detalle} onChange={(e) => setF({ ...f, detalle: e.target.value })} /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label><span className="etiqueta">Nombre de la oportunidad</span><input className="campo" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} /></label>
+          <label><span className="etiqueta">Valor mensual estimado (opcional)</span><input className="campo" inputMode="decimal" value={f.valor_mensual} onChange={(e) => setF({ ...f, valor_mensual: e.target.value.replace(/[^\d.]/g, "") })} /></label>
+        </div>
+        <Aviso>{error}</Aviso>
+        <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-turquesa">Pasar a SQL y abrir oportunidad</button></div>
+      </form>
+    </Modal>
+  );
+}
+
+export function Descartar({ cat, lead, onCerrar, onListo }: { cat: any; lead: any; onCerrar: () => void; onListo: () => void }) {
+  const [motivo, setMotivo] = useState("");
+  const [nota, setNota] = useState("");
+  const [error, setError] = useState("");
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    try { await apiP.post(`/ventas/leads/${lead.id}/descartar`, { motivo, nota: nota || null }); onListo(); } catch (x: any) { setError(x.message); }
+  }
+  return (
+    <Modal titulo={`Descartar a ${lead.nombre}`} onCerrar={onCerrar}>
+      <form className="space-y-3" onSubmit={guardar}>
+        <div className="grid gap-2 sm:grid-cols-2">{Object.entries(cat.descarte).map(([k, v]) => (
+          <label key={k} className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2 text-sm ${motivo === k ? "border-turquesa bg-turquesa-50" : "border-crema-300"}`}>
+            <input type="radio" name="motivo" checked={motivo === k} onChange={() => setMotivo(k)} /> {v as string}</label>))}</div>
+        <label className="block"><span className="etiqueta">Nota (opcional)</span><input className="campo" value={nota} onChange={(e) => setNota(e.target.value)} /></label>
+        <Aviso>{error}</Aviso>
+        <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-turquesa" disabled={!motivo}>Descartar</button></div>
       </form>
     </Modal>
   );

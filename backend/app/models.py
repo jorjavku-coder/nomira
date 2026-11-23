@@ -1848,6 +1848,13 @@ class VtContacto(Base):
     etiquetas: Mapped[list | None] = mapped_column(JSON)
     notas: Mapped[str | None] = mapped_column(Text)
     no_contactar: Mapped[bool] = mapped_column(Boolean, default=False)  # pidió no ser contactado
+    # Calificación: mql = lead (aún sin contacto real) · sql = contacto (al menos una llamada efectiva o aceptó por correo) · descartado
+    fase: Mapped[str] = mapped_column(String(12), default="mql", server_default="sql", index=True)
+    calificacion: Mapped[str | None] = mapped_column(String(15))  # llamada | respuesta | reunion | demo | manual
+    calificado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    calificado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    motivo_descarte: Mapped[str | None] = mapped_column(String(30))
+    solicitud_id: Mapped[int | None] = mapped_column(ForeignKey("solicitudes.id", ondelete="SET NULL"))  # llegó por el sitio
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
@@ -1859,7 +1866,7 @@ class VtOportunidad(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     contacto_id: Mapped[int] = mapped_column(ForeignKey("vt_contactos.id", ondelete="CASCADE"), index=True)
     titulo: Mapped[str] = mapped_column(String(200))
-    etapa: Mapped[str] = mapped_column(String(15), default="nuevo", index=True)
+    etapa: Mapped[str] = mapped_column(String(15), default="contactado", index=True)
     valor_mensual: Mapped[Decimal | None] = mapped_column(DINERO)  # estimado, antes de IVA
     paquete_interes: Mapped[str | None] = mapped_column(String(80))
     modulos_interes: Mapped[list | None] = mapped_column(JSON)

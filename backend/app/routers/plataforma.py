@@ -22,6 +22,7 @@ from .. import models as m
 from ..db import get_db
 from ..deps import ip_cliente
 from ..freno import FrenoAcceso
+from ..services.ventas import base as ventas_base
 from ..security import (ROLES, crear_token_plataforma, gastar_tiempo_de_verificacion, hash_contrasena,
                         leer_token_plataforma, verificar_contrasena)
 from ..services import correo, dos_pasos, envios, modulos, plantillas_correo
@@ -183,7 +184,7 @@ def resumen(a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depe
         "usuarios_activos": contar(select(m.Usuario.id).where(m.Usuario.activo.is_(True))),
         "arco_pendientes": contar(select(m.LgSolicitud.id).where(m.LgSolicitud.estado.not_in(("atendida", "improcedente")))),
         # Ventas: oportunidades nuevas sin atender + tareas vencidas de esta persona
-        "ventas_pendientes": contar(select(m.VtOportunidad.id).where(m.VtOportunidad.etapa == "nuevo"))
+        "ventas_pendientes": ventas_base.leads_sin_trabajar(db, solo_sitio=True)
         + contar(select(m.VtActividad.id).where(m.VtActividad.completada_en.is_(None), m.VtActividad.vence_en < m.ahora(),
                                                 (m.VtActividad.asignado_id == a.id) | m.VtActividad.asignado_id.is_(None))),
         **_conteo_suscripciones(db),
