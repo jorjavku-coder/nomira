@@ -22,9 +22,22 @@ from ..services import almacenamiento as almacen, correo, envios, modulos, suscr
 from ..services.comercial import base as cm
 from ..services.comercial import correo as cm_correo
 from ..services.comercial import pdf as cm_pdf
-from .plataforma import _registrar, superadmin
+from ..services.ventas import base as ventas
+from .plataforma import _registrar, admin_plataforma, superadmin
 
-router = APIRouter(prefix="/api/plataforma/comercial", tags=["Plataforma — Comercial"], dependencies=[Depends(superadmin)])
+# Cotizaciones para todo el equipo de ventas
+VENTAS = re.compile(r"^/api/plataforma/comercial/(catalogo|calcular|cotizaciones(/\d+(/(pdf|vista-correo|enviar|enlace|estado|duplicar|cancelar))?)?)$")
+
+
+def acceso(request: Request, a: m.AdminPlataforma = Depends(admin_plataforma)) -> m.AdminPlataforma:
+    """Superadministrador: todo Comercial. Resto del equipo: solo cotizaciones (crear, editar, enviar, PDF).
+    Paquetes, precios, configuración, registrar pagos y convertir en cliente siguen siendo del superadministrador."""
+    if a.rol == "superadministrador" or VENTAS.match(request.url.path):
+        return a
+    raise HTTPException(403, "Solo un superadministrador de Nomira puede hacer esto.")
+
+
+router = APIRouter(prefix="/api/plataforma/comercial", tags=["Plataforma — Comercial"], dependencies=[Depends(acceso)])
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CONFIRMACION = "Enviar cotización"
 
@@ -408,6 +421,7 @@ class CotizacionIn(BaseModel):
     vence_en: datetime | None = None
     preparada_por: str | None = Field(None, max_length=200)
     entrada: dict
+    oportunidad_id: int | None = None  # oportunidad de Ventas (CRM) a la que pertenece
 
 
 def _validar_cliente(d: CotizacionIn) -> str:
@@ -437,7 +451,7 @@ def _entrada_validada(db: Session, e: dict) -> tuple[dict, dict]:
 
 
 @router.post("/cotizaciones", status_code=201)
-def crear_cotizacion(d: CotizacionIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def crear_cotizacion(d: CotizacionIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     cm.asegurar_catalogo(db)
     conf = cm.config(db)
     email = _validar_cliente(d)
@@ -447,6 +461,12 @@ def crear_cotizacion(d: CotizacionIn, request: Request, a: m.AdminPlataforma = D
                        telefono=(d.telefono or "").strip() or None, pais="MX", moneda="MXN", necesidad=(d.necesidad or "").strip() or None,
                        notas_internas=(d.notas_internas or "").strip() or None, version_actual=1, vence_en=_vence(d, conf), creado_por_id=a.id)
     cm.guardar_con_folio(db, c)
+    if d.oportunidad_id:  # liga con Ventas (CRM)
+        op = db.get(m.VtOportunidad, d.oportunidad_id)
+        if not op:
+            raise HTTPException(404, "Oportunidad no encontrada.")
+        c.oportunidad_id = op.id
+        ventas.actividad(db, op.contacto_id, op.id, "sistema", f"Cotización {c.folio} creada", None, a.id)
     v = m.CmVersion(cotizacion_id=c.id, numero=1, entrada=entrada, preparada_por=(d.preparada_por or a.nombre)[:200], creado_por_id=a.id)
     cm.aplicar_calculo(v, calc)
     db.add(v)
@@ -514,7 +534,7 @@ def detalle(cid: int, db: Session = Depends(get_db)):
         "vence_en": c.vence_en.isoformat(), "creado_en": c.creado_en.isoformat(), "creado_por": nombres.get(c.creado_por_id),
         "enviada_en": _iso(c.enviada_en), "vista_en": _iso(c.vista_en), "aceptada_en": _iso(c.aceptada_en), "pagada_en": _iso(c.pagada_en),
         "cancelada_en": _iso(c.cancelada_en), "convertida_en": _iso(c.convertida_en), "version_actual": c.version_actual,
-        "version_enviada": enviada.numero if enviada else None,
+        "version_enviada": enviada.numero if enviada else None, "oportunidad_id": c.oportunidad_id,
         "version": {"numero": v.numero, "entrada": v.entrada, "calculo": v.calculo, "preparada_por": v.preparada_por, "cambios": v.cambios,
                     "enviada_en": _iso(v.enviada_en), "huella": v.huella} if v else None,
         "versiones": [{"numero": x.numero, "total": _txt(x.total), "paquete": x.calculo["paquete"]["nombre"], "creado_en": x.creado_en.isoformat(),
@@ -534,7 +554,7 @@ def detalle(cid: int, db: Session = Depends(get_db)):
 
 
 @router.put("/cotizaciones/{cid}")
-def editar(cid: int, d: CotizacionIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def editar(cid: int, d: CotizacionIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     c = _cot(db, cid)
     if not _acciones(c, None)["editar"]:
         raise HTTPException(409, f"Una cotización {cm.ESTADOS[c.estado].lower()} no se puede editar. Duplíquela para hacer una nueva.")
@@ -574,7 +594,7 @@ class EstadoIn(BaseModel):
 
 
 @router.post("/cotizaciones/{cid}/estado")
-def cambiar_estado(cid: int, d: EstadoIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def cambiar_estado(cid: int, d: EstadoIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     c = _cot(db, cid)
     if d.estado == "revision" and c.estado == "borrador":
         tipo = "lista_revision"
@@ -590,7 +610,7 @@ def cambiar_estado(cid: int, d: EstadoIn, request: Request, a: m.AdminPlataforma
 
 
 @router.post("/cotizaciones/{cid}/duplicar", status_code=201)
-def duplicar(cid: int, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def duplicar(cid: int, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     o = _cot(db, cid)
     v = cm.version(db, o)
     conf = cm.config(db)
@@ -616,7 +636,7 @@ class MotivoIn(BaseModel):
 
 
 @router.post("/cotizaciones/{cid}/cancelar")
-def cancelar(cid: int, d: MotivoIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def cancelar(cid: int, d: MotivoIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     c = _cot(db, cid)
     if c.estado in ("cancelada", "pagada"):
         raise HTTPException(409, "Esta cotización no se puede cancelar.")
@@ -677,7 +697,7 @@ class EnviarIn(BaseModel):
 
 
 @router.post("/cotizaciones/{cid}/enviar")
-def enviar(cid: int, d: EnviarIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def enviar(cid: int, d: EnviarIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     c = _cot(db, cid)
     if d.confirmacion != CONFIRMACION:
         raise HTTPException(422, f"Confirme explícitamente «{CONFIRMACION}».")
@@ -737,7 +757,7 @@ class EnlaceIn(BaseModel):
 
 
 @router.post("/cotizaciones/{cid}/enlace")
-def enlace(cid: int, d: EnlaceIn, request: Request, a: m.AdminPlataforma = Depends(superadmin), db: Session = Depends(get_db)):
+def enlace(cid: int, d: EnlaceIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
     c = _cot(db, cid)
     if not c.enviada_en:
         raise HTTPException(409, "La cotización aún no se ha enviado.")

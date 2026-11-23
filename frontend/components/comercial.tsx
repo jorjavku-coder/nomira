@@ -22,21 +22,23 @@ export function EstadoCot({ estado, texto }: { estado: string; texto: string }) 
 export function ComercialShell({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();
   const sesion = useSesionP();
-  const tabs: [string, string, boolean][] = [
+  const super_ = !sesion || esSuperadmin(sesion);
+  const deCotizaciones = ruta.startsWith("/plataforma/comercial/cotizaciones");
+  const tabs: [string, string, boolean][] = (super_ ? [
     ["/plataforma/comercial", "Resumen", ruta === "/plataforma/comercial"],
     ["/plataforma/comercial/cotizaciones", "Cotizaciones", ruta.startsWith("/plataforma/comercial/cotizaciones")],
     ["/plataforma/comercial/paquetes", "Paquetes y precios", ruta.startsWith("/plataforma/comercial/paquetes")],
     ["/plataforma/comercial/configuracion", "Configuración comercial", ruta.startsWith("/plataforma/comercial/configuracion")],
-  ];
+  ] : [["/plataforma/ventas", "← Ventas", false], ["/plataforma/comercial/cotizaciones", "Cotizaciones", deCotizaciones]]) as [string, string, boolean][];
   return (
     <ShellPlataforma>
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-700">Comercial · solo superadministrador</p>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-700">{super_ ? "Comercial · solo superadministrador" : "Cotizaciones · equipo de ventas"}</p>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-crema-300" aria-label="Comercial">
         {tabs.map(([href, t, activo]) => (
           <Link key={href} href={href} aria-current={activo ? "page" : undefined}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold ${activo ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</Link>))}
       </nav>
-      {sesion && !esSuperadmin(sesion)
+      {sesion && !esSuperadmin(sesion) && !deCotizaciones
         ? <Aviso>Solo un superadministrador de Nomira puede usar el módulo Comercial. Si su rol cambió, cierre sesión y vuelva a entrar.</Aviso>
         : children}
     </ShellPlataforma>
@@ -96,7 +98,8 @@ export function Desglose({ calc }: { calc: any }) {
 const PASOS = ["Cliente", "Paquete y módulos", "Condiciones", "Revisión"];
 
 /** Constructor por pasos. Crea (sin `cot`) o edita (con `cot`) una cotización. */
-export function Constructor({ cat, cot, onGuardado, onCancelar }: { cat: any; cot?: any; onGuardado: (d: any) => void; onCancelar?: () => void }) {
+export function Constructor({ cat, cot, onGuardado, onCancelar, inicial }: { cat: any; cot?: any; onGuardado: (d: any) => void; onCancelar?: () => void;
+  inicial?: { contacto?: string; despacho?: string; email?: string; telefono?: string; necesidad?: string; oportunidad_id?: number } }) {
   const router = useRouter();
   const conf = cat.config;
   const activos = cat.paquetes.filter((p: any) => p.estado === "activo");
@@ -104,8 +107,8 @@ export function Constructor({ cat, cot, onGuardado, onCancelar }: { cat: any; co
   const e0 = cot?.version?.entrada;
   const [paso, setPaso] = useState(0);
   const [f, setF] = useState<any>(() => ({
-    contacto: cot?.contacto || "", despacho: cot?.despacho || "", email: cot?.email || "", telefono: cot?.telefono || "",
-    necesidad: cot?.necesidad || "", notas_internas: cot?.notas_internas || "", preparada_por: cot?.version?.preparada_por || "",
+    contacto: cot?.contacto || inicial?.contacto || "", despacho: cot?.despacho || inicial?.despacho || "", email: cot?.email || inicial?.email || "",
+    telefono: cot?.telefono || inicial?.telefono || "", necesidad: cot?.necesidad || inicial?.necesidad || "", notas_internas: cot?.notas_internas || "", preparada_por: cot?.version?.preparada_por || "",
     vence_en: cot ? aLocal(cot.vence_en) : vInicial,
     entrada: e0 ? { ...e0, descuento: e0.descuento || null, servicios: e0.servicios || [] } : {
       paquete_id: activos[0]?.id || null, modulos: [], incluidos: [], usuarios_extra: 0, bloques_extra: 0, periodicidad: cat.periodicidades[0]?.clave || "mensual",
@@ -156,7 +159,8 @@ export function Constructor({ cat, cot, onGuardado, onCancelar }: { cat: any; co
   ];
   async function guardar() {
     setError(""); setGuardando(true);
-    const cuerpo = { ...f, vence_en: new Date(f.vence_en).toISOString(), entrada: { ...e, fecha_limite_pago: e.fecha_limite_pago || null } };
+    const cuerpo = { ...f, vence_en: new Date(f.vence_en).toISOString(), entrada: { ...e, fecha_limite_pago: e.fecha_limite_pago || null },
+      ...(!cot && inicial?.oportunidad_id ? { oportunidad_id: inicial.oportunidad_id } : {}) };
     try {
       const r = cot ? await apiP.put(`/comercial/cotizaciones/${cot.id}`, cuerpo) : await apiP.post("/comercial/cotizaciones", cuerpo);
       onGuardado(r);

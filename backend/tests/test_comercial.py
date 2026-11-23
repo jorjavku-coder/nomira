@@ -69,8 +69,12 @@ def test_solo_superadministrador(plataforma, org, cliente):
     temporal = r.json()["acceso"]["contrasena_temporal"]
     t = cliente.post("/api/plataforma/login", json={"email": "soporte@nomira.test", "contrasena": temporal}).json()["token"]
     hs = {"Authorization": f"Bearer {t}"}
-    for metodo, ruta in (("get", "/catalogo"), ("get", "/cotizaciones"), ("get", "/resumen"), ("post", "/calcular"), ("put", "/config")):
+    # el resto del equipo sí cotiza (Ventas), pero no toca precios, configuración, pagos ni conversiones
+    for metodo, ruta in (("get", "/resumen"), ("put", "/config"), ("get", "/historial-precios"), ("post", "/paquetes"),
+                         ("post", "/cotizaciones/1/pagos"), ("post", "/cotizaciones/1/convertir")):
         assert getattr(cliente, metodo)(f"{R}{ruta}", headers=hs, **({"json": {}} if metodo != "get" else {})).status_code == 403, ruta
+    assert cliente.get(f"{R}/catalogo", headers=hs).status_code == 200
+    assert cliente.get(f"{R}/cotizaciones", headers=hs).status_code == 200
     # soporte no puede crear superadministradores ni cambiar roles
     assert cliente.post("/api/plataforma/admins", headers=hs, json={"nombre": "X Y", "email": "x@nomira.test", "rol": "superadministrador"}).status_code == 403
     sid = r.json()["admin"]["id"]
