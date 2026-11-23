@@ -102,13 +102,15 @@ export default function Expediente() {
           {editor && (!validado || sesion?.usuario.rol === "administrador") &&
             <button className="btn-peligro" disabled={exp.estado === "procesando"} title={exp.estado === "procesando" ? "Espere a que terminen los documentos" : ""}
               onClick={() => setEliminando(true)}>Eliminar</button>}
+          {editable && !res.puede_validarse && <p className="w-full text-xs text-slate-600">Para validar el resultado, primero resuelva los pendientes en <button className="font-semibold text-turquesa-700 underline" onClick={() => setPestana("revision")}>Revisión</button>.</p>}
           {editor && validado && <button className="btn-sec" onClick={() => { const m = prompt("Motivo para reabrir el expediente (la validación se revoca):"); if (m && m.trim().length >= 3) accion(() => api.post(`/expedientes/${id}/reabrir`, { motivo: m }), "Expediente reabierto."); }}>Reabrir</button>}
         </div>
       </div>
 
       <div className="my-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         <div className="tarjeta p-5 md:col-span-2"><div className="etiqueta">Total del expediente {!validado && "(provisional)"}</div>
-          <div className="font-marca text-2xl font-extrabold text-marino">{res.consolidado ? `${mxn(res.total_expediente)} MXN` : "Por plaza (sin consolidar)"}</div>
+          <div className="font-marca text-2xl font-extrabold text-marino">{res.consolidado ? `${mxn(res.total_expediente)} MXN` : "Total por cada plaza"}</div>
+          {!res.consolidado && varias && <div className="mt-0.5 text-xs text-slate-500">El trabajador tiene {res.plazas.length} plazas; se suman por separado. Si deben ir juntas, use «Consolidar plazas» en Resultados.</div>}
           {varias && <div className="mt-1 text-xs text-slate-600">{res.plazas.map((p: any) => `Plaza ${p.plaza}: ${mxn(p.total)}`).join(" · ")}</div>}</div>
         <div className="tarjeta p-5"><div className="etiqueta">Quincenas con comprobante</div><div className="font-marca text-2xl font-extrabold text-marino">{res.resumen.quincenas_con_recibo}<span className="text-base font-normal text-slate-500"> / {res.resumen.quincenas_esperadas}</span></div></div>
         <div className={`tarjeta p-5 ${res.resumen.quincenas_faltantes ? "border-red-200 bg-red-50" : ""}`}><div className="etiqueta">Quincenas faltantes</div><div className="font-marca text-2xl font-extrabold text-marino">{res.resumen.quincenas_faltantes}</div>

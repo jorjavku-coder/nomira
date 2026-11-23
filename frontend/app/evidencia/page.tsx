@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BotonAyuda from "@/components/BotonAyuda";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Shell, { useSesion } from "@/components/Shell";
@@ -30,7 +31,7 @@ export default function Evidencia() {
     <Shell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold text-marino">Nomira Evidencia</h1>
+          <div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Nomira Evidencia</h1><BotonAyuda modulo="evidencia" /></div>
           <p className="mt-1 text-sm text-slate-500">Documentos ordenados, hechos con fuente, cronología y matriz de evidencia por asunto.</p>
         </div>
         {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo asunto</button>}

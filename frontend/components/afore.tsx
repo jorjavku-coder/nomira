@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BotonAyuda from "@/components/BotonAyuda";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
@@ -20,6 +21,7 @@ export function AforeShell({ children }: { children: React.ReactNode }) {
           <p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira AFORE</p>
           <p className="text-xs text-slate-500">Casos de AFORE (Administradora de Fondos para el Retiro) y del SAR (Sistema de Ahorro para el Retiro).</p>
         </div>
+        <BotonAyuda modulo="afore" />
       </div>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-crema-300" aria-label="Nomira AFORE">
         {enlaces.map(([href, t, activo]) => (
