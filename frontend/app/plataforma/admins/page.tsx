@@ -6,7 +6,7 @@ import { Aviso, Avatar, CampoContrasena, Chip, Modal } from "@/components/ui";
 import { fechaHora } from "@/lib/api";
 import { apiP, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
 
-const ROLES: Record<string, string> = { superadministrador: "Superadministrador", soporte: "Soporte" };
+const ROLES: Record<string, string> = { superadministrador: "Superadministrador", soporte: "Soporte", ejecutivo_comercial: "Ejecutivo comercial" };
 
 export default function Admins() {
   const sesion = useSesionP();
@@ -113,7 +113,7 @@ function NuevoAdmin({ onCerrar, onListo }: { onCerrar: () => void; onListo: (r: 
         <label className="block"><span className="etiqueta">Correo</span><input className="campo" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
         {esSuperadmin(sesion) && <label className="block"><span className="etiqueta">Rol</span>
           <select className="campo" value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value })}>{Object.entries(ROLES).map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>}
-        <p className="text-xs text-slate-500">Soporte: solicitudes, clientes, suscripciones, correos, soporte y legal. Superadministrador: además el módulo Comercial y los roles. Nadie en este panel puede ver expedientes.</p>
+        <p className="text-xs text-slate-500">Soporte: solicitudes, clientes, suscripciones, correos, soporte y legal. Ejecutivo comercial: solo Ventas (CRM), solicitudes, cotizaciones y cupones (hasta el descuento máximo autorizado). Superadministrador: todo, incluidos el módulo Comercial y los roles. Nadie en este panel puede ver expedientes.</p>
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2"><button type="button" className="btn-sec" onClick={onCerrar}>Cancelar</button><button className="btn-primario">Crear</button></div>
       </form>

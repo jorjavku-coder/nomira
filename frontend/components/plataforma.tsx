@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/Logo";
 import { Aviso, Avatar, Modal } from "@/components/ui";
-import { SesionP, alCambiarSesionP, apiP, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
+import { SesionP, alCambiarSesionP, apiP, esEjecutivo, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
 
 const ICONOS: Record<string, React.ReactNode> = {
   resumen: <><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" /></>,
@@ -17,6 +17,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   legal: <><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0zM8 21h8" /></>,
   comercial: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3M9 11h6M9 15h6M9 19h3" /></>,
   ventas: <><path d="M4 19h16M7 15l3-4 3 2 4-6" /><circle cx="17" cy="7" r="1.6" fill="currentColor" stroke="none" /></>,
+  cupones: <><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z" /><path d="M9.5 14.5l5-5" /><circle cx="9.7" cy="9.7" r=".9" fill="currentColor" stroke="none" /><circle cx="14.3" cy="14.3" r=".9" fill="currentColor" stroke="none" /></>,
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
@@ -48,8 +49,17 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     window.addEventListener("nomira-plataforma-contadores", cargar);
     return () => { clearInterval(t); window.removeEventListener("nomira-plataforma-contadores", cargar); };
   }, [sesion]);
-  if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
-  const enlaces = [
+  const permitida = !esEjecutivo(sesion) || /^\/plataforma\/(ventas|solicitudes|comercial\/cotizaciones|comercial\/cupones)(\/|$)/.test(ruta);
+  useEffect(() => { if (sesion && !permitida) router.replace("/plataforma/ventas"); }, [sesion, permitida, router]);
+  if (!sesion || !permitida) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
+  const cotiz = { href: "/plataforma/comercial/cotizaciones", texto: "Cotizaciones", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial/cotizaciones") };
+  const cupones = { href: "/plataforma/comercial/cupones", texto: "Cupones", icono: "cupones", activo: ruta.startsWith("/plataforma/comercial/cupones") };
+  type Enlace = { href: string; texto: string; icono: string; activo: boolean; n?: number };
+  const enlaces: Enlace[] = esEjecutivo(sesion) ? [
+    { href: "/plataforma/ventas", texto: "Ventas (CRM)", icono: "ventas", activo: ruta.startsWith("/plataforma/ventas"), n: cont?.ventas_pendientes },
+    { href: "/plataforma/solicitudes", texto: "Solicitudes", icono: "solicitudes", activo: ruta.startsWith("/plataforma/solicitudes"), n: cont?.solicitudes_nuevas },
+    cotiz, cupones,
+  ] : [
     { href: "/plataforma", texto: "Resumen", icono: "resumen", activo: ruta === "/plataforma" },
     { href: "/plataforma/solicitudes", texto: "Solicitudes", icono: "solicitudes", activo: ruta.startsWith("/plataforma/solicitudes"), n: cont?.solicitudes_nuevas },
     { href: "/plataforma/ventas", texto: "Ventas (CRM)", icono: "ventas", activo: ruta.startsWith("/plataforma/ventas"), n: cont?.ventas_pendientes },

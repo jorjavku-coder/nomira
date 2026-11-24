@@ -39,7 +39,14 @@ _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # ---------- sesión ----------
 
-def admin_plataforma(cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+# Ejecutivo comercial: solo lo de ventas. Nada de cuentas de clientes, soporte, correos, legal ni administradores.
+EJECUTIVO = "ejecutivo_comercial"
+RUTAS_EJECUTIVO = re.compile(
+    r"^/api/plataforma/(yo(/.*)?|resumen|solicitudes(/\d+)?|ventas(/.*)?|comercial/cupones(/.*)?"
+    r"|comercial/(catalogo|calcular|cotizaciones(/\d+(/(pdf|vista-correo|enviar|enlace|estado|duplicar|cancelar))?)?))$")
+
+
+def admin_plataforma(request: Request, cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
                      db: Session = Depends(get_db)) -> m.AdminPlataforma:
     datos = leer_token_plataforma(cred.credentials) if cred else None
     if not datos:
@@ -47,10 +54,12 @@ def admin_plataforma(cred: HTTPAuthorizationCredentials | None = Depends(_bearer
     a = db.get(m.AdminPlataforma, int(datos["sub"]))
     if not a or not a.activo or a.sesion_version != datos.get("ver", 0):
         raise HTTPException(401, "Sesión inválida o vencida.")
+    if a.rol == EJECUTIVO and not RUTAS_EJECUTIVO.match(request.url.path):
+        raise HTTPException(403, "Su perfil de ejecutivo comercial no tiene acceso a esta sección.")
     return a
 
 
-ROLES_PLATAFORMA = {"superadministrador": "Superadministrador", "soporte": "Soporte"}
+ROLES_PLATAFORMA = {"superadministrador": "Superadministrador", "soporte": "Soporte", EJECUTIVO: "Ejecutivo comercial"}
 
 
 def superadmin(a: m.AdminPlataforma = Depends(admin_plataforma)) -> m.AdminPlataforma:

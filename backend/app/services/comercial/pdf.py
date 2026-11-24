@@ -153,6 +153,8 @@ def generar(*, folio: str, version: int, emision: date | str | None, vence_en: d
     tot = [[_p("Subtotal"), _p(pesos(calculo["subtotal"]), "der")]]
     if calculo.get("descuento"):
         tot.append([_p("Descuento"), _p("-" + pesos(calculo["descuento"]["importe"]), "der")])
+    if calculo.get("cupon"):
+        tot.append([_p(f"Cupón {calculo['cupon']['codigo']}"), _p("-" + pesos(calculo["cupon"]["importe"]), "der")])
     tot.append([_p(f"IVA ({pct(calculo['iva_pct'])}%)"), _p(pesos(calculo["iva"]), "der")])
     tot.append([_p("Total MXN", "total_izq"), _p(pesos(calculo["total"]), "total")])
     tt = Table(tot, colWidths=[ancho * 0.25, ancho * 0.25], hAlign="RIGHT")

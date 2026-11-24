@@ -29,6 +29,7 @@ export default function Propuesta() {
   const [acep, setAcep] = useState({ nombre: "", cargo: "", acepto: false });
   const [pago, setPago] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [codigo, setCodigo] = useState("");
 
   useEffect(() => {
     const h = window.location.hash.slice(1);
@@ -100,9 +101,20 @@ export default function Propuesta() {
                 <dl className="mt-2 space-y-1 border-t border-crema-300 pt-2 text-sm">
                   <div className="flex justify-between"><dt>Subtotal</dt><dd>{mxn(c.subtotal)}</dd></div>
                   {c.descuento && <div className="flex justify-between text-emerald-700"><dt>Descuento</dt><dd>-{mxn(c.descuento.importe)}</dd></div>}
+                  {c.cupon && <div className="flex justify-between text-emerald-700"><dt>Cupón {c.cupon.codigo} ({c.cupon.texto})</dt><dd>-{mxn(c.cupon.importe)}</dd></div>}
                   <div className="flex justify-between"><dt>IVA ({Number(c.iva_pct)}%)</dt><dd>{mxn(c.iva)}</dd></div>
                   <div className="flex justify-between rounded-xl bg-turquesa-700 px-3 py-2 text-lg font-bold text-white"><dt>Total MXN</dt><dd>{mxn(c.total)}</dd></div>
                 </dl>
+                {p.puede_aceptar && !c.cupon && <form className="mt-3 flex gap-2" onSubmit={async (ev) => {
+                  ev.preventDefault();
+                  const r = await accion(() => llamar("/cupon", token!, { codigo }));
+                  if (r) { setP({ ...p, ...r }); setCodigo(""); setOk(`Cupón ${r.calculo.cupon.codigo} aplicado: ahorra ${mxn(r.calculo.cupon.importe)} antes de IVA.`); }
+                }}>
+                  <label className="sr-only" htmlFor="cupon">Código de descuento</label>
+                  <input id="cupon" className="campo font-mono uppercase" placeholder="¿Tiene un código de descuento?" value={codigo} maxLength={40}
+                    onChange={(e) => setCodigo(e.target.value.replace(/\s/g, "").toUpperCase())} />
+                  <button className="btn-sec whitespace-nowrap" disabled={codigo.length < 3 || ocupado}>Aplicar</button>
+                </form>}
               </div>
             </div>
             {[["Condiciones de pago", p.condiciones.condiciones_pago], ["Fecha límite de pago", p.condiciones.fecha_limite_pago && fecha(p.condiciones.fecha_limite_pago)], ["Términos", p.condiciones.terminos],

@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, escrituracion, escrituracion_publico, liquidaciones, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, documentos, evidencia,
+from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -122,6 +122,7 @@ app.include_router(clientes.router)  # Clientes del despacho: incluido en todos 
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])
 app.include_router(escrituracion_publico.router)  # seguimiento por enlace (X-Enlace)
 app.include_router(liquidaciones.router, dependencies=[Depends(requiere_modulo("nomina"))])
+app.include_router(liquidaciones_publico.router)  # calculadora gratuita del sitio (sin sesión, con límite por IP)
 app.include_router(agenda.router, dependencies=[Depends(requiere_modulo("agenda"))])
 app.include_router(agenda_estrados.router, dependencies=[Depends(requiere_modulo("agenda"))])
 app.include_router(agenda_feed.router)  # calendario privado por persona (lo valida su enlace)
@@ -130,6 +131,7 @@ app.include_router(academia_medios.router)  # URL firmadas (video/SCORM) y verif
 app.include_router(legal.router)
 app.include_router(plataforma_legal.router)
 app.include_router(comercial.router)  # superadministrador; cotizaciones: todo el equipo (dependencia en el propio router)
+app.include_router(cupones.router)  # cupones: ver todo el equipo; gestionar superadministrador y ejecutivo comercial
 app.include_router(ventas.router)  # CRM de Nomira: todo el equipo del panel
 app.include_router(plataforma_academia.router)  # solo superadministrador (dependencia en el propio router)
 app.include_router(comercial_publico.router)
