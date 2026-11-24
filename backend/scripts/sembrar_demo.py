@@ -7,6 +7,7 @@ from app.services.academia import demo as academia_demo
 from app.services.afore import demo as afore_demo
 from app.services.agenda import demo as agenda_demo
 from app.services.escrituracion import demo as escrituracion_demo
+from app.services.liquidacion import demo as liquidacion_demo
 from app.services.clientes import demo as clientes_demo
 from app.services.evidencia import demo as evidencia_demo
 from app.services.leads import demo as leads_demo
@@ -23,6 +24,7 @@ if __name__ == "__main__":
         agenda_demo.sembrar(db)  # Nomira Agenda: calendario, dos asuntos, plazos y una audiencia ficticios
         agenda_demo.sembrar_estrados(db)  # un expediente ficticio vigilado en estrados del TRIJAEM
         escrituracion_demo.sembrar(db)  # Escrituración: una compraventa y un testamento ficticios
+        liquidacion_demo.sembrar(db)  # Liquidaciones LFT: dos cálculos ligados al asunto laboral
         clientes_demo.sembrar(db)  # Clientes y cobranza: tres clientes ficticios con honorarios y pagos
         proteger_demo(db)  # en producción: nunca con la contraseña publicada en el README
         if "--restaurar" in sys.argv:

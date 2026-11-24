@@ -2002,3 +2002,25 @@ class EsAcceso(Base):
     visitas: Mapped[int] = mapped_column(Integer, default=0)
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class LqCalculo(Base):
+    """Cálculo de finiquito o liquidación (LFT) de una persona trabajadora; puede ligarse a un asunto de la Agenda."""
+    __tablename__ = "lq_calculos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    trabajador: Mapped[str] = mapped_column(String(200))
+    patron: Mapped[str | None] = mapped_column(String(200))
+    ag_asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="SET NULL"), index=True)
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"), index=True)
+    causa: Mapped[str] = mapped_column(String(30))
+    datos: Mapped[dict] = mapped_column(JSON)  # lo capturado, para volver a calcular
+    resultado: Mapped[dict] = mapped_column(JSON)  # instantánea del último cálculo
+    total: Mapped[Decimal] = mapped_column(DINERO)
+    propuesta: Mapped[Decimal | None] = mapped_column(DINERO)  # monto que se propone en conciliación o convenio
+    autorizado: Mapped[Decimal | None] = mapped_column(DINERO)  # monto que el cliente autorizó negociar
+    notas: Mapped[str | None] = mapped_column(Text)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -22,6 +22,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   afore: <><path d="M12 3l8 4v2H4V7z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7M3 20h18" /></>,
   leads: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
+  liquidaciones: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3M8 18h4" /></>,
   escrituracion: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h4" /><circle cx="17" cy="18" r="2.2" /></>,
   agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
 };
@@ -74,7 +75,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   // Módulos activos: los del inicio de sesión mientras llega la respuesta actualizada del servidor.
   const activos = modulos ?? sesion?.modulos ?? ["nomina"];
-  const deNomina = ruta === "/app" || ruta.startsWith("/expedientes") || ruta.startsWith("/catalogos");
+  const deNomina = ruta === "/app" || ruta.startsWith("/expedientes") || ruta.startsWith("/catalogos") || ruta.startsWith("/liquidaciones");
   const deEvidencia = ruta.startsWith("/evidencia");
   const deAfore = ruta.startsWith("/afore");
   const deLeads = ruta.startsWith("/leads");
@@ -121,6 +122,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     { grupo: "Clientes", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
     ...(activos.includes("nomina") ? [
       { grupo: "Nómina", href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
+      { grupo: "Nómina", href: "/liquidaciones", texto: "Liquidaciones", icono: "liquidaciones", activo: ruta.startsWith("/liquidaciones") },
       { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
     ...(activos.includes("escrituracion") ? [
       { grupo: "Módulos", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
