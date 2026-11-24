@@ -50,7 +50,6 @@ const RUTAS_MODULO: [string, RegExp][] = [
   ["afore", /^\/afore(\/|\?|$)/],
   ["leads", /^\/leads(\/|\?|$)/],
   ["academia", /^\/academia(\/|\?|$)/],
-  ["asistente", /^\/asistente(\/|\?|$)/],
 ];
 
 async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {

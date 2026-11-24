@@ -45,6 +45,7 @@ ok(await tarjeta.getByRole("link", { name: "Mandar por WhatsApp" }).getAttribute
 ok(await tarjeta.getByText("Vigente").count() === 1 && await tarjeta.getByRole("button", { name: "PDF" }).count() === 1, "factura con PDF y XML");
 await p.screenshot({ path: `${dir}/cb-02-ficha.png`, fullPage: true });
 await p.goto(base + "/clientes/cobro");
+await p.getByText(/Conectado · modo de prueba/).first().waitFor();
 ok(await p.getByText(/Conectado · modo de prueba/).count() === 2, "configuración muestra ambas cuentas conectadas, sin la llave completa");
 ok(!(await p.content()).includes("e2ee2ee2ee2ee2e"), "la llave completa no aparece en la página");
 ok(!errores.length, "sin errores de JavaScript " + errores.join(" "));

@@ -9,6 +9,26 @@ import { api, fechaHora } from "@/lib/api";
 
 const ICONO_TIPO: Record<string, string> = { borrador: "✍️", resumen: "📄", acuerdo: "⚖️" };
 
+function SinUsos({ cfg, onError }: { cfg: any; onError: (m: string) => void }) {
+  const [yendo, setYendo] = useState(false);
+  async function comprar() {
+    setYendo(true);
+    try { const r = await api.post("/asistente/paquetes", {}); window.location.href = r.url; }
+    catch (e: any) { onError(e.message); setYendo(false); }
+  }
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
+      <p className="font-semibold">Ya usaste los {cfg.cuota.incluidos} usos {cfg.cuota.en_prueba ? "de tu prueba gratis" : "incluidos de este mes"}.</p>
+      <p className="mt-1">Se renuevan el día 1 del próximo mes. Si necesitas más ahora, compra un paquete de <b>{cfg.paquete.usos} usos por ${cfg.paquete.subtotal} + IVA</b> (${cfg.paquete.total} en total). No caducan.</p>
+      {cfg.es_admin
+        ? cfg.pago_en_linea
+          ? <button className="btn-turquesa mt-3" onClick={comprar} disabled={yendo}>{yendo ? "Abriendo pago…" : `Comprar ${cfg.paquete.usos} usos`}</button>
+          : <p className="mt-2 text-xs">El pago en línea no está disponible por ahora; escribe a soporte para comprar más usos.</p>
+        : <p className="mt-2 text-xs">Pide a un administrador de tu despacho que compre el paquete.</p>}
+    </div>
+  );
+}
+
 function Asistente() {
   const sp = useSearchParams();
   const [cfg, setCfg] = useState<any>(null);
@@ -61,10 +81,13 @@ function Asistente() {
           <h1 className="text-3xl font-extrabold text-marino">Asistente IA</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">Borradores de escritos, resúmenes de documentos y explicación de acuerdos, con los datos de su asunto. Siempre es un borrador: usted lo revisa y decide.</p></div>
         <div className="flex items-center gap-2"><BotonAyuda modulo="asistente" />
-          {cfg && <span className="rounded-full bg-crema px-3 py-1 text-xs text-slate-600">{cfg.usados_mes} de {cfg.limite} solicitudes este mes</span>}</div>
+          {cfg && <span className="rounded-full bg-crema px-3 py-1 text-xs text-slate-600" title="Los usos incluidos se renuevan cada mes; los de paquetes extra no caducan.">
+            Te quedan {cfg.cuota.restantes_mes} de {cfg.cuota.incluidos} usos {cfg.cuota.en_prueba ? "de tu prueba gratis" : "este mes"}{cfg.cuota.extra ? ` + ${cfg.cuota.extra} extra` : ""}</span>}</div>
       </div>
       <div className="mb-4 space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso>
-        {cfg && !cfg.disponible && <Aviso tipo="alerta">{cfg.motivo}</Aviso>}</div>
+        {cfg && !cfg.disponible && <Aviso tipo="alerta">{cfg.motivo}</Aviso>}
+        {sp.get("paquete") === "procesando" && <Aviso tipo="ok">Gracias por tu compra. Los usos extra se suman en cuanto Stripe confirme el pago (normalmente en menos de un minuto).</Aviso>}
+        {cfg && cfg.disponible && cfg.cuota.disponibles <= 0 && <SinUsos cfg={cfg} onError={setError} />}</div>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-5">
           {cfg?.puede_editar && <form onSubmit={enviar} className="tarjeta space-y-3 p-5">

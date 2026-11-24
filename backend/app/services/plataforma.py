@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..security import hash_contrasena
+from .bolsa import base as bolsa_base
 
 log = logging.getLogger("nomira.plataforma")
 _LETRAS = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"  # sin caracteres ambiguos
@@ -46,6 +47,11 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
         db.execute(delete(m.AcCurso).where(m.AcCurso.id == c))  # módulos, lecciones y preguntas: CASCADE
     db.execute(delete(m.LqCalculo).where(m.LqCalculo.organizacion_id == oid))  # Liquidaciones LFT
     db.execute(delete(m.AsSolicitud).where(m.AsSolicitud.organizacion_id == oid))  # Asistente IA
+    db.execute(delete(m.AsPaquete).where(m.AsPaquete.organizacion_id == oid))
+    for rel in db.scalars(select(m.BtCandidato.cv_archivo).where(m.BtCandidato.organizacion_id == oid, m.BtCandidato.cv_archivo.is_not(None))):
+        bolsa_base.borrar_cv(rel)
+    for modelo in (m.BtAplicacion, m.BtCandidato, m.BtPruebaPropia, m.BtVacante, m.BtPerfil):  # Bolsa de trabajo
+        db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     db.execute(delete(m.EsExpediente).where(m.EsExpediente.organizacion_id == oid))  # partes, etapas, requisitos y enlaces: CASCADE
     for modelo in (m.CrFactura, m.CrLigaPago, m.CrConfigCobro, m.CrPago, m.CrCargo, m.CrDocumento, m.CrCliente):  # Clientes del despacho (archivos: borrar_archivos)
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))

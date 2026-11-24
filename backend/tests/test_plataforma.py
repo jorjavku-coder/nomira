@@ -37,6 +37,10 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             ("GET", "/api/academia-publico/verificar/{folio}"),
             # Agenda: calendario privado por persona (enlace con token; sin token válido, 404)
             ("GET", "/api/agenda-feed/{token}.ics"),
+            # Bolsa de trabajo: vacantes publicadas, postulación (con freno por IP y campo trampa) y pruebas por enlace secreto
+            ("GET", "/api/empleos"), ("GET", "/api/empleos/despacho/{codigo}"), ("GET", "/api/empleos/vacante/{codigo}"),
+            ("POST", "/api/empleos/vacante/{codigo}/postular"), ("GET", "/api/prueba/{token}"), ("POST", "/api/prueba/{token}/iniciar"),
+            ("POST", "/api/prueba/{token}/responder"),
             # Escrituración: seguimiento del trámite por enlace (X-Enlace; sin él, 404)
             ("POST", "/api/seguimiento/estado"), ("POST", "/api/seguimiento/documentos")}
 

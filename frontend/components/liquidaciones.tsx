@@ -79,7 +79,6 @@ export function ExposicionAsunto({ asunto, puedeEditar }: { asunto: { id: number
 export function AsistenteAsunto({ asunto }: { asunto: { id: number } }) {
   const [xs, setXs] = useState<any[] | null>(null);
   useEffect(() => {
-    if (!(leerSesion()?.modulos ?? []).includes("asistente")) return;
     api.get(`/asistente/solicitudes?asunto=${asunto.id}`).then((r) => setXs(r.solicitudes)).catch(() => setXs(null));
   }, [asunto.id]);
   if (!xs) return null;
