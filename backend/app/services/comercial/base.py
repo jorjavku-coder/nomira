@@ -54,6 +54,7 @@ PAQUETES_INICIALES = [
 ]
 PRECIOS_INICIALES = [
     {"clave": "modulo:nomina", "nombre": "Nómina y prestaciones", "precio_mensual": "950"},
+    {"clave": "modulo:psicometria", "nombre": "Pruebas psicométricas", "precio_mensual": "390"},
     {"clave": "modulo:evidencia", "nombre": "Nomira Evidencia", "precio_mensual": "950"},
     {"clave": "modulo:afore", "nombre": "Nomira AFORE", "precio_mensual": "1190"},
     {"clave": "modulo:leads", "nombre": "Nomira Leads", "precio_mensual": "690"},

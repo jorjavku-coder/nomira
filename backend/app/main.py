@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, cobro, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -123,6 +123,8 @@ app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))
 # Formulario de contacto, entrada de otros sistemas y anuncios de Meta: validan su enlace, clave o firma.
 app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
+app.include_router(bolsa.router)  # Bolsa de trabajo (gratis); las pruebas exigen el módulo «psicometria»
+app.include_router(bolsa_publico.router)
 app.include_router(cobro.router)  # Cobro en línea y CFDI con las cuentas del propio despacho
 app.include_router(clientes.router)  # Clientes del despacho: incluido en todos los planes
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])

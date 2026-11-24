@@ -263,6 +263,28 @@ export const MANUALES: Manual[] = [
     ],
   },
   {
+    clave: "bolsa",
+    modulo: null,
+    titulo: "Bolsa de trabajo",
+    resumen: "Publique vacantes gratis en su página de empleos y en la bolsa de Nomira, reciba CVs y dé seguimiento a cada candidato. Con la versión premium, aplique pruebas psicométricas en línea.",
+    paraQue: ["Publicar vacantes de abogados, pasantes y personal administrativo sin costo.", "Tener todos los CVs y datos de contacto en un solo lugar, por etapa.",
+      "Aplicar pruebas de personalidad, razonamiento, atención y conocimientos jurídicos, o sus propios exámenes (premium)."],
+    pasos: [
+      { titulo: "Cree la vacante", texto: "En Bolsa de trabajo → «+ Nueva vacante». Describa el puesto, requisitos, sueldo (puede ocultarlo) y elija si aparece también en la bolsa de Nomira. Queda como borrador." },
+      { titulo: "Publíquela y comparta el enlace", texto: "Pulse «Publicar» y «Copiar enlace» para compartirlo en redes, WhatsApp o su sitio. También aparece en su página de empleos (pestaña «Mi página de empleos»)." },
+      { titulo: "Revise a los candidatos", texto: "Cada postulación llega con CV y datos de contacto. Cambie la etapa (revisión, entrevista, oferta, contratado o descartado), califique con estrellas y guarde notas internas." },
+      { titulo: "Envíe pruebas (premium)", texto: "En la ficha del candidato → «Enviar pruebas». Elija una o varias; Nomira crea un enlace personal que vence en 7 días y lo manda por correo o lo copia para WhatsApp. Los resultados aparecen en la ficha." },
+    ],
+    consejos: ["Por ley no se puede pedir edad, sexo, estado civil o apariencia. Nomira le avisa si la vacante tiene requisitos así.",
+      "Las pruebas no deciden por sí solas: úselas para comparar y preparar la entrevista.",
+      "Si quiere ajustar las preguntas jurídicas de Nomira, use «Copiar y editar» para tener su propia versión."],
+    preguntas: [
+      { p: "¿Cuánto cuesta?", r: "Publicar vacantes y recibir candidatos es gratis. Las pruebas psicométricas son el módulo premium «Pruebas psicométricas»; contrátelo con su asesor o con Soporte." },
+      { p: "¿Qué prueba de personalidad usa?", r: "El cuestionario de cinco factores de 50 reactivos del International Personality Item Pool (IPIP), de dominio público. No es clínico ni tiene baremo mexicano: da un perfil para comparar candidatos." },
+      { p: "Un candidato pidió que borremos sus datos.", r: "Ábralo y pulse «Borrar candidato y sus datos» (solo administradores). Se borran sus datos, su CV y sus pruebas." },
+    ],
+  },
+  {
     clave: "escrituracion",
     modulo: "escrituracion",
     titulo: "Escrituración (notarías)",

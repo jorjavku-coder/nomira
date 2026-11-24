@@ -28,6 +28,8 @@ MODULOS = {
                "por_defecto": False},
     "escrituracion": {"nombre": "Nomira Escrituración", "descripcion": "Para notarías: expedientes de escrituras, avance visible para el cliente, requisitos con vigencia y semáforo «listo para firmar».",
                       "por_defecto": False},
+    "psicometria": {"nombre": "Pruebas psicométricas", "descripcion": "Para la bolsa de trabajo: personalidad, razonamiento, atención, conocimientos jurídicos y exámenes propios, con calificación automática.",
+                    "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
 }

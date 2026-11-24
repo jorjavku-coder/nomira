@@ -2150,3 +2150,104 @@ class AsPaquete(Base):
     referencia: Mapped[str | None] = mapped_column(String(120))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     pagada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ------------------------------------------------------------------ Bolsa de trabajo y pruebas psicométricas
+
+class BtPerfil(Base):
+    """Página pública de empleos del despacho (nomirasoft.com/empleos/despacho/<codigo>)."""
+    __tablename__ = "bt_perfiles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    codigo: Mapped[str] = mapped_column(String(20), unique=True)
+    nombre_publico: Mapped[str] = mapped_column(String(200))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    ciudad: Mapped[str | None] = mapped_column(String(120))
+    sitio_web: Mapped[str | None] = mapped_column(String(200))
+    correo_privacidad: Mapped[str | None] = mapped_column(String(254))  # a dónde escriben los candidatos para sus derechos ARCO
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BtVacante(Base):
+    __tablename__ = "bt_vacantes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    codigo: Mapped[str] = mapped_column(String(20), unique=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    area: Mapped[str] = mapped_column(String(30))  # laboral | civil | penal | amparo | ...
+    puesto: Mapped[str] = mapped_column(String(30))  # abogado | pasante | ...
+    jornada: Mapped[str] = mapped_column(String(20))
+    modalidad: Mapped[str] = mapped_column(String(15))  # presencial | hibrido | remoto
+    estado_republica: Mapped[str | None] = mapped_column(String(40))
+    ciudad: Mapped[str | None] = mapped_column(String(120))
+    sueldo_min: Mapped[Decimal | None] = mapped_column(DINERO)
+    sueldo_max: Mapped[Decimal | None] = mapped_column(DINERO)
+    mostrar_sueldo: Mapped[bool] = mapped_column(Boolean, default=True)
+    descripcion: Mapped[str] = mapped_column(Text)
+    requisitos: Mapped[str | None] = mapped_column(Text)
+    ofrecemos: Mapped[str | None] = mapped_column(Text)
+    en_portal: Mapped[bool] = mapped_column(Boolean, default=True)  # también en la bolsa pública de Nomira
+    estado: Mapped[str] = mapped_column(String(12), default="borrador")  # borrador | publicada | pausada | cerrada
+    pruebas: Mapped[list | None] = mapped_column(JSON)  # pruebas sugeridas para los candidatos de esta vacante
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    publicada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    cerrada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BtCandidato(Base):
+    """Postulación a una vacante. El despacho es responsable de estos datos; Nomira los trata por su cuenta."""
+    __tablename__ = "bt_candidatos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    vacante_id: Mapped[int] = mapped_column(ForeignKey("bt_vacantes.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(30))
+    ciudad: Mapped[str | None] = mapped_column(String(120))
+    cedula: Mapped[str | None] = mapped_column(String(20))
+    experiencia: Mapped[str | None] = mapped_column(String(20))  # rango de años
+    mensaje: Mapped[str | None] = mapped_column(Text)
+    cv_archivo: Mapped[str | None] = mapped_column(String(300))
+    cv_nombre: Mapped[str | None] = mapped_column(String(200))
+    cv_tamano: Mapped[int | None] = mapped_column(Integer)
+    etapa: Mapped[str] = mapped_column(String(15), default="nuevo")  # nuevo | revision | entrevista | oferta | contratado | descartado
+    calificacion: Mapped[int | None] = mapped_column(Integer)  # 1 a 5, interna
+    notas: Mapped[str | None] = mapped_column(Text)
+    aviso_aceptado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BtPruebaPropia(Base):
+    """Examen armado por el despacho: preguntas de opción múltiple (calificadas) o abiertas (las revisa el despacho)."""
+    __tablename__ = "bt_pruebas_propias"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(150))
+    instrucciones: Mapped[str | None] = mapped_column(Text)
+    minutos: Mapped[int | None] = mapped_column(Integer)
+    preguntas: Mapped[list] = mapped_column(JSON)  # [{texto, opciones: [..], correcta: int|None}]
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BtAplicacion(Base):
+    """Una prueba enviada a un candidato. El enlace lleva un código secreto (solo se guarda su huella)."""
+    __tablename__ = "bt_aplicaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    candidato_id: Mapped[int] = mapped_column(ForeignKey("bt_candidatos.id", ondelete="CASCADE"), index=True)
+    prueba: Mapped[str] = mapped_column(String(40))  # clave de prueba de Nomira o «propia:<id>»
+    nombre_prueba: Mapped[str] = mapped_column(String(150))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    estado: Mapped[str] = mapped_column(String(12), default="enviada")  # enviada | en_curso | terminada | vencida | cancelada
+    vence_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    iniciada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consentimiento_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    respuestas: Mapped[dict | None] = mapped_column(JSON)
+    resultado: Mapped[dict | None] = mapped_column(JSON)
+    enviada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

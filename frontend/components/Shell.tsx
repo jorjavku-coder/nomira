@@ -10,6 +10,7 @@ import { Sesion, alCambiarSesion, api, guardarSesion, leerSesion } from "@/lib/a
 const ROLES: Record<string, string> = { administrador: "Administrador", analista: "Analista", consulta: "Consulta" };
 
 const ICONOS: Record<string, React.ReactNode> = {
+  bolsa: <><rect x="3.5" y="7" width="17" height="12.5" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   clientes: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M15.5 5.3a3 3 0 0 1 0 5.4M17 14a5 5 0 0 1 3.5 5" /></>,
   expedientes: <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />,
   catalogos: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" /><path d="M9 9h6M9 13h6" /></>,
@@ -132,6 +133,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     || (deEscrituracion && !activos.includes("escrituracion"));
   const enlaces = [
     { grupo: "Clientes", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
+    { grupo: "Clientes", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
     ...(activos.includes("nomina") ? [
       { grupo: "Nómina", href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
       { grupo: "Nómina", href: "/liquidaciones", texto: "Liquidaciones", icono: "liquidaciones", activo: ruta.startsWith("/liquidaciones") },
