@@ -1,0 +1,41 @@
+// Vigilancia federal (PJF): revisión diaria asistida por juzgado y cotejo del resultado pegado (demo, datos ficticios).
+// Uso: node e2e/pjf.mjs [base] [capturas]
+import { createRequire } from "node:module";
+import { mkdirSync } from "node:fs";
+const { chromium } = createRequire(import.meta.url)("playwright");
+const base = process.argv[2] || "http://localhost:3000";
+const dir = process.argv[3] || "./capturas";
+mkdirSync(dir, { recursive: true });
+const ok = (c, m) => { if (!c) throw new Error("FALLÓ: " + m); console.log("ok  " + m); };
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+await ctx.addInitScript(() => localStorage.setItem("nomira:bienvenida", "1"));
+const p = await ctx.newPage();
+const errores = [];
+p.on("pageerror", (e) => errores.push(String(e)));
+await p.goto(base + "/login");
+await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
+await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
+await p.getByRole("button", { name: "Entrar", exact: true }).click();
+await p.waitForURL(/\/app/);
+await p.goto(base + "/agenda/estrados");
+await p.getByRole("heading", { name: "Revisión diaria del PJF" }).waitFor();
+ok(await p.getByText("Juzgado Primero de Distrito en Materia Administrativa en la Ciudad de México").count() >= 1, "agrupa por juzgado federal");
+ok(await p.locator("code", { hasText: "88/2026" }).count() === 1, "deja listos los expedientes para una sola búsqueda");
+await p.getByRole("button", { name: "Pegar resultado" }).click();
+await p.getByLabel("Resultado de la consulta").fill("Expediente 88/2026 Amparo indirecto\nSe tiene por rendido el informe justificado; se señala audiencia constitucional.\nExpediente 99/2026\nSe admite.");
+await p.screenshot({ path: `${dir}/pjf-01-revision.png`, fullPage: true });
+await p.getByRole("button", { name: "Buscar mis expedientes" }).click();
+await p.getByText(/1 acuerdo\(s\) nuevo\(s\)/).waitFor();
+ok(await p.getByText(/informe justificado/).count() >= 1, "el acuerdo del amparo aparece en Publicaciones");
+// en el asunto, la tarjeta permite elegir el tribunal federal
+await p.goto(base + "/agenda/asuntos");
+await p.getByText("Amparo indirecto Demo").first().click();
+await p.getByText("PJF · Lista de acuerdos").first().waitFor();
+await p.locator("section", { has: p.getByRole("heading", { name: "Estrados digitales" }) }).getByRole("button", { name: "Cambiar" }).click();
+await p.waitForFunction(() => [...document.querySelectorAll("option")].some((o) => o.textContent === "Primer Circuito"));
+const sel = p.locator("section", { has: p.getByRole("heading", { name: "Estrados digitales" }) }).locator("select");
+ok(await sel.nth(0).inputValue() === "pjf" && await sel.nth(1).inputValue() === "1", "el asunto muestra su vigilancia federal");
+await p.screenshot({ path: `${dir}/pjf-02-asunto.png` });
+ok(errores.length === 0, "sin errores de JavaScript " + errores.join(" | "));
+await b.close();

@@ -1722,6 +1722,7 @@ class AgVigilancia(Base):
     expediente: Mapped[str] = mapped_column(String(80))  # como lo publica el tribunal, p. ej. 1234/2026
     sala: Mapped[str | None] = mapped_column(String(120))
     id_sala: Mapped[str | None] = mapped_column(String(10))  # clave de la sala en el sistema del tribunal
+    circuito: Mapped[str | None] = mapped_column(String(10))  # PJF: circuito judicial (clave de la consulta oficial)
     promociones: Mapped[list | None] = mapped_column(JSON)  # números de promoción presentados que se quieren seguir
     activa: Mapped[bool] = mapped_column(Boolean, default=True)
     ultima_revision: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

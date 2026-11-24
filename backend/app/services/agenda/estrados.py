@@ -53,7 +53,10 @@ DIAS_HISTORIAL = 3  # al empezar a vigilar, lo publicado antes de esto se guarda
 
 FUENTES = {"trijaem": {"nombre": "TRIJAEM · Estrados digitales", "tribunal": "Tribunal de Justicia Administrativa del Estado de México",
                        "consulta": "https://trijaem.gob.mx/servicios/Estrados#!/",
-                       "efectos": "Según el propio TRIJAEM, las notificaciones por estrados surten efectos a partir del día siguiente de su publicación."}}
+                       "efectos": "Según el propio TRIJAEM, las notificaciones por estrados surten efectos a partir del día siguiente de su publicación."},
+           "pjf": {"nombre": "PJF · Lista de acuerdos", "tribunal": "Juzgados de Distrito y Tribunales de Circuito del Poder Judicial de la Federación",
+                   "consulta": "https://www.dgej.cjf.gob.mx/SiseInternet/consulta/busquedaacuerdos.aspx",
+                   "efectos": "Revise en la Ley de Amparo o en la ley que rija el juicio cuándo surte efectos la notificación por lista; Nomira propone el día hábil siguiente a la publicación."}}
 REVISAR_CADA_HORAS = 3  # cada expediente se consulta como máximo cada 3 horas
 HORARIO = (7, 21)  # solo de 7:00 a 21:00, hora del centro de México, de lunes a viernes
 PAUSA_SEG = 1.5  # entre una consulta y otra, para no saturar al tribunal

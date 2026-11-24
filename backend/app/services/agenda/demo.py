@@ -73,5 +73,9 @@ def sembrar_estrados(db: Session, email: str = "admin@demo.local") -> bool:
         db.flush()
     db.add(m.AgVigilancia(organizacion_id=oid, asunto_id=a.id, fuente="trijaem", expediente="JA-1234/2026", sala="Primera Sala Regional Toluca",
                           creado_por_id=admin.id))
+    amparo = db.scalar(select(m.AgAsunto).where(m.AgAsunto.organizacion_id == oid, m.AgAsunto.titulo == "Amparo indirecto Demo"))
+    if amparo:  # expediente federal: se revisa en la «Revisión diaria del PJF»
+        db.add(m.AgVigilancia(organizacion_id=oid, asunto_id=amparo.id, fuente="pjf", circuito="1", id_sala="10", expediente="88/2026",
+                              sala="Juzgado Primero de Distrito en Materia Administrativa en la Ciudad de México", creado_por_id=admin.id))
     db.commit()
     return True
