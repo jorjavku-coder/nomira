@@ -13,7 +13,9 @@ from app.main import app
 from app.services.plataforma import asegurar_admin_inicial
 from app.sinteticos import BASE, crear_pdf, recibo
 
-PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("POST", "/api/auth/registro"), ("GET", "/api/publico"),
+PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("POST", "/api/auth/registro"), ("POST", "/api/auth/registro/verificar"), ("POST", "/api/auth/registro/reenviar"),
+            ("POST", "/api/auth/registro/google"), ("GET", "/api/auth/google/inicio"), ("GET", "/api/auth/google/callback"),
+            ("POST", "/api/auth/google/canjear"), ("POST", "/api/auth/recuperar"), ("POST", "/api/auth/recuperar/cambiar"), ("GET", "/api/publico"),
             ("GET", "/api/salud"), ("POST", "/api/solicitudes"), ("POST", "/api/publico/finiquito"),
             # Carga de documentos del cliente: no usa sesión sino el enlace (X-Enlace); sin él, 404.
             ("POST", "/api/subida/estado"), ("POST", "/api/subida/codigo"), ("POST", "/api/subida/verificar"),

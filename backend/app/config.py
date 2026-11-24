@@ -30,6 +30,10 @@ class Ajustes(BaseSettings):
     # Número de WhatsApp del botón del sitio público, con lada de país (p. ej. 5215512345678).
     # Vacío: no se muestra el botón.
     whatsapp_contacto: str = ""
+    # Entrar y registrarse con Google (OAuth 2.0, «ID de cliente» de tipo «Aplicación web» en Google Cloud).
+    # URI de redirección autorizada: <URL_PUBLICA>/api/auth/google/callback. Vacíos: no se muestra el botón.
+    google_client_id: str = ""
+    google_client_secret: str = ""
     # Dirección pública para los enlaces de los correos (sin «/» al final).
     url_publica: str = "http://localhost:3000"
     # Envío de correos. CORREO_PROVEEDOR: «resend» (API por HTTPS; funciona en el plan gratuito de

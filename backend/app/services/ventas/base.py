@@ -20,7 +20,7 @@ NOMBRE_ETAPA = {e[0]: e[1] for e in ETAPAS}
 PROB = {e[0]: e[2] for e in ETAPAS}
 CANALES = {"facebook": "Facebook / Instagram", "google": "Google Ads", "linkedin": "LinkedIn", "correo": "Correo masivo", "evento": "Evento o congreso",
            "referidos": "Programa de referidos", "sitio": "Sitio web", "otro": "Otro"}
-ORIGENES = {"sitio": "Formulario del sitio", "campana": "Campaña", "referido": "Referido", "evento": "Evento", "prospeccion": "Prospección (llamada o correo en frío)",
+ORIGENES = {"sitio": "Formulario del sitio", "prueba": "Prueba gratis en línea", "campana": "Campaña", "referido": "Referido", "evento": "Evento", "prospeccion": "Prospección (llamada o correo en frío)",
             "redes": "Redes sociales", "otro": "Otro"}
 TIPOS = {"llamada": "Llamada efectiva", "intento": "Intento sin respuesta", "correo": "Correo enviado", "respuesta": "Respuesta o aceptación por correo",
          "whatsapp": "WhatsApp", "reunion": "Reunión", "demo": "Demo", "nota": "Nota", "tarea": "Tarea", "sistema": "Sistema"}
@@ -110,14 +110,14 @@ def desde_solicitud(db: Session, sol: m.Solicitud) -> m.VtContacto | None:
         return None
     ct = db.scalar(select(m.VtContacto).where(func.lower(m.VtContacto.email) == sol.email.lower()).limit(1)) if sol.email else None
     if ct is None:
-        ct = m.VtContacto(nombre=sol.nombre, despacho=sol.empresa, email=sol.email, telefono=sol.telefono, origen="sitio", fase="mql", solicitud_id=sol.id,
+        ct = m.VtContacto(nombre=sol.nombre, despacho=sol.empresa, email=sol.email, telefono=sol.telefono, origen="prueba" if sol.tipo == "prueba" else "sitio", fase="mql", solicitud_id=sol.id,
                           notas=f"Volumen indicado: {sol.expedientes_mes} expedientes al mes." if sol.expedientes_mes else None)
         db.add(ct)
         db.flush()
     elif ct.fase == "descartado":
         ct.fase, ct.motivo_descarte = "mql", None
     ct.solicitud_id = ct.solicitud_id or sol.id
-    actividad(db, ct.id, None, "nota", f"Llegó una solicitud desde el sitio ({'suscripción' if sol.tipo == 'suscripcion' else 'informes'})", sol.mensaje)
+    actividad(db, ct.id, None, "nota", ("Se registró con prueba gratuita de 7 días" if sol.tipo == "prueba" else f"Llegó una solicitud desde el sitio ({'suscripción' if sol.tipo == 'suscripcion' else 'informes'})"), sol.mensaje)
     actividad(db, ct.id, None, "tarea", "Primer contacto con el prospecto", None, vence_en=m.ahora() + timedelta(hours=24), asignado_id=ct.propietario_id)
     return ct
 

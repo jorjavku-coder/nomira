@@ -29,6 +29,10 @@ class Organizacion(Base):
     # Academia: cursos propios contratados por encima de los incluidos y espacio para videos/SCORM
     ac_cursos_extra: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     ac_cuota_medios_mb: Mapped[int | None] = mapped_column(Integer)  # vacío = la general de AcConfig
+    # Cómo llegó: «panel» (la dio de alta Nomira) o «registro» (se registró sola con prueba gratis).
+    # Solo a las de registro se les bloquea el uso cuando termina la prueba sin plan contratado.
+    origen: Mapped[str] = mapped_column(String(15), default="panel", server_default="panel")
+    modulos_prueba: Mapped[list | None] = mapped_column(JSON)  # los módulos que eligió para su prueba
 
 
 class Usuario(Base):
@@ -53,6 +57,7 @@ class Usuario(Base):
     totp_activo_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     totp_ultimo_paso: Mapped[int | None] = mapped_column(BigInteger)
     totp_respaldo: Mapped[list | None] = mapped_column(JSON)
+    google_sub: Mapped[str | None] = mapped_column(String(64), unique=True)  # cuenta de Google vinculada («sub»)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
 
@@ -1358,6 +1363,7 @@ class CmConfig(Base):
     asunto_correo: Mapped[str | None] = mapped_column(String(200))
     mensaje_presentacion: Mapped[str | None] = mapped_column(Text)
     aceptacion_en_linea: Mapped[bool] = mapped_column(Boolean, default=True)
+    registro_prueba: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")  # registro en línea con prueba gratis
     precios_publicos: Mapped[str] = mapped_column(String(10), default="ocultos")  # ocultos | desde
     pago_tarjeta: Mapped[bool] = mapped_column(Boolean, default=False)  # solo funciona si Stripe está conectado
     spei_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)

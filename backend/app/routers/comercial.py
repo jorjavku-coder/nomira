@@ -76,7 +76,7 @@ def config_dict(c: m.CmConfig) -> dict:
     d = {k: getattr(c, k) for k in CAMPOS_CONFIG}
     d.update({"iva_pct": _txt(c.iva_pct), "vigencia_dias": c.vigencia_dias, "descuento_maximo_pct": _txt(c.descuento_maximo_pct),
               "periodicidades": cm.periodicidades_habilitadas(c), "mb_promedio_por_asunto": c.mb_promedio_por_asunto,
-              "aceptacion_en_linea": c.aceptacion_en_linea, "precios_publicos": c.precios_publicos, "pago_tarjeta": c.pago_tarjeta,
+              "aceptacion_en_linea": c.aceptacion_en_linea, "registro_prueba": c.registro_prueba, "precios_publicos": c.precios_publicos, "pago_tarjeta": c.pago_tarjeta,
               "spei_habilitado": c.spei_habilitado, "otro_habilitado": c.otro_habilitado,
               "actualizado_en": _iso(c.actualizado_en)})
     return d
@@ -131,6 +131,7 @@ class ConfigIn(BaseModel):
     asunto_correo: str | None = Field(None, max_length=200)
     mensaje_presentacion: str | None = Field(None, max_length=4000)
     aceptacion_en_linea: bool = True
+    registro_prueba: bool = True
     precios_publicos: str = "ocultos"
     pago_tarjeta: bool = False
     spei_habilitado: bool = False
