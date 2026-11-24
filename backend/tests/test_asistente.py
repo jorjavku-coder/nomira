@@ -157,3 +157,52 @@ def test_docx_y_textos():
     xml = zipfile.ZipFile(io.BytesIO(w)).read("word/document.xml").decode()
     assert "&lt;símbolos&gt; &amp; más" in xml and "\x07" not in xml
     assert ab.texto_de_archivo("x.docx", w).strip().startswith("TÍTULO")
+
+
+# ------------------------------------------------------------------ IA que no inventa: tesis verificadas
+
+def _biblioteca(db):
+    from app.services.tesis import base as tb
+    from .test_tesis import T1, T2
+
+    tb.guardar(db, [tb.desde_json(T1), tb.desde_json(T2)], "json", "prueba.json")
+    db.commit()
+
+
+def test_investigar_cita_solo_tesis_verificadas(ia, db, monkeypatch):
+    assert ia.c.post(f"{S}/solicitudes", headers=ia.h, data={"tipo": "investigar", "instrucciones": "¿Procede la suspensión contra una clausura?"}).status_code == 409
+    _biblioteca(db)
+    vistas = []
+
+    def falso(sistema, contenido, max_tokens):
+        vistas.append((sistema, contenido))
+        if "documentalista" in sistema:
+            return ('{"consultas": ["suspensión clausura", "amparo clausura establecimiento"]}', 50, 20, "end_turn")
+        return ("RESPUESTA BREVE\n\nSí procede. «SUSPENSIÓN EN EL AMPARO. PROCEDE CONTRA LA CLAUSURA.» (Registro digital: 2030000), tesis aislada.\n\n"
+                "También aplica la jurisprudencia 2a./J. 99/2019 (10a.), con registro digital: 2019999, que la inventé.\n\n"
+                "Ver también el Registro Público 123456 y el expediente 88/2026.", 900, 300, "end_turn")
+    monkeypatch.setattr(ab, "_llamar", falso)
+    assert ia.c.post(f"{S}/solicitudes", headers=ia.h, data={"tipo": "investigar"}).status_code == 422
+    r = ia.c.post(f"{S}/solicitudes", headers=ia.h, data={"tipo": "investigar", "instrucciones": "¿Procede la suspensión contra la clausura de un local?"})
+    assert r.status_code == 201, r.text
+    s = ia.c.get(f"{S}/solicitudes/{r.json()['id']}", headers=ia.h).json()
+    assert s["estado"] == "listo" and s["con_tesis"] is True
+    sistema, contenido = vistas[-1]
+    assert "Solo puedes citar tesis que estén dentro de <tesis>" in sistema and 'registro_digital="2030000"' in contenido
+    assert "(Registro digital: 2030000)" in s["resultado"]  # la real se queda
+    assert "2019999" not in s["resultado"] and "2a./J. 99/2019" not in s["resultado"]  # la inventada se quita
+    assert s["resultado"].count("CITA ELIMINADA") == 2 and s["citas_eliminadas"] == 2
+    assert "Registro Público 123456" in s["resultado"] and "88/2026" in s["resultado"]  # lo demás no se toca
+    assert [t["registro"] for t in s["tesis"]] == [2030000] and s["tesis"][0]["enlace"].endswith("/2030000")
+
+
+def test_borrador_sin_tesis_no_deja_citas_inventadas(ia, db, monkeypatch):
+    monkeypatch.setattr(ab, "_llamar", lambda *a: ("ESCRITO\n\nSirve de apoyo la tesis P./J. 1/2020 (10a.), registro digital 2021111.", 100, 50, "end_turn"))
+    doc = "Sentencia que cita la tesis I.4o.C.12 C (11a.), registro digital: 2025762."
+    r = ia.c.post(f"{S}/solicitudes", headers=ia.h, data={"tipo": "borrador", "plantilla": "promocion", "instrucciones": "Promoción", "texto": doc})
+    s = ia.c.get(f"{S}/solicitudes/{r.json()['id']}", headers=ia.h).json()
+    assert "2021111" not in s["resultado"] and "P./J. 1/2020" not in s["resultado"] and s["citas_eliminadas"] == 2
+    monkeypatch.setattr(ab, "_llamar", lambda *a: ("ESCRITO\n\nComo dice la tesis I.4o.C.12 C (11a.), registro digital: 2025762.", 100, 50, "end_turn"))
+    r = ia.c.post(f"{S}/solicitudes", headers=ia.h, data={"tipo": "borrador", "plantilla": "promocion", "instrucciones": "Promoción", "texto": doc})
+    s = ia.c.get(f"{S}/solicitudes/{r.json()['id']}", headers=ia.h).json()
+    assert "2025762" in s["resultado"] and s["citas_eliminadas"] == 0  # viene en el documento del abogado: se respeta

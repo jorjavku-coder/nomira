@@ -9,12 +9,13 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
 from .services.agenda import avisos as agenda_avisos, estrados as agenda_estrados_srv
+from .services.tesis import repositorio as tesis_repo
 from .services.clientes import cobro as cobro_srv
 from .services.modulos import requiere_modulo
 from .services import correo
@@ -51,11 +52,38 @@ async def ciclo(app: FastAPI):
         logging.getLogger("quincena").warning("No se pudo revisar el administrador de la plataforma.")
     tarea = asyncio.create_task(_revisar_recordatorios())
     tarea_agenda = asyncio.create_task(_revisar_agenda())
+    tarea_tesis = asyncio.create_task(_sincronizar_tesis())
     yield
-    for t in (tarea, tarea_agenda):
+    for t in (tarea, tarea_agenda, tarea_tesis):
         t.cancel()
         with suppress(asyncio.CancelledError):
             await t
+
+
+def _una_tanda_tesis() -> None:
+    from sqlalchemy import text as sql
+
+    with SessionLocal() as db:
+        if not db.scalar(sql("SELECT pg_try_advisory_lock(4815162342)")):  # un solo proceso sincroniza
+            return
+        try:
+            e = tesis_repo.correr(db)
+            logging.getLogger("nomira.tesis").info("Tesis: %s, %s descargadas.", e.estado, e.descargadas)
+        finally:
+            db.execute(sql("SELECT pg_advisory_unlock(4815162342)"))
+            db.commit()
+
+
+async def _sincronizar_tesis(espera_inicial: float = 300, cada: float = 3600) -> None:
+    """Cada hora, una tanda de la biblioteca de tesis (Repositorio de datos abiertos de la SCJN)."""
+    await asyncio.sleep(espera_inicial)
+    while True:
+        if ajustes().tesis_sincronizar:
+            try:
+                await asyncio.to_thread(_una_tanda_tesis)
+            except Exception:
+                logging.getLogger("nomira.tesis").exception("Falló la sincronización de tesis.")
+        await asyncio.sleep(cada)
 
 
 def _una_revision() -> None:
@@ -125,6 +153,8 @@ app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
 app.include_router(bolsa.router)  # Bolsa de trabajo (gratis); las pruebas exigen el módulo «psicometria»
 app.include_router(bolsa_publico.router)
+app.include_router(tesis.router)  # Biblioteca de tesis del SJF (todos los despachos)
+app.include_router(plataforma_tesis.router)
 app.include_router(cobro.router)  # Cobro en línea y CFDI con las cuentas del propio despacho
 app.include_router(clientes.router)  # Clientes del despacho: incluido en todos los planes
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])
