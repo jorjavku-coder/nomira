@@ -78,9 +78,33 @@ def disponible() -> tuple[bool, str | None]:
     return True, None
 
 
+def _en_prueba(db: Session, org: int) -> bool:
+    from .. import suscripciones as sus
+
+    ps = list(db.scalars(select(m.PeriodoSuscripcion).where(m.PeriodoSuscripcion.organizacion_id == org)))
+    return bool(ps) and sus.estado(ps)["estado"] == "prueba"
+
+
 def usados_mes(db: Session, org: int) -> int:
+    """Usos del mes que cuentan contra lo incluido (las solicitudes con error no cuentan)."""
     inicio = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return db.scalar(select(func.count(m.AsSolicitud.id)).where(m.AsSolicitud.organizacion_id == org, m.AsSolicitud.creado_en >= inicio)) or 0
+    return db.scalar(select(func.count(m.AsSolicitud.id)).where(m.AsSolicitud.organizacion_id == org, m.AsSolicitud.creado_en >= inicio,
+                                                                 m.AsSolicitud.de_paquete.is_(False), m.AsSolicitud.estado != "error")) or 0
+
+
+def cuota(db: Session, org: int) -> dict:
+    """Usos incluidos del mes (30 con plan, 10 en la prueba gratis) más los de paquetes extra, que no caducan."""
+    prueba = _en_prueba(db, org)
+    incluidos = ajustes().ia_usos_prueba if prueba else ajustes().ia_usos_incluidos
+    usados = usados_mes(db, org)
+    comprados = db.scalar(select(func.coalesce(func.sum(m.AsPaquete.usos), 0)).where(
+        m.AsPaquete.organizacion_id == org, m.AsPaquete.estado.in_(("pagada", "regalo")))) or 0
+    gastados = db.scalar(select(func.count(m.AsSolicitud.id)).where(m.AsSolicitud.organizacion_id == org, m.AsSolicitud.de_paquete.is_(True),
+                                                                    m.AsSolicitud.estado != "error")) or 0
+    restantes_mes = max(incluidos - usados, 0)
+    extra = max(int(comprados) - gastados, 0)
+    return {"en_prueba": prueba, "incluidos": incluidos, "usados_mes": usados, "restantes_mes": restantes_mes, "extra": extra,
+            "disponibles": restantes_mes + extra}
 
 
 # ------------------------------------------------------------------ documentos
@@ -137,7 +161,7 @@ def _llamar(sistema: str, contenido: str, max_tokens: int) -> tuple[str, int | N
     """(texto, tokens de entrada, tokens de salida, motivo de paro). Separado para poder sustituirlo en pruebas."""
     import anthropic
     cliente = anthropic.Anthropic()
-    with cliente.messages.stream(model=ajustes().ia_modelo, max_tokens=max_tokens, system=sistema,
+    with cliente.messages.stream(model=ajustes().ia_modelo_asistente, max_tokens=max_tokens, system=sistema,
                                  messages=[{"role": "user", "content": contenido}]) as flujo:
         r = flujo.get_final_message()
     texto = "".join(b.text for b in r.content if getattr(b, "type", "") == "text")

@@ -285,9 +285,26 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
                           detalle={"metodo": "tarjeta", "monto": cm.txt(p.monto), "modo": "real" if real else "prueba"})
                 _aplicar_pagos(db, c, v, actor="stripe")
         if p is None and obj.get("payment_status") == "paid":
-            _confirmar_compra_curso(db, obj, real)
+            if (obj.get("metadata") or {}).get("tipo") == "ia_paquete":
+                _confirmar_paquete_ia(db, obj, real)
+            else:
+                _confirmar_compra_curso(db, obj, real)
     db.commit()
     return {"ok": True}
+
+
+def _confirmar_paquete_ia(db: Session, obj: dict, real: bool) -> None:
+    """Paquete extra de usos del Asistente IA: se suman solo con pago confirmado por el importe exacto."""
+    paq = db.scalar(select(m.AsPaquete).where(m.AsPaquete.stripe_sesion == obj.get("id")))
+    if not paq or paq.estado != "iniciada":
+        return
+    if obj.get("amount_total") != st.centavos(paq.total) or (obj.get("currency") or "").lower() != "mxn":
+        log.warning("Paquete de IA con importe o moneda distintos (paquete %s): no se aplicó.", paq.id)
+        return
+    paq.estado, paq.pagada_en = "pagada", cm.ahora()
+    paq.referencia = str(obj.get("payment_intent") or obj.get("id"))[:120]
+    db.add(m.Auditoria(organizacion_id=paq.organizacion_id, usuario_id=paq.usuario_id, accion="ia_paquete_pagado", entidad="as_paquete",
+                       entidad_id=paq.id, detalle={"usos": paq.usos, "total": cm.txt(paq.total), "modo": "real" if real else "prueba"}))
 
 
 def _confirmar_compra_curso(db: Session, obj: dict, real: bool) -> None:

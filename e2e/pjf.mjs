@@ -27,6 +27,7 @@ await p.getByLabel("Resultado de la consulta").fill("Expediente 88/2026 Amparo i
 await p.screenshot({ path: `${dir}/pjf-01-revision.png`, fullPage: true });
 await p.getByRole("button", { name: "Buscar mis expedientes" }).click();
 await p.getByText(/1 acuerdo\(s\) nuevo\(s\)/).waitFor();
+await p.getByText(/informe justificado/).first().waitFor();
 ok(await p.getByText(/informe justificado/).count() >= 1, "el acuerdo del amparo aparece en Publicaciones");
 // en el asunto, la tarjeta permite elegir el tribunal federal
 await p.goto(base + "/agenda/asuntos");

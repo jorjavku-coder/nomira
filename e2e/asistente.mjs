@@ -21,6 +21,7 @@ await p.waitForURL(/\/app/);
 await p.getByRole("link", { name: "Asistente IA" }).click();
 await p.getByRole("heading", { name: "Asistente IA" }).waitFor();
 await p.getByText(/aún no está activado/).waitFor();
+ok(await p.getByText(/Te quedan 30 de 30 usos este mes/).count() === 1, "muestra los usos incluidos del mes");
 ok(await p.getByRole("button", { name: "Generar con IA" }).isDisabled(), "sin IA configurada, lo dice y no deja enviar");
 await p.getByRole("tab", { name: /Explicar un acuerdo/ }).click();
 ok(await p.getByLabel("…o pegue el texto").count() === 1, "formulario para explicar un acuerdo");

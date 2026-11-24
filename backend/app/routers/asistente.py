@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -15,7 +16,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import ajustes
 from ..db import get_db
-from ..deps import auditar, puede_editar, usuario_actual
+from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services.asistente import base as ab
 
 router = APIRouter(prefix="/api/asistente", tags=["Nomira Asistente IA"])
@@ -46,11 +47,48 @@ def config(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)
     ok, motivo = ab.disponible()
     asuntos = db.scalars(select(m.AgAsunto).where(m.AgAsunto.organizacion_id == u.organizacion_id, m.AgAsunto.estado == "activo")
                          .order_by(m.AgAsunto.titulo).limit(500))
-    return {"disponible": ok, "motivo": motivo, "limite": ajustes().ia_limite_mensual, "usados_mes": ab.usados_mes(db, u.organizacion_id),
+    from ..services.comercial import base as cm
+
+    return {"disponible": ok, "motivo": motivo, "cuota": ab.cuota(db, u.organizacion_id), "paquete": _paquete_precio(),
+            "pago_en_linea": cm.stripe_estado()["conectado"], "es_admin": u.rol == "administrador",
             "tipos": [{"clave": k, "nombre": v} for k, v in ab.TIPOS.items()],
             "plantillas": [{"clave": k, "nombre": v} for k, v in ab.PLANTILLAS.items()],
             "asuntos": [{"id": a.id, "titulo": a.titulo, "numero": a.numero} for a in asuntos],
             "puede_editar": u.rol in ("administrador", "analista")}
+
+
+def _paquete_precio() -> dict:
+    sub = Decimal(ajustes().ia_paquete_precio).quantize(Decimal("0.01"))
+    iva = (sub * Decimal("0.16")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return {"usos": ajustes().ia_paquete_usos, "subtotal": str(sub), "iva": str(iva), "total": str(sub + iva)}
+
+
+@router.post("/paquetes")
+def comprar_paquete(request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """Paquete extra de usos con el cobro en línea de Nomira. Los usos se suman solo cuando Stripe confirma el pago (webhook)."""
+    from ..services.comercial import base as cm
+    from ..services.comercial import stripe as st
+
+    if not cm.stripe_estado()["conectado"]:
+        raise HTTPException(409, "El pago en línea no está disponible por ahora. Escriba a soporte para comprar más usos.")
+    p = _paquete_precio()
+    compra = m.AsPaquete(organizacion_id=u.organizacion_id, usuario_id=u.id, usos=p["usos"], subtotal=Decimal(p["subtotal"]),
+                         iva=Decimal(p["iva"]), total=Decimal(p["total"]))
+    db.add(compra)
+    db.flush()
+    base_url = ajustes().url_publica.rstrip("/")
+    try:
+        sesion = st.crear_checkout(nombre=f"Nomira Asistente IA · {p['usos']} usos extra", total=compra.total, email=u.email,
+                                   url_exito=f"{base_url}/asistente?paquete=procesando", url_cancelar=f"{base_url}/asistente?paquete=cancelado",
+                                   idempotencia=f"nomira-ia-paquete-{compra.id}", referencia=f"ia-paquete-org-{u.organizacion_id}",
+                                   metadata={"tipo": "ia_paquete", "paquete_id": str(compra.id), "organizacion_id": str(u.organizacion_id)})
+    except st.StripeError as e:
+        db.rollback()
+        raise HTTPException(502, str(e))
+    compra.stripe_sesion = sesion["id"]
+    auditar(db, u, "ia_paquete_iniciado", "as_paquete", compra.id, {"usos": p["usos"], "total": p["total"]}, request)
+    db.commit()
+    return {"url": sesion["url"]}
 
 
 @router.get("/solicitudes")
@@ -73,8 +111,13 @@ async def crear(request: Request, tareas: BackgroundTasks, tipo: str = Form(...)
         raise HTTPException(422, "Tipo de solicitud inválido.")
     if tipo == "borrador" and plantilla not in ab.PLANTILLAS:
         raise HTTPException(422, "Elija qué documento quiere redactar.")
-    if ab.usados_mes(db, u.organizacion_id) >= ajustes().ia_limite_mensual:
-        raise HTTPException(429, f"Su despacho llegó al límite de {ajustes().ia_limite_mensual} solicitudes del mes. Escriba a soporte si necesita más.")
+    db.scalar(select(m.Organizacion.id).where(m.Organizacion.id == u.organizacion_id).with_for_update())  # evita gastar el mismo uso dos veces
+    q = ab.cuota(db, u.organizacion_id)
+    if q["disponibles"] <= 0:
+        p = _paquete_precio()
+        raise HTTPException(429, f"Su despacho ya usó sus {q['incluidos']} usos incluidos de este mes. "
+                                 f"Un administrador puede comprar {p['usos']} usos más por ${p['total']} (IVA incluido) en el Asistente IA, o esperar al próximo mes.")
+    de_paquete = q["restantes_mes"] <= 0
     a = None
     if ag_asunto_id:
         a = db.get(m.AgAsunto, ag_asunto_id)
@@ -108,12 +151,13 @@ async def crear(request: Request, tareas: BackgroundTasks, tipo: str = Form(...)
     nombre = re.sub(r"\s+", " ", titulo or "").strip()[:200] or (ab.PLANTILLAS[plantilla] if tipo == "borrador" else ab.TIPOS[tipo]) + (f" · {a.titulo}" if a else "")
     s = m.AsSolicitud(organizacion_id=u.organizacion_id, usuario_id=u.id, ag_asunto_id=a.id if a else None, tipo=tipo,
                       plantilla=plantilla if tipo == "borrador" else None, titulo=nombre[:200], instrucciones=(instrucciones or "").strip()[:8000] or None,
-                      documentos=[{"nombre": n, "caracteres": len(t)} for n, t in documentos], modelo=ajustes().ia_modelo)
+                      documentos=[{"nombre": n, "caracteres": len(t)} for n, t in documentos], modelo=ajustes().ia_modelo_asistente,
+                      de_paquete=de_paquete)
     db.add(s)
     db.flush()
     # en la bitácora solo queda que se envió texto al proveedor de IA, nunca el contenido
     auditar(db, u, "ia_consulta_externa", "as_solicitud", s.id, {"tipo": tipo, "documentos": len(documentos), "caracteres": total,
-                                                                  "modelo": ajustes().ia_modelo}, request)
+                                                                  "modelo": ajustes().ia_modelo_asistente}, request)
     db.commit()
     tareas.add_task(ab.generar, s.id, documentos)
     return _vista(db, s)

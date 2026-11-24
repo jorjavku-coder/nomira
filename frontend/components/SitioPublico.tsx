@@ -15,7 +15,7 @@ const MODULOS = [
     imagen: "/sitio/liquidaciones.webp", alt: "Calculadora de liquidación de Nomira con el desglose por concepto (datos ficticios)." },
   { clave: "agenda", nombre: "Agenda Jurídica", lema: "Ningún plazo se le pasa",
     texto: "Plazos, audiencias y pendientes de cada asunto con días hábiles del tribunal, responsables y avisos que escalan. Además, revisa por usted los estrados digitales y le avisa cuando sale algo de su expediente.",
-    puntos: ["Cálculo asistido de días hábiles", "Avisos escalonados al responsable", "Revisión automática de estrados (TRIJAEM)", "Calendario para Google y Outlook", "Exposición económica de cada asunto"],
+    puntos: ["Cálculo asistido de días hábiles", "Avisos escalonados al responsable", "Revisión automática de estrados (TRIJAEM)", "Expedientes federales (PJF) con revisión diaria", "Calendario para Google y Outlook", "Exposición económica de cada asunto"],
     imagen: "/sitio/agenda.webp", alt: "Asunto en la Agenda Jurídica de Nomira con pendientes y exposición económica (datos ficticios)." },
   { clave: "evidencia", nombre: "Nomira Evidencia", lema: "El expediente probatorio, ordenado",
     texto: "Organiza los documentos de un asunto, propone hechos con su cita y página, y le ayuda a encontrar diferencias entre fuentes. Usted valida y decide.",
@@ -61,7 +61,9 @@ const PREGUNTAS = [
   ["¿Quién puede ver mis expedientes?", "Solo los usuarios de su organización. Ni otras empresas ni el equipo de Nomira tienen acceso a sus expedientes ni a sus documentos."],
   ["¿Tengo que instalar algo?", "No. Nomira funciona desde el navegador, en computadora o tableta."],
   ["¿Puedo corregir una lectura?", "Sí. Cada corrección pide un motivo y queda registrada; el comprobante original no se modifica."],
-  ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: Nómina y liquidaciones, Agenda Jurídica, Evidencia, AFORE, Leads, Academia o Escrituración, en la combinación que necesite. Clientes y cobranza viene incluido en todos los planes. Desactivar un módulo no borra su información."],
+  ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: Nómina y liquidaciones, Agenda Jurídica, Evidencia, AFORE, Leads, Academia o Escrituración, en la combinación que necesite. Clientes y cobranza y el Asistente IA vienen incluidos en todos los planes. Desactivar un módulo no borra su información."],
+  ["¿Tiene inteligencia artificial?", "Sí. El Asistente IA viene incluido en todos los planes, con 30 usos al mes para todo el despacho: redacta borradores de escritos con los datos del asunto, resume documentos y explica acuerdos. No inventa tesis y lo que falta lo marca para que usted lo complete. Si necesita más usos, hay paquetes de 100 que no caducan."],
+  ["¿Puedo cobrarle y facturarle a mis clientes desde Nomira?", "Sí, con sus propias cuentas. Conecte su Stripe para mandar ligas de pago por WhatsApp (tarjeta, OXXO o transferencia, según lo que tenga activo) y su Facturapi para timbrar facturas CFDI 4.0. El dinero llega directo a su cuenta y el pago se registra solo en el estado de cuenta del cliente."],
   ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
   ["¿Cómo envía documentos mi cliente?", "Usted le manda un enlace seguro que vence: lo abre en su celular, confirma un código que le llega a su correo y sube sus archivos. Solo puede enviar; no ve nada interno de su despacho."],
   ["¿Nomira manda mensajes de WhatsApp por su cuenta?", "Solo con la API oficial de WhatsApp Business de Meta conectada a su número, con el consentimiento del cliente y, por omisión, con la aprobación del abogado. Si algo falta, el mensaje queda como borrador."],
@@ -76,7 +78,7 @@ const PREGUNTAS = [
 
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
-const CINTA = ["Nómina y prestaciones", "Liquidaciones LFT", "Agenda Jurídica", "Estrados digitales", "Escrituración", "Clientes y cobranza", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
+const CINTA = ["Nómina y prestaciones", "Liquidaciones LFT", "Agenda Jurídica", "Estrados digitales", "Escrituración", "Clientes y cobranza", "Asistente IA incluido", "Ligas de pago y CFDI 4.0", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
   "WhatsApp oficial de Meta", "Bitácora completa", "Datos cifrados", "Excel y PDF con su logotipo", "Constancias de participación", "Campañas y resultados"];
 
 /** Animaciones del sitio: aparición al desplazarse, encabezado compacto y barra de lectura. */

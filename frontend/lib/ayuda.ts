@@ -241,7 +241,7 @@ export const MANUALES: Manual[] = [
   },
   {
     clave: "asistente",
-    modulo: "asistente",
+    modulo: null,
     titulo: "Asistente IA",
     resumen: "Borradores de escritos, resúmenes de documentos y explicación de acuerdos con inteligencia artificial, usando los datos de su asunto.",
     paraQue: ["Tener en minutos el primer borrador de una promoción, demanda, contestación, amparo, recurso o carta al cliente.",
@@ -253,11 +253,13 @@ export const MANUALES: Manual[] = [
     ],
     consejos: ["Desde una publicación de estrados use «Explicar con IA» para entender el acuerdo en segundos.",
       "El asistente no inventa tesis ni jurisprudencias: si las necesita, agréguelas usted y verifíquelas.",
-      "Hay un límite mensual de solicitudes por despacho; lo ve arriba a la derecha."],
+      "Viene incluido en todos los planes: 30 usos al mes por despacho (10 durante la prueba gratis). Lo que le queda lo ve arriba a la derecha.",
+      "Si se le acaban, un administrador puede comprar un paquete de 100 usos que no caduca. Las solicitudes que fallan no cuentan."],
     preguntas: [
       { p: "¿Puedo presentar el borrador tal cual?", r: "No. Es un borrador para que usted lo revise, corrija y firme bajo su criterio profesional." },
       { p: "¿A dónde se envía mi información?", r: "El texto de la solicitud se envía a Anthropic, el proveedor de IA de Nomira, solo para generar la respuesta. Los archivos no se guardan en Nomira; el resultado sí, para que pueda editarlo." },
-      { p: "¿Lee PDF escaneados?", r: "Todavía no: necesita PDF con texto seleccionable, Word o texto. Si es una imagen, copie y pegue el texto." },
+      { p: "¿Cuesta extra?", r: "No. Todos los planes incluyen 30 usos al mes para todo el despacho, sin importar cuántos usuarios tenga. Solo si necesita más puede comprar paquetes de 100 usos." },
+            { p: "¿Lee PDF escaneados?", r: "Todavía no: necesita PDF con texto seleccionable, Word o texto. Si es una imagen, copie y pegue el texto." },
     ],
   },
   {

@@ -128,7 +128,7 @@ app.include_router(clientes.router)  # Clientes del despacho: incluido en todos 
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])
 app.include_router(escrituracion_publico.router)  # seguimiento por enlace (X-Enlace)
 app.include_router(liquidaciones.router, dependencies=[Depends(requiere_modulo("nomina"))])
-app.include_router(asistente.router, dependencies=[Depends(requiere_modulo("asistente"))])
+app.include_router(asistente.router)  # Asistente IA: incluido en todos los planes, con usos al mes
 app.include_router(liquidaciones_publico.router)  # calculadora gratuita del sitio (sin sesión, con límite por IP)
 app.include_router(agenda.router, dependencies=[Depends(requiere_modulo("agenda"))])
 app.include_router(agenda_estrados.router, dependencies=[Depends(requiere_modulo("agenda"))])

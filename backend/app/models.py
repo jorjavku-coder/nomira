@@ -2072,6 +2072,7 @@ class AsSolicitud(Base):
     modelo: Mapped[str | None] = mapped_column(String(60))
     tokens_entrada: Mapped[int | None] = mapped_column(Integer)
     tokens_salida: Mapped[int | None] = mapped_column(Integer)
+    de_paquete: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # se descontó de un paquete extra
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
     terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -2132,3 +2133,20 @@ class CrFactura(Base):
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AsPaquete(Base):
+    """Paquete extra de usos del Asistente IA comprado con Stripe Checkout (cobro de Nomira). Solo el webhook lo marca pagado. No caduca."""
+    __tablename__ = "as_paquetes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    usos: Mapped[int] = mapped_column(Integer)
+    subtotal: Mapped[Decimal] = mapped_column(DINERO)
+    iva: Mapped[Decimal] = mapped_column(DINERO)
+    total: Mapped[Decimal] = mapped_column(DINERO)
+    estado: Mapped[str] = mapped_column(String(12), default="iniciada")  # iniciada | pagada | regalo
+    stripe_sesion: Mapped[str | None] = mapped_column(String(120), unique=True)
+    referencia: Mapped[str | None] = mapped_column(String(120))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    pagada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -46,6 +46,7 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
         db.execute(delete(m.AcCurso).where(m.AcCurso.id == c))  # módulos, lecciones y preguntas: CASCADE
     db.execute(delete(m.LqCalculo).where(m.LqCalculo.organizacion_id == oid))  # Liquidaciones LFT
     db.execute(delete(m.AsSolicitud).where(m.AsSolicitud.organizacion_id == oid))  # Asistente IA
+    db.execute(delete(m.AsPaquete).where(m.AsPaquete.organizacion_id == oid))
     db.execute(delete(m.EsExpediente).where(m.EsExpediente.organizacion_id == oid))  # partes, etapas, requisitos y enlaces: CASCADE
     for modelo in (m.CrFactura, m.CrLigaPago, m.CrConfigCobro, m.CrPago, m.CrCargo, m.CrDocumento, m.CrCliente):  # Clientes del despacho (archivos: borrar_archivos)
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))

@@ -92,7 +92,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       else if (modulos.includes("agenda")) router.replace("/agenda");
       else if (modulos.includes("escrituracion")) router.replace("/escrituracion");
       else if (modulos.includes("academia")) router.replace("/academia");
-      else if (modulos.includes("asistente")) router.replace("/asistente");
     }
   }, [modulos, ruta, router]);
   const [prueba, setPrueba] = useState<any>(null);
@@ -127,10 +126,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const bloqueoPrueba = prueba?.bloqueada && !ruta.startsWith("/soporte");
   const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
     : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("escrituracion") ? "/escrituracion"
-    : activos.includes("academia") ? "/academia" : activos.includes("asistente") ? "/asistente" : "/perfil";
+    : activos.includes("academia") ? "/academia" : "/asistente";
   const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
     || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"))
-    || (deEscrituracion && !activos.includes("escrituracion")) || (deAsistente && !activos.includes("asistente"));
+    || (deEscrituracion && !activos.includes("escrituracion"));
   const enlaces = [
     { grupo: "Clientes", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
     ...(activos.includes("nomina") ? [
@@ -139,8 +138,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
     ...(activos.includes("escrituracion") ? [
       { grupo: "Módulos", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
-    ...(activos.includes("asistente") ? [
-      { grupo: "Módulos", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente }] : []),
+    { grupo: "Módulos", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },  // incluido en todos los planes
     ...(activos.includes("agenda") ? [
       { grupo: "Módulos", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     ...(activos.includes("evidencia") ? [
