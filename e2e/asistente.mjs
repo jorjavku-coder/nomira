@@ -1,0 +1,36 @@
+// Asistente IA en la demo (sin IA configurada en local): menú, pantalla, aviso honesto y accesos desde la Agenda.
+// Uso: node e2e/asistente.mjs [base] [capturas]
+import { createRequire } from "node:module";
+import { mkdirSync } from "node:fs";
+const { chromium } = createRequire(import.meta.url)("playwright");
+const base = process.argv[2] || "http://localhost:3000";
+const dir = process.argv[3] || "./capturas";
+mkdirSync(dir, { recursive: true });
+const ok = (c, m) => { if (!c) throw new Error("FALLÓ: " + m); console.log("ok  " + m); };
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+await ctx.addInitScript(() => localStorage.setItem("nomira:bienvenida", "1"));
+const p = await ctx.newPage();
+const errores = [];
+p.on("pageerror", (e) => errores.push(String(e)));
+await p.goto(base + "/login");
+await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
+await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
+await p.getByRole("button", { name: "Entrar", exact: true }).click();
+await p.waitForURL(/\/app/);
+await p.getByRole("link", { name: "Asistente IA" }).click();
+await p.getByRole("heading", { name: "Asistente IA" }).waitFor();
+await p.getByText(/aún no está activado/).waitFor();
+ok(await p.getByRole("button", { name: "Generar con IA" }).isDisabled(), "sin IA configurada, lo dice y no deja enviar");
+await p.getByRole("tab", { name: /Explicar un acuerdo/ }).click();
+ok(await p.getByLabel("…o pegue el texto").count() === 1, "formulario para explicar un acuerdo");
+await p.screenshot({ path: `${dir}/as-01-asistente.png`, fullPage: true });
+await p.goto(base + "/agenda/asuntos");
+await p.getByText("Amparo indirecto Demo").first().click();
+await p.getByRole("heading", { name: "Asistente IA" }).waitFor();
+await p.getByRole("link", { name: "+ Redactar" }).click();
+await p.waitForURL(/\/asistente\?asunto=\d+/);
+await p.waitForFunction(() => [...document.querySelectorAll("select")].some((x) => x.selectedOptions[0]?.textContent?.startsWith("Amparo indirecto Demo")));
+ok(true, "desde el asunto abre el asistente con el asunto elegido");
+ok(errores.length === 0, "sin errores de JavaScript " + errores.join(" | "));
+await b.close();

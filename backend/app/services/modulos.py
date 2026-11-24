@@ -30,6 +30,8 @@ MODULOS = {
                       "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
+    "asistente": {"nombre": "Nomira Asistente IA", "descripcion": "Borradores de escritos, resúmenes de documentos y explicación de acuerdos con inteligencia artificial, ligados a sus asuntos.",
+                  "por_defecto": False},
 }
 
 

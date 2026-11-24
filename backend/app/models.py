@@ -2051,3 +2051,26 @@ class LqCalculo(Base):
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AsSolicitud(Base):
+    """Asistente IA: un borrador, resumen o explicación generado para el despacho (texto editable por el abogado)."""
+    __tablename__ = "as_solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    ag_asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="SET NULL"), index=True)
+    tipo: Mapped[str] = mapped_column(String(15))  # borrador | resumen | acuerdo
+    plantilla: Mapped[str | None] = mapped_column(String(40))  # tipo de escrito
+    titulo: Mapped[str] = mapped_column(String(200))
+    instrucciones: Mapped[str | None] = mapped_column(Text)
+    documentos: Mapped[list | None] = mapped_column(JSON)  # [{nombre, caracteres}] — el contenido no se guarda
+    estado: Mapped[str] = mapped_column(String(12), default="generando")  # generando | listo | error
+    resultado: Mapped[str | None] = mapped_column(Text)
+    editado: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str | None] = mapped_column(String(300))
+    modelo: Mapped[str | None] = mapped_column(String(60))
+    tokens_entrada: Mapped[int | None] = mapped_column(Integer)
+    tokens_salida: Mapped[int | None] = mapped_column(Integer)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { diaLargo, Etq } from "@/components/agenda";
 import { Aviso } from "@/components/ui";
-import { api, fecha } from "@/lib/api";
+import { api, fecha, leerSesion } from "@/lib/api";
 
 const ESTADO: Record<string, [string, string]> = {
   pendiente: ["Aún no revisado", "bg-slate-100 text-slate-600"], ok: ["Revisión automática al día", "bg-emerald-100 text-emerald-800"],
@@ -131,6 +131,7 @@ export function FilaPublicacion({ p, puedeEditar, onCambio }: { p: any; puedeEdi
           : puedeEditar && <button className="font-semibold text-turquesa-700 underline" onClick={historial}>Pasar al historial y calcular plazo</button>}
         {!p.vista && <button className="font-semibold text-slate-600 underline" onClick={vista}>Marcar como revisada</button>}
         {p.enlace && <a href={p.enlace} target="_blank" rel="noopener noreferrer" className="font-semibold text-turquesa-700 underline">Ver acuerdo ↗</a>}
+        {(leerSesion()?.modulos ?? []).includes("asistente") && <Link href={`/asistente?tipo=acuerdo&asunto=${p.asunto_id}&texto=${encodeURIComponent(p.descripcion)}`} className="font-semibold text-turquesa-700 underline">Explicar con IA</Link>}
         <a href={p.consulta_oficial} target="_blank" rel="noopener noreferrer" className="font-semibold text-slate-600 underline">Consulta oficial ↗</a>
       </div>
     </li>

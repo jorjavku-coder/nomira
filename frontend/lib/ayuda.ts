@@ -237,6 +237,27 @@ export const MANUALES: Manual[] = [
     ],
   },
   {
+    clave: "asistente",
+    modulo: "asistente",
+    titulo: "Asistente IA",
+    resumen: "Borradores de escritos, resúmenes de documentos y explicación de acuerdos con inteligencia artificial, usando los datos de su asunto.",
+    paraQue: ["Tener en minutos el primer borrador de una promoción, demanda, contestación, amparo, recurso o carta al cliente.",
+      "Resumir un expediente largo: partes, fechas, plazos y lo que se pide.", "Entender rápido qué ordena un acuerdo y cuál es el siguiente paso."],
+    pasos: [
+      { titulo: "Elija qué necesita", texto: "En Módulos → Asistente IA elija «Redactar un escrito», «Resumir documentos» o «Explicar un acuerdo». Si lo liga a un asunto de la Agenda, el asistente toma el número, el tribunal, el cliente y las últimas actuaciones." },
+      { titulo: "Dé contexto", texto: "Escriba los hechos y lo que quiere pedir, y adjunte hasta 3 documentos (PDF con texto, Word o .txt) o pegue el texto. Entre más claro el contexto, mejor el borrador." },
+      { titulo: "Revise, edite y descargue", texto: "Lo que falte aparece como [COMPLETAR: …]. Edite el texto ahí mismo, guarde los cambios y descárguelo en Word. Queda en el historial." },
+    ],
+    consejos: ["Desde una publicación de estrados use «Explicar con IA» para entender el acuerdo en segundos.",
+      "El asistente no inventa tesis ni jurisprudencias: si las necesita, agréguelas usted y verifíquelas.",
+      "Hay un límite mensual de solicitudes por despacho; lo ve arriba a la derecha."],
+    preguntas: [
+      { p: "¿Puedo presentar el borrador tal cual?", r: "No. Es un borrador para que usted lo revise, corrija y firme bajo su criterio profesional." },
+      { p: "¿A dónde se envía mi información?", r: "El texto de la solicitud se envía a Anthropic, el proveedor de IA de Nomira, solo para generar la respuesta. Los archivos no se guardan en Nomira; el resultado sí, para que pueda editarlo." },
+      { p: "¿Lee PDF escaneados?", r: "Todavía no: necesita PDF con texto seleccionable, Word o texto. Si es una imagen, copie y pegue el texto." },
+    ],
+  },
+  {
     clave: "escrituracion",
     modulo: "escrituracion",
     titulo: "Escrituración (notarías)",
