@@ -22,6 +22,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   afore: <><path d="M12 3l8 4v2H4V7z" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7M3 20h18" /></>,
   leads: <><path d="M3 5h18l-7 8v5l-4 2v-7z" /></>,
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
+  escrituracion: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h4" /><circle cx="17" cy="18" r="2.2" /></>,
   agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
 };
 function Icono({ nombre }: { nombre: string }) {
@@ -79,12 +80,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const deLeads = ruta.startsWith("/leads");
   const deAcademia = ruta.startsWith("/academia");
   const deAgenda = ruta.startsWith("/agenda");
+  const deEscrituracion = ruta.startsWith("/escrituracion");
   useEffect(() => {
     if (modulos && ruta === "/app" && !modulos.includes("nomina")) {
       if (modulos.includes("evidencia")) router.replace("/evidencia");
       else if (modulos.includes("afore")) router.replace("/afore");
       else if (modulos.includes("leads")) router.replace("/leads");
       else if (modulos.includes("agenda")) router.replace("/agenda");
+      else if (modulos.includes("escrituracion")) router.replace("/escrituracion");
       else if (modulos.includes("academia")) router.replace("/academia");
     }
   }, [modulos, ruta, router]);
@@ -109,14 +112,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
   const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
-    : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("academia") ? "/academia" : "/perfil";
+    : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("escrituracion") ? "/escrituracion"
+    : activos.includes("academia") ? "/academia" : "/perfil";
   const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
-    || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"));
+    || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"))
+    || (deEscrituracion && !activos.includes("escrituracion"));
   const enlaces = [
     { grupo: "Clientes", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
     ...(activos.includes("nomina") ? [
       { grupo: "Nómina", href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
       { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
+    ...(activos.includes("escrituracion") ? [
+      { grupo: "Módulos", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
     ...(activos.includes("agenda") ? [
       { grupo: "Módulos", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     ...(activos.includes("evidencia") ? [

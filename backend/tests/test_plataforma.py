@@ -34,7 +34,9 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             ("GET", "/api/academia-medios/video/{token}"), ("GET", "/api/academia-medios/scorm/{token}/{ruta:path}"),
             ("GET", "/api/academia-publico/verificar/{folio}"),
             # Agenda: calendario privado por persona (enlace con token; sin token válido, 404)
-            ("GET", "/api/agenda-feed/{token}.ics")}
+            ("GET", "/api/agenda-feed/{token}.ics"),
+            # Escrituración: seguimiento del trámite por enlace (X-Enlace; sin él, 404)
+            ("POST", "/api/seguimiento/estado"), ("POST", "/api/seguimiento/documentos")}
 
 
 def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):

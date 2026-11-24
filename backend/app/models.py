@@ -1899,3 +1899,106 @@ class VtActividad(Base):
     asignado_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"), index=True)
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+# ---------------------------------------------------------------------------
+# Nomira Escrituración (módulo para notarías): expediente por acto, avance por etapas visible para el cliente,
+# requisitos con vigencia y semáforo «listo para firmar», y portal de seguimiento por enlace.
+
+class EsExpediente(Base):
+    __tablename__ = "es_expedientes"
+    __table_args__ = (UniqueConstraint("organizacion_id", "folio"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    folio: Mapped[str] = mapped_column(String(20))  # interno de la notaría, p. ej. ESC-2026-0007
+    acto: Mapped[str] = mapped_column(String(30))  # compraventa | compraventa_credito | donacion | adjudicacion | testamento | poder | sociedad | cancelacion_hipoteca | otro
+    titulo: Mapped[str] = mapped_column(String(200))
+    inmueble: Mapped[str | None] = mapped_column(String(500))  # ubicación
+    folio_real: Mapped[str | None] = mapped_column(String(60))
+    clave_catastral: Mapped[str | None] = mapped_column(String(60))
+    valor_operacion: Mapped[Decimal | None] = mapped_column(DINERO)
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"), index=True)
+    estado: Mapped[str] = mapped_column(String(12), default="abierto", index=True)  # abierto | concluido | cancelado
+    cita_firma: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cita_lugar: Mapped[str | None] = mapped_column(String(300))
+    numero_escritura: Mapped[str | None] = mapped_column(String(30))
+    volumen: Mapped[str | None] = mapped_column(String(30))
+    folio_registro: Mapped[str | None] = mapped_column(String(60))  # número de entrada en el Registro Público
+    mensaje_cliente: Mapped[str | None] = mapped_column(String(1000))  # aviso visible en el portal
+    notas: Mapped[str | None] = mapped_column(Text)  # internas, nunca al portal
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class EsParte(Base):
+    __tablename__ = "es_partes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("es_expedientes.id", ondelete="CASCADE"), index=True)
+    rol: Mapped[str] = mapped_column(String(20))  # comprador | vendedor | donante | donatario | testador | poderdante | apoderado | acreditante | otro
+    cr_cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"))
+    nombre: Mapped[str] = mapped_column(String(250))
+    tipo: Mapped[str] = mapped_column(String(10), default="fisica")  # fisica | moral
+    email: Mapped[str | None] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(20))
+    casado: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class EsHito(Base):
+    """Etapa del trámite. Las visibles salen en el portal del cliente con su fecha y nota pública."""
+    __tablename__ = "es_hitos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("es_expedientes.id", ondelete="CASCADE"), index=True)
+    clave: Mapped[str] = mapped_column(String(30))
+    nombre: Mapped[str] = mapped_column(String(120))
+    orden: Mapped[int] = mapped_column(Integer)
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | en_proceso | observado | hecho | no_aplica
+    fecha: Mapped[date | None] = mapped_column(Date)
+    nota_publica: Mapped[str | None] = mapped_column(String(500))
+    visible_cliente: Mapped[bool] = mapped_column(Boolean, default=True)
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EsRequisito(Base):
+    """Documento que se necesita para firmar. Con vigencia: vence N días después de su fecha de expedición."""
+    __tablename__ = "es_requisitos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("es_expedientes.id", ondelete="CASCADE"), index=True)
+    parte_id: Mapped[int | None] = mapped_column(ForeignKey("es_partes.id", ondelete="CASCADE"), index=True)  # vacío = del inmueble u operación
+    clave: Mapped[str] = mapped_column(String(40))
+    nombre: Mapped[str] = mapped_column(String(160))
+    obligatorio: Mapped[bool] = mapped_column(Boolean, default=True)
+    vigencia_dias: Mapped[int | None] = mapped_column(Integer)
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | recibido | validado | rechazado | no_aplica
+    expedido_en: Mapped[date | None] = mapped_column(Date)
+    vence_en: Mapped[date | None] = mapped_column(Date)
+    nota: Mapped[str | None] = mapped_column(String(500))  # visible para el cliente si se rechaza (qué corregir)
+    archivo: Mapped[str | None] = mapped_column(String(300))
+    archivo_nombre: Mapped[str | None] = mapped_column(String(200))
+    archivo_mime: Mapped[str | None] = mapped_column(String(100))
+    origen: Mapped[str | None] = mapped_column(String(10))  # notaria | cliente
+    recibido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    validado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EsAcceso(Base):
+    """Enlace de seguimiento para una parte, la inmobiliaria o el banco. Solo se guarda la huella del token."""
+    __tablename__ = "es_accesos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    expediente_id: Mapped[int] = mapped_column(ForeignKey("es_expedientes.id", ondelete="CASCADE"), index=True)
+    parte_id: Mapped[int | None] = mapped_column(ForeignKey("es_partes.id", ondelete="CASCADE"))
+    tipo: Mapped[str] = mapped_column(String(15), default="parte")  # parte | inmobiliaria | banco | otro
+    nombre: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str | None] = mapped_column(String(254))
+    avisar: Mapped[bool] = mapped_column(Boolean, default=True)  # correo cuando avanza el trámite
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_pista: Mapped[str] = mapped_column(String(8))
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    visitas: Mapped[int] = mapped_column(Integer, default=0)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

@@ -26,6 +26,8 @@ MODULOS = {
               "por_defecto": False},
     "agenda": {"nombre": "Nomira Agenda Jurídica", "descripcion": "Plazos, audiencias y actividades con responsables, alertas escalonadas y cálculo asistido de días hábiles.",
                "por_defecto": False},
+    "escrituracion": {"nombre": "Nomira Escrituración", "descripcion": "Para notarías: expedientes de escrituras, avance visible para el cliente, requisitos con vigencia y semáforo «listo para firmar».",
+                      "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
 }
