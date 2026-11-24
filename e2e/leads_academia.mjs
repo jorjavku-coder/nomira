@@ -21,7 +21,7 @@ await page.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 
 // ---------- Leads ----------
-await page.getByRole("link", { name: "Leads", exact: true }).click();
+await page.getByRole("link", { name: "Prospectos", exact: true }).click();
 await page.getByRole("heading", { name: "¿A quién hay que atender?" }).waitFor();
 await page.getByText("Ana Demo Martínez").first().waitFor();
 ok(await page.getByText("Prospectos nuevos").count() >= 1, "bandeja con prospectos nuevos");

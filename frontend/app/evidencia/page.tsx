@@ -35,7 +35,7 @@ export default function Evidencia() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Nomira Evidencia</h1><BotonAyuda modulo="evidencia" /></div>
-          <p className="mt-1 text-sm text-slate-500">Documentos ordenados, hechos con fuente, cronología y matriz de evidencia por asunto.</p>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">Prepare la prueba de cada juicio: suba los documentos, Nomira ubica cada hecho con su página, arma la cronología y le muestra qué punto todavía no tiene prueba.</p>
         </div>
         {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo asunto</button>}
       </div>

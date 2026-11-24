@@ -93,13 +93,13 @@ await page.getByText("Clasificación guardada.").waitFor();
 await foto("ev-07-documentos");
 
 // Módulos: sin Nómina, el menú cambia y /app lleva a Evidencia; los datos siguen
-await page.getByRole("link", { name: "Mi empresa" }).click();
+await page.getByRole("link", { name: "Datos y módulos" }).click();
 await page.getByText("Módulos", { exact: true }).waitFor();
 await foto("ev-08-modulos");
 page.once("dialog", (d) => d.accept());
 await page.getByRole("switch", { name: /Desactivar Nómina y prestaciones/ }).click();
 await page.getByText("Módulo desactivado. Sus datos se conservan.").waitFor();
-await page.getByRole("link", { name: "Expedientes" }).waitFor({ state: "detached" });
+await page.getByRole("link", { name: "Revisión de nómina" }).waitFor({ state: "detached" });
 await page.goto(base + "/app");
 await page.waitForURL("**/evidencia");
 ok(true, "sin Nómina: el menú lo oculta y /app redirige a Evidencia");
@@ -109,7 +109,7 @@ ok(true, "ruta de un módulo inactivo bloqueada en la interfaz");
 await page.goto(base + "/organizacion");
 await page.getByRole("switch", { name: /Activar Nómina y prestaciones/ }).click();
 await page.getByText("Módulo activado.").waitFor();
-await page.getByRole("link", { name: "Expedientes" }).waitFor();
+await page.getByRole("link", { name: "Revisión de nómina" }).waitFor();
 ok(true, "Nómina reactivada");
 ok(errores.length === 0, "sin errores de consola: " + errores.join(" | "));
 await browser.close();

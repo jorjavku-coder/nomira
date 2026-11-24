@@ -189,8 +189,9 @@ export default function Expedientes() {
   return (
     <Shell>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Expedientes</h1><BotonAyuda modulo="nomina" /></div><p className="mt-1 text-sm text-slate-500">Sus expedientes y lo que falta por revisar en cada uno.</p></div>
-        {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo expediente</button>}
+        <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-3xl font-extrabold text-marino">Revisión de nómina</h1><BotonAyuda modulo="nomina" /></div><p className="mt-1 max-w-2xl text-sm text-slate-500">Cada expediente es un trabajador: sube sus recibos de nómina en PDF y Nomira desglosa sus prestaciones quincena por quincena, con lo que falta por revisar.</p></div>
+        <div className="flex flex-wrap gap-2"><Link href="/catalogos" className="btn-sec">Catálogos de prestaciones</Link>
+          {editor && <button className="btn-turquesa" onClick={() => setNuevo(true)}>+ Nuevo expediente</button>}</div>
       </div>
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {tarjetas.map((c) => (

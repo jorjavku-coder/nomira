@@ -17,7 +17,7 @@ page.on("console", (m) => m.type() === "error" && errores.push(m.text()));
 
 await page.goto(base + "/login");
 ok(await page.getByText("Desarrollado por IMA").count() === 1, "pie de página con el crédito en la página de inicio");
-await page.getByRole("link", { name: "Solicitar informes o suscripción" }).click();
+await page.goto(base + "/#informes");  // el formulario de informes vive en el sitio público
 await page.getByText("Quiero suscribirme").click();
 await page.getByLabel("Nombre completo").fill("Laura Prospecto Ficticia");
 await page.getByLabel("Empresa o despacho").fill("Despacho de Prueba");
@@ -30,20 +30,20 @@ await page.getByRole("button", { name: "Solicitar suscripción" }).click();
 await page.getByText("Recibimos su solicitud").waitFor();
 ok(true, "solicitud enviada sin iniciar sesión");
 
-await page.evaluate(() => window.scrollTo(0, 0));
+await page.goto(base + "/login");
 await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 ok(await page.getByRole("link", { name: "Solicitudes" }).count() === 0, "un cliente no ve la bandeja de solicitudes");
 
-await page.getByRole("link", { name: "Mi empresa" }).click();
+await page.getByRole("link", { name: "Datos y módulos" }).click();
 await page.locator('input[type="file"]').setInputFiles(new URL("../datos/ejemplos/logo_cliente_ficticio.png", import.meta.url).pathname);
 await page.getByText("Logotipo actualizado.").waitFor();
 await page.getByAltText(/^Logotipo de /).waitFor();
 ok(true, "logotipo del cliente visible en la barra lateral");
 ok(await page.getByText("Desarrollado por IMA").count() === 1, "pie de página con el crédito dentro del sistema");
 await page.screenshot({ path: `${dir}/16-mi-empresa-logo.png` });
-await page.getByRole("link", { name: "Expedientes" }).click();
+await page.getByRole("link", { name: "Revisión de nómina" }).click();
 await page.getByRole("link", { name: "#1" }).waitFor();
 await page.screenshot({ path: `${dir}/17-expedientes-con-marca.png` });
 
@@ -51,9 +51,10 @@ await page.goto(base + "/plataforma/login");
 await page.getByLabel("Correo").fill(process.env.E2E_PLATAFORMA_EMAIL || "");
 await page.getByLabel("Contraseña").fill(process.env.E2E_PLATAFORMA_CONTRASENA || "");
 await page.getByRole("button", { name: "Entrar al panel" }).click();
-await page.getByRole("link", { name: /Solicitudes/ }).click();
+await page.getByRole("navigation").getByRole("link", { name: /^Solicitudes/ }).first().click();
 await page.getByText("Laura Prospecto Ficticia").waitFor();
-ok(await page.getByText("Quiere suscribirse").count() >= 1, "la solicitud aparece en el panel de la plataforma");
+await page.getByText("Quiere suscribirse").first().waitFor();
+ok(true, "la solicitud aparece en el panel de la plataforma");
 await page.screenshot({ path: `${dir}/15-solicitudes.png` });
 ok(errores.length === 0, "sin errores de consola: " + errores.join(" | "));
 await browser.close();

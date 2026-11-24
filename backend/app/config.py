@@ -91,6 +91,7 @@ class Ajustes(BaseSettings):
     # La clave se toma de ANTHROPIC_API_KEY (variable de entorno estándar del SDK).
     ia_habilitada: bool = False
     ia_modelo: str = "claude-opus-5-5"
+    piloto_contrasena: str = ""  # cuenta demo@nomirasoft.com (despacho piloto). Vacía: no se crea.
     tesis_sincronizar: bool = True  # Repositorio de datos abiertos de la SCJN; se detiene sola si la SCJN la bloquea
     tesis_repositorio_url: str = "https://bicentenario.scjn.gob.mx/repositorio-scjn/api/v1"
     tesis_por_tanda: int = 500  # tesis por hora como máximo (una por segundo)

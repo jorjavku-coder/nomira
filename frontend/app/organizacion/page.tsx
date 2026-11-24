@@ -39,7 +39,7 @@ export default function MiEmpresa() {
   if (sesion && sesion.usuario.rol !== "administrador") return <Shell><Aviso>Solo los administradores pueden cambiar la marca de la empresa.</Aviso></Shell>;
   return (
     <Shell>
-      <h1 className="text-3xl font-extrabold text-marino">Mi empresa</h1>
+      <h1 className="text-3xl font-extrabold text-marino">Datos y módulos del despacho</h1>
       <p className="mb-6 mt-1 max-w-2xl text-sm text-slate-500">El nombre y el logotipo de su negocio aparecen en la barra lateral para todo su equipo y en los reportes de Excel y PDF que exporte.</p>
       <div className="mb-4 space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
       {org && (

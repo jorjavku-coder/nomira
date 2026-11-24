@@ -19,7 +19,7 @@ await p.goto(base + "/login");
 await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await p.getByRole("button", { name: "Entrar", exact: true }).click();
-await p.waitForURL(/\/app/);
+await p.waitForURL(/\/(app|inicio)/);
 await p.goto(base + "/clientes");
 const primero = p.locator("tbody tr td a").first();
 await primero.waitFor();

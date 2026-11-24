@@ -16,6 +16,8 @@ await page.goto(base + "/login");
 await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
+await page.waitForURL(/\/inicio/);
+await page.goto(base + "/app");
 await page.getByRole("button", { name: "+ Nuevo expediente" }).click();
 await page.locator('input[type="file"]').setInputFiles(new URL("../datos/ejemplos/recibos_sinteticos.pdf", import.meta.url).pathname);
 await page.getByText("Detectamos").waitFor();

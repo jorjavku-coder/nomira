@@ -24,7 +24,8 @@ export function AcademiaShell({ children }: { children: React.ReactNode }) {
   ];
   return (
     <Shell>
-      <div className="mb-1 flex items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Academia</p><BotonAyuda modulo="academia" /></div>
+      <div className="mb-1 flex items-center justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Academia</p>
+        <p className="text-sm text-slate-500">Capacitación de su equipo: cursos cortos, cuestionarios y constancias; usted ve quién ya terminó.</p></div><BotonAyuda modulo="academia" /></div>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-crema-300" aria-label="Nomira Academia">
         {enlaces.map(([href, t, activo]) => (
           <Link key={href} href={href} aria-current={activo ? "page" : undefined}

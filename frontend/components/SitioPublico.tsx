@@ -198,7 +198,7 @@ export default function SitioPublico() {
     api.get("/publico").then((p) => { setWhatsapp(p.whatsapp || null); setDesde(p.precio_desde || null); setPrueba(!!p.permitir_registro); }).catch(() => {});
   }, []);
   const acceso = conSesion
-    ? <Link href="/app" className="btn-turquesa">Ir a Nomira</Link>
+    ? <Link href="/inicio" className="btn-turquesa">Ir a Nomira</Link>
     : <Link href="/login" className="btn-sec">Iniciar sesión</Link>;
 
   return (

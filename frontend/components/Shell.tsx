@@ -11,6 +11,7 @@ const ROLES: Record<string, string> = { administrador: "Administrador", analista
 
 const ICONOS: Record<string, React.ReactNode> = {
   tesis: <><path d="M12 4v16M5 8h14M7 8l-3 6a3 3 0 0 0 6 0L7 8Zm10 0-3 6a3 3 0 0 0 6 0l-3-6ZM8 20h8" /></>,
+  inicio: <><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" /></>,
   bolsa: <><rect x="3.5" y="7" width="17" height="12.5" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   clientes: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M15.5 5.3a3 3 0 0 1 0 5.4M17 14a5 5 0 0 1 3.5 5" /></>,
   expedientes: <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />,
@@ -29,7 +30,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   escrituracion: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h4" /><circle cx="17" cy="18" r="2.2" /></>,
   agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
 };
-function Icono({ nombre }: { nombre: string }) {
+export function Icono({ nombre }: { nombre: string }) {
   return <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>;
 }
 
@@ -126,36 +127,35 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
   const bloqueoPrueba = prueba?.bloqueada && !ruta.startsWith("/soporte");
-  const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
-    : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("escrituracion") ? "/escrituracion"
-    : activos.includes("academia") ? "/academia" : "/asistente";
+  const inicio = "/inicio";
   const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
     || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"))
     || (deEscrituracion && !activos.includes("escrituracion"));
+  // Agrupado por cómo trabaja un despacho (mismos nombres que Inicio: lib/modulos.ts)
   const enlaces = [
-    { grupo: "Clientes", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
-    { grupo: "Clientes", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
-    ...(activos.includes("nomina") ? [
-      { grupo: "Nómina", href: "/app", texto: "Expedientes", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") },
-      { grupo: "Nómina", href: "/liquidaciones", texto: "Liquidaciones", icono: "liquidaciones", activo: ruta.startsWith("/liquidaciones") },
-      { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
-    ...(activos.includes("escrituracion") ? [
-      { grupo: "Módulos", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
-    { grupo: "Módulos", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },
-    { grupo: "Módulos", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
+    { grupo: "", href: "/inicio", texto: "Inicio", icono: "inicio", activo: ruta.startsWith("/inicio") },
     ...(activos.includes("agenda") ? [
-      { grupo: "Módulos", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
+      { grupo: "Día a día", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
+    { grupo: "Día a día", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
+    { grupo: "Día a día", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },
+    { grupo: "Día a día", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
     ...(activos.includes("evidencia") ? [
-      { grupo: "Módulos", href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
+      { grupo: "Casos y trámites", href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
+    ...(activos.includes("nomina") ? [
+      { grupo: "Casos y trámites", href: "/liquidaciones", texto: "Liquidaciones LFT", icono: "liquidaciones", activo: ruta.startsWith("/liquidaciones") },
+      { grupo: "Casos y trámites", href: "/app", texto: "Revisión de nómina", icono: "expedientes", activo: ruta === "/app" || ruta.startsWith("/expedientes") || ruta.startsWith("/catalogos") }] : []),
+    ...(activos.includes("escrituracion") ? [
+      { grupo: "Casos y trámites", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
     ...(activos.includes("afore") ? [
-      { grupo: "Módulos", href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
+      { grupo: "Casos y trámites", href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
     ...(activos.includes("leads") ? [
-      { grupo: "Módulos", href: "/leads", texto: "Leads", icono: "leads", activo: deLeads }] : []),
+      { grupo: "Crecer el despacho", href: "/leads", texto: "Prospectos", icono: "leads", activo: deLeads }] : []),
+    { grupo: "Crecer el despacho", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
     ...(activos.includes("academia") ? [
-      { grupo: "Módulos", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
+      { grupo: "Crecer el despacho", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
     ...(sesion.usuario.rol === "administrador" ? [
       { grupo: "Mi despacho", href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
-      { grupo: "Mi despacho", href: "/organizacion", texto: "Mi empresa", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
+      { grupo: "Mi despacho", href: "/organizacion", texto: "Datos y módulos", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
     { grupo: "Mi despacho", href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
     { grupo: "Mi despacho", href: "/ayuda", texto: "Ayuda y manuales", icono: "ayuda", activo: ruta.startsWith("/ayuda") },
     { grupo: "Mi despacho", href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
@@ -179,7 +179,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         )}
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:overflow-y-auto lg:pb-0" aria-label="Principal">
           {enlaces.map((e, i) => (<Fragment key={e.href}>
-            {(i === 0 || enlaces[i - 1].grupo !== e.grupo) && <p className={`hidden px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 lg:block ${i ? "pt-4" : "pt-1"}`}>{e.grupo}</p>}
+            {e.grupo && (i === 0 || enlaces[i - 1].grupo !== e.grupo) && <p className={`hidden px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 lg:block ${i ? "pt-4" : "pt-1"}`}>{e.grupo}</p>}
             <Link href={e.href} aria-current={e.activo ? "page" : undefined}
               className={`relative flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition lg:py-2 ${e.activo ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
               {e.activo && <span className="absolute -left-3 top-2 hidden h-6 w-1 rounded-r bg-turquesa-brillante lg:block" aria-hidden />}
@@ -225,7 +225,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 /** Aviso de bienvenida para quien entra por primera vez en este navegador: lleva a los manuales. */
 function Bienvenida({ ruta }: { ruta: string }) {
   const [ver, setVer] = useState(false);
-  useEffect(() => { try { setVer(!localStorage.getItem("nomira:bienvenida") && !ruta.startsWith("/ayuda")); } catch {} }, [ruta]);
+  useEffect(() => { try { setVer(!localStorage.getItem("nomira:bienvenida") && !ruta.startsWith("/ayuda") && !ruta.startsWith("/inicio")); } catch {} }, [ruta]);
   const cerrar = () => { try { localStorage.setItem("nomira:bienvenida", "1"); } catch {} setVer(false); };
   if (!ver) return null;
   return (

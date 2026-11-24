@@ -17,7 +17,7 @@ await p.goto(base + "/login");
 await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await p.getByRole("button", { name: "Entrar", exact: true }).click();
-await p.waitForURL(/\/app/);
+await p.waitForURL(/\/(app|inicio)/);
 await p.getByRole("link", { name: "Asistente IA" }).click();
 await p.getByRole("heading", { name: "Asistente IA" }).waitFor();
 await p.getByText(/aún no está activado/).waitFor();

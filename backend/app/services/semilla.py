@@ -95,20 +95,23 @@ def pdfs_demo() -> dict[str, bytes]:
             "sintetico_escaneado_segunda_plaza.pdf": crear_pdf(plaza2, informativas=False, escaneado=True)}
 
 
-def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincena-2025") -> dict:
-    """Crea una organización de demostración con usuarios, catálogo y dos expedientes sintéticos."""
+def sembrar_demo(db: Session, email="admin@demo.local", contrasena="Demo-Quincena-2025", nombre_org="Despacho Demostración (datos sintéticos)",
+                 nombre_admin="Admin Demo", equipo: bool = True) -> dict:
+    """Crea una organización de demostración con usuarios, catálogo y dos expedientes sintéticos.
+    ``equipo``: además crea analista@demo.local y consulta@demo.local (solo la demo de desarrollo y pruebas)."""
     if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
         return {"creado": False}
-    org = m.Organizacion(nombre="Despacho Demostración (datos sintéticos)")
+    org = m.Organizacion(nombre=nombre_org)
     db.add(org)
     db.flush()
-    admin = m.Usuario(organizacion_id=org.id, email=email, nombre="Admin Demo",
+    admin = m.Usuario(organizacion_id=org.id, email=email, nombre=nombre_admin,
                       hash_contrasena=hash_contrasena(contrasena), rol="administrador")
-    db.add_all([admin,
-                m.Usuario(organizacion_id=org.id, email="analista@demo.local", nombre="Analista Demo",
-                          hash_contrasena=hash_contrasena(contrasena), rol="analista"),
-                m.Usuario(organizacion_id=org.id, email="consulta@demo.local", nombre="Consulta Demo",
-                          hash_contrasena=hash_contrasena(contrasena), rol="consulta")])
+    db.add(admin)
+    if equipo:
+        db.add_all([m.Usuario(organizacion_id=org.id, email="analista@demo.local", nombre="Analista Demo",
+                              hash_contrasena=hash_contrasena(contrasena), rol="analista"),
+                    m.Usuario(organizacion_id=org.id, email="consulta@demo.local", nombre="Consulta Demo",
+                              hash_contrasena=hash_contrasena(contrasena), rol="consulta")])
     db.flush()
     v = crear_catalogo_referencia(db, org.id, admin.id)
 

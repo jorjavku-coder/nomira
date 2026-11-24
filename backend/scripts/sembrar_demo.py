@@ -15,6 +15,20 @@ from app.services.leads import demo as leads_demo
 from app.services.semilla import proteger_demo, restaurar_archivos, sembrar_demo
 
 if __name__ == "__main__":
+    if ajustes().entorno == "produccion":
+        # En producción solo existe el despacho piloto (demo@nomirasoft.com); la demo de desarrollo nunca se crea.
+        from app.services.piloto import PILOTO_EMAIL, sembrar_piloto
+
+        with SessionLocal() as db:
+            if not ajustes().piloto_contrasena:
+                print("Sin PILOTO_CONTRASENA: no se crea la cuenta piloto.")
+            else:
+                r = sembrar_piloto(db, ajustes().piloto_contrasena)
+                print("Cuenta piloto creada:" if r["creado"] else "La cuenta piloto ya existía:", PILOTO_EMAIL)
+            if "--restaurar" in sys.argv:
+                print("Archivos:", restaurar_archivos(db), "· Evidencia:", evidencia_demo.restaurar_archivos(db))
+            proteger_demo(db)
+        sys.exit(0)
     with SessionLocal() as db:
         r = sembrar_demo(db)
         ev = evidencia_demo.sembrar(db)  # una sola vez por organización de demostración
