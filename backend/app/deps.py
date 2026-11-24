@@ -14,7 +14,12 @@ from .security import leer_token
 _bearer = HTTPBearer(auto_error=False)
 
 
-def usuario_actual(cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+# Con la prueba gratuita terminada (solo cuentas de registro en línea) se puede entrar, ver el aviso,
+# pedir contratar y escribir a soporte; el resto queda bloqueado sin borrar nada.
+_LIBRES_SIN_PLAN = ("/api/auth/", "/api/soporte", "/api/organizacion", "/api/perfil", "/api/legal")
+
+
+def usuario_actual(request: Request, cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
                    db: Session = Depends(get_db)) -> m.Usuario:
     datos = leer_token(cred.credentials) if cred else None
     if not datos or datos.get("tipo") == "plataforma" or "org" not in datos:
@@ -26,6 +31,12 @@ def usuario_actual(cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
     org = db.get(m.Organizacion, u.organizacion_id)
     if not org or org.estado != "activa":
         raise HTTPException(401, "La cuenta de su organización está suspendida. Contacte a soporte de Nomira.")
+    if org.origen == "registro" and not request.url.path.startswith(_LIBRES_SIN_PLAN):
+        from .services.registro import estado_prueba
+        p = estado_prueba(db, org)
+        if p and p["bloqueada"]:
+            raise HTTPException(402, {"codigo": "prueba_terminada",
+                                      "mensaje": "Su prueba gratuita terminó. Su información está guardada: contrate un plan para seguir usando Nomira."})
     return u
 
 

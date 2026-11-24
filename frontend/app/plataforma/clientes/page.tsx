@@ -34,7 +34,9 @@ export default function Clientes() {
             {lista && visibles.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-slate-500">Sin clientes.</td></tr>}
             {visibles.map((c) => (
               <tr key={c.id}>
-                <td><Link className="font-semibold text-marino hover:underline" href={`/plataforma/clientes/${c.id}`}>{c.nombre}</Link><div className="text-xs text-slate-400">#{c.id}</div></td>
+                <td><Link className="font-semibold text-marino hover:underline" href={`/plataforma/clientes/${c.id}`}>{c.nombre}</Link><div className="text-xs text-slate-400">#{c.id}</div>
+                  {c.origen === "registro" && <div className="mt-0.5 text-xs"><span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">Prueba en línea</span>
+                    {c.modulos_prueba?.length > 0 && <span className="ml-1 text-slate-500">{c.modulos_prueba.join(" · ")}</span>}</div>}</td>
                 <td><Chip estado={c.estado === "activa" ? "activo" : "error"} texto={c.estado === "activa" ? "Activa" : "Suspendida"} /></td>
                 <td><EstadoSuscripcion s={c.suscripcion} compacto /></td>
                 <td className="num">{c.usuarios_activos}<span className="text-slate-400"> / {c.usuarios}</span></td>

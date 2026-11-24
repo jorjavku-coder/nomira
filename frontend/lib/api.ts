@@ -76,6 +76,7 @@ async function pedir(ruta: string, init: RequestInit = {}): Promise<Response> {
     try {
       detalle = (await r.json()).detail;
     } catch {}
+    if (r.status === 402 && detalle?.codigo === "prueba_terminada" && typeof window !== "undefined") window.dispatchEvent(new Event("nomira:prueba-terminada"));
     throw new ErrorApi(r.status, mensajeDe(detalle, r.status), detalle);
   }
   return r;

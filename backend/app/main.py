@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, academia, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -103,7 +103,7 @@ async def _revisar_agenda(espera_inicial: float = 90, cada: float = 900) -> None
 app = FastAPI(title="Nomira", version="0.1.0", lifespan=ciclo)
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in ajustes().cors_origenes.split(",") if o.strip()],
                    allow_methods=["*"], allow_headers=["Authorization", "Content-Type", "X-Enlace", "X-Sesion"])
-for r in (auth.router, organizacion.router, solicitudes.router, plataforma.router, soporte.router):
+for r in (auth.router, acceso.router, organizacion.router, solicitudes.router, plataforma.router, soporte.router):
     app.include_router(r)
 # Cada módulo protege sus rutas en el backend: si no está activo para la organización, responde 403.
 for r in (catalogos.router, documentos.router, expedientes.router, ia.router):

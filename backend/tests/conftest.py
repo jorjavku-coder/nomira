@@ -28,6 +28,7 @@ from app.db import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.routers import auth  # noqa: E402
 from app.services.semilla import crear_catalogo_referencia  # noqa: E402
+from app.security import hash_contrasena  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -56,6 +57,9 @@ def _limpiar():
     _plataforma._intentos.clear()
     from app.routers import solicitudes
     solicitudes._envios.clear()
+    from app.routers import acceso
+    acceso._por_ip._eventos.clear()
+    acceso._intentos.clear()
     from app.routers import comercial_publico
     comercial_publico._ver_ip._eventos.clear()
     comercial_publico._accion_ip._eventos.clear()
@@ -76,9 +80,16 @@ def db():
 
 class Org:
     def __init__(self, cliente, n):
-        r = cliente.post("/api/auth/registro", json={"organizacion": f"Org {n}", "nombre": f"Admin {n}",
-                                                     "email": f"admin{n}@org{n}.test", "contrasena": "Contrasena-Segura-1"})
-        assert r.status_code == 201, r.text
+        # Alta directa (como la que hace Nomira desde su panel); el registro en línea se prueba en test_registro.py
+        with SessionLocal() as s_:
+            o = m.Organizacion(nombre=f"Org {n}")
+            s_.add(o)
+            s_.flush()
+            s_.add(m.Usuario(organizacion_id=o.id, email=f"admin{n}@org{n}.test", nombre=f"Admin {n}",
+                             hash_contrasena=hash_contrasena("Contrasena-Segura-1"), rol="administrador"))
+            s_.commit()
+        r = cliente.post("/api/auth/login", json={"email": f"admin{n}@org{n}.test", "contrasena": "Contrasena-Segura-1"})
+        assert r.status_code == 200, r.text
         self.c = cliente
         self.h = {"Authorization": f"Bearer {r.json()['token']}"}
         self.org_id = r.json()["usuario"]["organizacion_id"]

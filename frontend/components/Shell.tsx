@@ -92,6 +92,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       else if (modulos.includes("academia")) router.replace("/academia");
     }
   }, [modulos, ruta, router]);
+  const [prueba, setPrueba] = useState<any>(null);
+  useEffect(() => {
+    if (!sesion) return;
+    const cargar = () => api.get("/auth/prueba").then((r) => setPrueba(r.prueba)).catch(() => {});
+    const terminada = () => setPrueba((p: any) => ({ ...(p || {}), bloqueada: true, estado: "vencida" }));
+    cargar();
+    window.addEventListener("nomira:prueba-terminada", terminada);
+    return () => window.removeEventListener("nomira:prueba-terminada", terminada);
+  }, [sesion]);
   const [sinLeer, setSinLeer] = useState(0);
   const [agendaN, setAgendaN] = useState(0);
   const conAgenda = (modulos ?? sesion?.modulos ?? []).includes("agenda");
@@ -112,6 +121,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return () => { clearInterval(t); window.removeEventListener("nomira:soporte", cargar); };
   }, [sesion]);
   if (!sesion) return <div className="p-10 text-sm text-slate-500">Cargando…</div>;
+  const bloqueoPrueba = prueba?.bloqueada && !ruta.startsWith("/soporte");
   const inicio = activos.includes("nomina") ? "/app" : activos.includes("evidencia") ? "/evidencia" : activos.includes("afore") ? "/afore"
     : activos.includes("leads") ? "/leads" : activos.includes("agenda") ? "/agenda" : activos.includes("escrituracion") ? "/escrituracion"
     : activos.includes("academia") ? "/academia" : "/perfil";
@@ -185,7 +195,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </aside>
       <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-[88rem] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">
         <Bienvenida ruta={ruta} />
-        {bloqueado && modulos ? (
+        {prueba && !prueba.bloqueada && prueba.estado === "prueba" && <AvisoPrueba prueba={prueba} />}
+        {bloqueoPrueba ? <PruebaTerminada prueba={prueba} onSalir={salir} /> : bloqueado && modulos ? (
           <div className="tarjeta mx-auto mt-10 max-w-lg p-8 text-center">
             <h1 className="text-2xl font-extrabold text-marino">Módulo no activo</h1>
             <p className="mt-2 text-sm text-slate-600">Esta sección pertenece a un módulo que no está activo para su organización. Sus datos se conservan.
@@ -216,6 +227,42 @@ function Bienvenida({ ruta }: { ruta: string }) {
       <p className="min-w-0 flex-1"><b>¿Primera vez en Nomira?</b> Cada módulo tiene un manual paso a paso con capturas. Empiece por «Primeros pasos».</p>
       <Link href="/ayuda/primeros-pasos" onClick={cerrar} className="btn-turquesa py-1.5 text-sm">Ver la guía</Link>
       <button className="rounded-lg px-2 py-1 text-slate-500 hover:bg-white" onClick={cerrar} aria-label="Cerrar aviso de bienvenida">✕</button>
+    </div>
+  );
+}
+
+
+/** Franja con los días que le quedan a la prueba gratuita (solo cuentas registradas en línea). */
+function AvisoPrueba({ prueba }: { prueba: any }) {
+  const [pedido, setPedido] = useState("");
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-turquesa/40 bg-turquesa-50 px-4 py-3 text-sm">
+      <p className="text-marino"><b>Prueba gratuita:</b> {prueba.dias_restantes === 1 ? "hoy es su último día" : `le quedan ${prueba.dias_restantes} días`}.
+        <span className="text-slate-600"> Al terminar, su información se conserva.</span></p>
+      {pedido ? <span className="font-semibold text-turquesa-700">{pedido}</span>
+        : <button className="btn-turquesa" onClick={async () => { try { setPedido((await api.post("/auth/prueba/contratar", {})).mensaje); } catch (e: any) { setPedido(e.message); } }}>Quiero contratar</button>}
+    </div>
+  );
+}
+
+/** Pantalla cuando terminó la prueba: sin borrar nada, invita a contratar. */
+function PruebaTerminada({ prueba, onSalir }: { prueba: any; onSalir: () => void }) {
+  const [msg, setMsg] = useState("");
+  const [texto, setTexto] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="tarjeta mx-auto mt-10 max-w-xl p-8 text-center">
+      <p className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Su prueba gratuita terminó</p>
+      <h1 className="mt-2 text-2xl font-extrabold text-marino">Gracias por probar Nomira</h1>
+      <p className="mt-2 text-sm text-slate-600">Todo lo que capturó está guardado. Contrate un plan y siga exactamente donde se quedó.</p>
+      {msg ? <p role="status" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{msg}</p> : <>
+        <textarea className="campo mt-5 text-left" rows={3} maxLength={1000} placeholder="¿Algo que debamos saber? (opcional): módulos, número de usuarios, dudas…" value={texto} onChange={(e) => setTexto(e.target.value)} />
+        <button className="btn-turquesa mt-3 w-full py-2.5" disabled={ocupado} onClick={async () => {
+          setOcupado(true);
+          try { setMsg((await api.post("/auth/prueba/contratar", { mensaje: texto || null })).mensaje); } catch (e: any) { setMsg(e.message); } finally { setOcupado(false); }
+        }}>Quiero contratar</button></>}
+      <div className="mt-4 flex justify-center gap-4 text-sm"><Link href="/soporte" className="font-semibold text-turquesa-700 hover:underline">Escribir a soporte</Link>
+        <button className="text-slate-500 hover:underline" onClick={onSalir}>Cerrar sesión</button></div>
     </div>
   );
 }

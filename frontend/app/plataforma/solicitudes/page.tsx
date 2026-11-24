@@ -25,7 +25,7 @@ export default function Solicitudes() {
   return (
     <ShellPlataforma>
       <h1 className="text-3xl font-extrabold text-marino">Solicitudes</h1>
-      <p className="mb-5 mt-1 text-sm text-slate-500">Personas que pidieron informes o una suscripción desde la página de inicio.</p>
+      <p className="mb-5 mt-1 text-sm text-slate-500">Personas que pidieron informes o una suscripción desde la página de inicio, o que se registraron con prueba gratis.</p>
       <div className="mb-4 flex flex-wrap gap-2" role="tablist">
         {([["nueva", `Por atender (${cuenta("nueva")})`], ["atendida", `Atendidas (${cuenta("atendida")})`], ["todas", "Todas"]] as const).map(([v, t]) => (
           <button key={v} role="tab" aria-selected={filtro === v} onClick={() => setFiltro(v)}
@@ -41,7 +41,7 @@ export default function Solicitudes() {
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-[14rem] flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${s.tipo === "suscripcion" ? "bg-turquesa-100 text-turquesa-700" : "bg-marino-50 text-marino"}`}>{s.tipo === "suscripcion" ? "Quiere suscribirse" : "Pide informes"}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${s.tipo === "prueba" ? "bg-amber-100 text-amber-800" : s.tipo === "suscripcion" ? "bg-turquesa-100 text-turquesa-700" : "bg-marino-50 text-marino"}`}>{s.tipo === "prueba" ? "Prueba gratis en línea" : s.tipo === "suscripcion" ? "Quiere suscribirse" : "Pide informes"}</span>
                   <Chip estado={s.estado === "atendida" ? "activo" : "pendiente"} texto={s.estado === "atendida" ? "Atendida" : "Nueva"} />
                   <span className="text-xs text-slate-500">{fechaHora(s.creado_en)}</span>
                 </div>

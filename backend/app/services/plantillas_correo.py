@@ -197,3 +197,33 @@ def documentos_recibidos(nombre: str, asunto_nombre: str, n: int, email_cliente:
     texto = (f"{email_cliente} envió {n} archivo(s) al asunto {asunto_nombre}. Quedaron pendientes de revisión: "
              f"Nomira no los lee hasta que usted los acepte.\n\nRevisar: {url}\n")
     return asunto, _base(f"{n} documento(s) nuevos en {asunto_nombre}", contenido), texto
+
+
+def codigo_cuenta(nombre: str, codigo: str, minutos: int, para: str) -> tuple[str, str, str]:
+    """Código de 6 dígitos para confirmar el correo al registrarse («registro») o para cambiar la contraseña («recuperar»)."""
+    registro = para == "registro"
+    asunto = f"{'Confirme su correo' if registro else 'Restablezca su contraseña'} en Nomira: {codigo}"
+    titulo = "Confirme su correo" if registro else "Restablezca su contraseña"
+    motivo = ("Escríbalo en Nomira para crear su cuenta y empezar su prueba gratuita."
+              if registro else "Escríbalo en Nomira para elegir una contraseña nueva.")
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">{titulo}</h1>
+<p style="margin:0 0 20px">Hola {escape(nombre)}. {motivo}</p>
+<p style="margin:0 0 20px;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:{MARINO}">{escape(codigo)}</p>
+<p style="margin:0;font-size:14px;color:#64748b">Vence en {minutos} minutos. Si usted no lo pidió, ignore este correo: nadie podrá entrar sin el código.</p>"""
+    texto = f"Hola {nombre}. {motivo}\nSu código: {codigo}\nVence en {minutos} minutos. Si usted no lo pidió, ignore este correo.\n"
+    return asunto, _base(f"Código {codigo}", contenido, pie="Correo automático de Nomira."), texto
+
+
+def bienvenida_prueba(nombre: str, organizacion: str, fin: date, modulos: list[str]) -> tuple[str, str, str]:
+    asunto = f"Bienvenido a Nomira: su prueba gratuita termina el {fecha_larga(fin)}"
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">¡Bienvenido a Nomira, {escape(nombre)}!</h1>
+<p style="margin:0 0 16px">La cuenta de <b>{escape(organizacion)}</b> está lista. Su prueba gratuita incluye:</p>
+{_lista(modulos)}
+<p style="margin:16px 0 0">Puede usarla hasta el <b>{fecha_larga(fin)}</b>. Al terminar, su información se conserva y puede contratar cuando quiera.</p>
+{_boton("Entrar a Nomira", _url("/login"))}
+<p style="margin:0;font-size:14px;color:#64748b">¿Dudas? Responda este correo y con gusto le ayudamos a configurar su primer caso.</p>"""
+    texto = (f"¡Bienvenido a Nomira, {nombre}! La cuenta de {organizacion} está lista.\nMódulos de su prueba: {', '.join(modulos)}.\n"
+             f"Su prueba gratuita termina el {fecha_larga(fin)}. Entre en {_url('/login')}\n")
+    return asunto, _base("Su prueba gratuita de Nomira está lista", contenido), texto

@@ -315,7 +315,7 @@ def test_autenticacion(cliente, org, db):
     assert cliente.post("/api/auth/login", json={"email": u.email, "contrasena": "incorrecta"}).status_code == 401
     assert cliente.get("/api/expedientes", headers={"Authorization": "Bearer token.falso.xyz"}).status_code == 401
     assert cliente.post("/api/auth/registro", json={"organizacion": "Z", "nombre": "Z", "email": "z@z.test",
-                                                    "contrasena": "corta"}).status_code == 422
+                                                    "contrasena": "corta", "modulos": ["nomina"], "acepto": True}).status_code == 422
     for _ in range(8):
         cliente.post("/api/auth/login", json={"email": u.email, "contrasena": "incorrecta"})
     assert cliente.post("/api/auth/login", json={"email": u.email, "contrasena": "Contrasena-Segura-1"}).status_code == 429
@@ -326,7 +326,7 @@ def test_auditoria_sin_datos_personales(org, db):
     org.subir(eid, _pdf_trimestre())
     org.c.get(f"/api/expedientes/{eid}/exportar/excel", headers=org.h)
     registros = db.query(m.Auditoria).all()
-    assert {"organizacion_creada", "expediente_creado", "documento_cargado", "exportacion_excel"} <= {a.accion for a in registros}
+    assert {"login", "expediente_creado", "documento_cargado", "exportacion_excel"} <= {a.accion for a in registros}
     volcado = " ".join(str(a.detalle) for a in registros)
     assert "EJEMPLO" not in volcado and "900000001" not in volcado
 
@@ -583,4 +583,5 @@ def test_solicitudes_de_informes_y_suscripcion(cliente, org, org2, plataforma, d
     solicitudes._envios.clear()
     codigos = [cliente.post("/api/solicitudes", json={**base, "tipo": "informes"}).status_code for _ in range(6)]
     assert codigos == [201] * 5 + [429]
-    assert cliente.get("/api/publico").json() == {"permitir_registro": True, "whatsapp": None, "precio_desde": None}
+    pub = cliente.get("/api/publico").json()
+    assert {k: pub[k] for k in ("permitir_registro", "whatsapp", "precio_desde", "google")} == {"permitir_registro": True, "whatsapp": None, "precio_desde": None, "google": False}

@@ -25,6 +25,12 @@ services:
         value: produccion
       - key: PERMITIR_REGISTRO
         value: "false"
+      # Entrar y registrarse con Google (Google Cloud → APIs y servicios → Credenciales → ID de cliente OAuth,
+      # tipo «Aplicación web», URI de redirección: https://nomirasoft.com/api/auth/google/callback). Vacíos: sin botón.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
       - key: SEMBRAR_DEMO
         value: "true"
       # Contraseña PRIVADA (12+ caracteres) de las cuentas demo (admin/analista/consulta@demo.local).

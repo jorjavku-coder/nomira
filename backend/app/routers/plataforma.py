@@ -317,7 +317,8 @@ def _c(o: m.Organizacion, met: dict, periodos: list | None = None) -> dict:
     return {"suscripcion": sus.estado(periodos or []), "id": o.id, "nombre": o.nombre, "estado": o.estado, "motivo_suspension": o.motivo_suspension,
             "creado_en": o.creado_en.isoformat(), "usuarios": met["usuarios"].get(o.id, 0),
             "usuarios_activos": met["usuarios_activos"].get(o.id, 0), "expedientes": met["expedientes"].get(o.id, 0),
-            "ultimo_acceso": ult.isoformat() if ult else None, "tickets_abiertos": met["tickets_abiertos"].get(o.id, 0)}
+            "ultimo_acceso": ult.isoformat() if ult else None, "tickets_abiertos": met["tickets_abiertos"].get(o.id, 0),
+            "origen": o.origen, "modulos_prueba": [modulos.MODULOS[x]["nombre"] for x in (o.modulos_prueba or []) if x in modulos.MODULOS]}
 
 
 def _crear_cliente(db: Session, a: m.AdminPlataforma, d: ClienteNuevo, request: Request) -> dict:

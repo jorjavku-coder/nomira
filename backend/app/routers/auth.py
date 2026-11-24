@@ -13,6 +13,7 @@ from ..deps import auditar, ip_cliente, solo_admin, usuario_actual
 from ..freno import FrenoAcceso
 from ..models import ahora
 from ..services import dos_pasos, fotos, modulos
+from ..services import registro as rg
 from ..security import ROLES, crear_token, gastar_tiempo_de_verificacion, hash_contrasena, verificar_contrasena
 
 router = APIRouter(prefix="/api", tags=["autenticación y usuarios"])
@@ -23,13 +24,6 @@ _intentos = FrenoAcceso()  # freno en memoria contra fuerza bruta (vea app/freno
 class Credenciales(BaseModel):
     email: str
     contrasena: str
-
-
-class Registro(BaseModel):
-    organizacion: str = Field(min_length=2, max_length=200)
-    nombre: str = Field(min_length=2, max_length=200)
-    email: str
-    contrasena: str = Field(min_length=10, max_length=128)
 
 
 class UsuarioNuevo(BaseModel):
@@ -124,7 +118,7 @@ def login(c: Credenciales, request: Request, db: Session = Depends(get_db)):
 
 def _sesion(db: Session, u: m.Usuario, org: m.Organizacion) -> dict:
     return {"token": crear_token(u.id, u.organizacion_id, u.sesion_version), "usuario": _u(u),
-            "organizacion": org.nombre, "modulos": modulos.activos(db, u.organizacion_id)}
+            "organizacion": org.nombre, "modulos": modulos.activos(db, u.organizacion_id), "prueba": rg.estado_prueba(db, org)}
 
 
 class SegundoPaso(BaseModel):
@@ -175,36 +169,18 @@ def publico(db: Session = Depends(get_db)):
     if c and c.precios_publicos == "desde":
         minimo = db.scalar(select(func.min(m.CmPaquete.precio_mensual)).where(m.CmPaquete.estado == "activo"))
         desde = cm.txt(minimo) if minimo is not None else None
-    return {"permitir_registro": ajustes().permitir_registro, "whatsapp": digitos if 10 <= len(digitos) <= 15 else None,
-            "precio_desde": desde}
-
-
-@router.post("/auth/registro", status_code=201)
-def registro(r: Registro, request: Request, db: Session = Depends(get_db)):
-    """Alta de una organización nueva con su primer administrador."""
-    if not ajustes().permitir_registro:
-        raise HTTPException(403, "El registro de organizaciones está deshabilitado.")
-    email = _email(r.email)
-    if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
-        raise HTTPException(409, "Ese correo ya está registrado.")
-    org = m.Organizacion(nombre=r.organizacion.strip())
-    db.add(org)
-    db.flush()
-    u = m.Usuario(organizacion_id=org.id, email=email, nombre=r.nombre.strip(),
-                  hash_contrasena=hash_contrasena(r.contrasena), rol="administrador")
-    db.add(u)
-    db.flush()
-    auditar(db, u, "organizacion_creada", "organizacion", org.id, request=request)
-    db.commit()
-    return {"token": crear_token(u.id, org.id, u.sesion_version), "usuario": _u(u), "organizacion": org.nombre,
-            "modulos": modulos.activos(db, org.id)}
+    return {"permitir_registro": rg.registro_abierto(db), "whatsapp": digitos if 10 <= len(digitos) <= 15 else None,
+            "precio_desde": desde, "google": bool(ajustes().google_client_id and ajustes().google_client_secret),
+            "modulos_prueba": [{"clave": k, "nombre": v["nombre"], "descripcion": v["descripcion"]} for k, v in modulos.MODULOS.items()],
+            "max_modulos_prueba": rg.MAX_MODULOS}
 
 
 @router.get("/auth/yo")
 def yo(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     return {"usuario": _u(u), "organizacion": db.get(m.Organizacion, u.organizacion_id).nombre,
             "ia_habilitada": ajustes().ia_habilitada, "max_mb_archivo": ajustes().max_mb_archivo,
-            "permitir_registro": ajustes().permitir_registro, "modulos": modulos.activos(db, u.organizacion_id)}
+            "permitir_registro": ajustes().permitir_registro, "modulos": modulos.activos(db, u.organizacion_id),
+            "prueba": rg.estado_prueba(db, db.get(m.Organizacion, u.organizacion_id))}
 
 
 @router.get("/usuarios")

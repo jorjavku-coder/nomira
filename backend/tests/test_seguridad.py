@@ -84,7 +84,7 @@ def test_ip_real_en_auditoria_y_encabezado_invalido(cliente, org, db, ip_por_enc
 
 def test_sin_encabezado_configurado_se_ignora(cliente, org, db):
     _login(cliente, "admin1@org1.test", BUENA, ip="198.51.100.20")
-    assert db.query(m.Auditoria).filter_by(accion="login").one().ip == "testclient"
+    assert db.query(m.Auditoria).filter_by(accion="login").order_by(m.Auditoria.id.desc()).first().ip == "testclient"
 
 
 def test_correo_inexistente_hace_el_mismo_trabajo(cliente, org, monkeypatch):
