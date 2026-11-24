@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgendaShell, diaLargo, Etq, FilaEvento, FormAsunto, FormEvento, useCatalogosAgenda } from "@/components/agenda";
 import { VigilanciaAsunto } from "@/components/estrados";
-import { ExposicionAsunto } from "@/components/liquidaciones";
+import { AsistenteAsunto, ExposicionAsunto } from "@/components/liquidaciones";
 import { Aviso } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
 
@@ -55,6 +55,7 @@ export default function Asunto() {
         </div>
         <div className="space-y-5">
         <ExposicionAsunto asunto={a} puedeEditar={!!cat?.puede_editar} />
+        <AsistenteAsunto asunto={a} />
         <VigilanciaAsunto asunto={a} puedeEditar={!!cat?.puede_editar} onCambio={cargar} />
         <section className="tarjeta p-4">
           <h2 className="font-semibold text-marino">Actuaciones</h2>

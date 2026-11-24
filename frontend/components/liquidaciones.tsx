@@ -74,3 +74,22 @@ export function ExposicionAsunto({ asunto, puedeEditar }: { asunto: { id: number
     </section>
   );
 }
+
+/** Tarjeta del asunto con accesos al Asistente IA y sus borradores recientes. */
+export function AsistenteAsunto({ asunto }: { asunto: { id: number } }) {
+  const [xs, setXs] = useState<any[] | null>(null);
+  useEffect(() => {
+    if (!(leerSesion()?.modulos ?? []).includes("asistente")) return;
+    api.get(`/asistente/solicitudes?asunto=${asunto.id}`).then((r) => setXs(r.solicitudes)).catch(() => setXs(null));
+  }, [asunto.id]);
+  if (!xs) return null;
+  return (
+    <section className="tarjeta p-4">
+      <div className="flex items-center justify-between gap-2"><h2 className="font-semibold text-marino">Asistente IA</h2>
+        <Link href={`/asistente?asunto=${asunto.id}`} className="text-sm font-semibold text-turquesa-700 underline">+ Redactar</Link></div>
+      {xs.length ? <ul className="mt-2 space-y-1 text-sm">{xs.slice(0, 5).map((s) => (
+        <li key={s.id}><Link href={`/asistente?asunto=${asunto.id}`} className="text-marino hover:underline">{s.titulo}</Link></li>))}</ul>
+        : <p className="mt-1 text-sm text-slate-500">Pida un borrador de escrito o un resumen con los datos de este asunto.</p>}
+    </section>
+  );
+}

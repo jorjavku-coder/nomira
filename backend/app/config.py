@@ -91,6 +91,7 @@ class Ajustes(BaseSettings):
     # La clave se toma de ANTHROPIC_API_KEY (variable de entorno estándar del SDK).
     ia_habilitada: bool = False
     ia_modelo: str = "claude-opus-5-5"
+    ia_limite_mensual: int = 200  # Asistente IA: solicitudes por organización al mes (control de costo)
 
 
 @lru_cache

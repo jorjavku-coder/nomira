@@ -33,6 +33,7 @@ export default function Clientes() {
           <h1 className="text-3xl font-extrabold text-marino">Clientes y cobranza</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">Capture a cada cliente una sola vez: sus datos, documentos y pagos quedan aquí, y en cada módulo solo lo elige.</p></div>
         <div className="flex flex-wrap items-center gap-2"><BotonAyuda modulo="clientes" />
+          <Link href="/clientes/cobro" className="btn-sec">Cobro y facturación</Link>
           {r?.puede_editar && <><button className="btn-sec" onClick={() => setDialogo("importar")}>Importar de Excel</button>
             <button className="btn-turquesa" onClick={() => setDialogo("nuevo")}>+ Nuevo cliente</button></>}</div>
       </div>

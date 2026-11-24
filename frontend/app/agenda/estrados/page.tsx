@@ -26,7 +26,7 @@ export default function Estrados() {
     <AgendaShell>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-extrabold text-marino">Estrados digitales</h1>
-          <p className="mt-1 text-sm text-slate-500">Avisos cuando se publica algo de sus expedientes · TRIJAEM (Tribunal de Justicia Administrativa del Estado de México)</p></div>
+          <p className="mt-1 text-sm text-slate-500">Avisos cuando se publica algo de sus expedientes · TRIJAEM (Estado de México) y Lista de acuerdos del Poder Judicial de la Federación</p></div>
         {r?.puede_editar && <button className="btn-turquesa" onClick={() => setCotejo(true)}>Cotejar lista del día</button>}
       </div>
       <div className="mb-4 space-y-2"><Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso></div>
@@ -37,6 +37,8 @@ export default function Estrados() {
             : <p><b>Revisión automática apagada.</b> Use <b>«Cotejar lista del día»</b>: pegue la lista o suba el PDF de estrados y Nomira encuentra al instante todos los expedientes que su despacho vigila y avisa a cada responsable.</p>}
           <p className="mt-1 text-xs opacity-80">{r.fuentes[0]?.efectos} Nomira no sustituye la consulta oficial: la fecha en que surte efectos es una estimación que el abogado debe confirmar. <a className="underline" href={r.fuentes[0]?.consulta} target="_blank" rel="noopener noreferrer">Abrir estrados del TRIJAEM ↗</a></p>
         </div>
+        {r.revision_pjf?.length > 0 && <RevisionPJF grupos={r.revision_pjf} consulta={r.fuentes.find((x: any) => x.clave === "pjf")?.consulta}
+          puedeEditar={r.puede_editar} onListo={(x) => { setOk(x); cargar(); }} />}
         <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
           <section className="tarjeta overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-crema-300 px-4 py-3">
@@ -104,5 +106,58 @@ function Cotejo({ onCerrar, onListo }: { onCerrar: () => void; onListo: (msg: st
           <button className="btn-turquesa" disabled={enviando}>{enviando ? "Buscando…" : "Buscar mis expedientes"}</button></div>
       </form>
     </Modal>
+  );
+}
+
+/** Revisión diaria asistida del PJF: una búsqueda por órgano en la consulta oficial (que pide «No soy un robot»). */
+function RevisionPJF({ grupos, consulta, puedeEditar, onListo }: { grupos: any[]; consulta: string; puedeEditar: boolean; onListo: (msg: string) => void }) {
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+  const [fechaP, setFechaP] = useState(hoyLocal());
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const clave = (g: any) => g.id_organo || g.organo;
+  async function cotejar(g: any) {
+    setError(""); setEnviando(true);
+    try {
+      const x = await api.post("/agenda/estrados/cotejar", { fecha: fechaP, texto, fuente: "pjf", id_organo: g.id_organo || null, sala: g.id_organo ? null : g.organo });
+      setTexto(""); setAbierto(null);
+      onListo(x.nuevas.length ? `${g.organo}: ${x.nuevas.length} acuerdo(s) nuevo(s) de sus expedientes. Ya avisamos a los responsables.`
+        : x.ya_registradas ? `${g.organo}: esos acuerdos ya estaban registrados.` : `${g.organo}: ninguno de sus expedientes aparece en ese resultado.`);
+    } catch (e: any) { setError(e.message); } finally { setEnviando(false); }
+  }
+  return (
+    <section className="tarjeta mb-5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div><h2 className="font-semibold text-marino">Revisión diaria del PJF</h2>
+          <p className="max-w-3xl text-xs text-slate-500">La Lista de acuerdos federal pide «No soy un robot», por eso no se revisa sola. Por cada juzgado: copie los expedientes, búsquelos todos a la vez en la consulta oficial y pegue aquí el resultado.</p></div>
+        <a href={consulta} target="_blank" rel="noopener noreferrer" className="btn-sec">Abrir Lista de acuerdos del PJF ↗</a>
+      </div>
+      <ul className="mt-3 divide-y divide-crema-200">{grupos.map((g) => (
+        <li key={clave(g)} className="py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><p className="font-semibold text-marino">{g.organo}</p><p className="text-xs text-slate-500">{g.circuito} · {g.expedientes.length} expediente(s)</p></div>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="rounded-lg bg-crema px-2 py-1 font-mono text-xs">{g.busqueda}</code>
+              <button className="text-xs font-semibold text-turquesa-700 underline" onClick={() => { navigator.clipboard?.writeText(g.busqueda); setCopiado(clave(g)); }}>
+                {copiado === clave(g) ? "✓ Copiados" : "Copiar expedientes"}</button>
+              {puedeEditar && <button className="text-xs font-semibold text-turquesa-700 underline" onClick={() => { setAbierto(abierto === clave(g) ? null : clave(g)); setTexto(""); setError(""); }}>Pegar resultado</button>}
+            </div>
+          </div>
+          {abierto === clave(g) && <div className="mt-2 space-y-2 rounded-xl bg-crema/60 p-3">
+            <ol className="list-decimal space-y-0.5 pl-5 text-xs text-slate-600">
+              <li>En la consulta oficial elija «Por Órgano Jurisdiccional»: {g.circuito} → <b>{g.organo}</b>, y la fecha.</li>
+              <li>En «Número de expediente» pegue: <span className="font-mono">{g.busqueda}</span></li>
+              <li>Marque «No soy un robot», busque y copie todo el resultado.</li></ol>
+            <div className="grid gap-2 sm:grid-cols-[12rem_1fr]">
+              <label><span className="etiqueta">Fecha de la lista</span><input className="campo" type="date" max={hoyLocal()} value={fechaP} onChange={(e) => setFechaP(e.target.value)} /></label>
+              <label><span className="etiqueta">Resultado de la consulta</span><textarea className="campo font-mono text-xs" rows={5} value={texto} onChange={(e) => setTexto(e.target.value)} /></label>
+            </div>
+            <Aviso>{error}</Aviso>
+            <div className="flex justify-end"><button className="btn-turquesa" disabled={enviando || texto.trim().length < 5} onClick={() => cotejar(g)}>{enviando ? "Buscando…" : "Buscar mis expedientes"}</button></div>
+          </div>}
+        </li>))}</ul>
+    </section>
   );
 }

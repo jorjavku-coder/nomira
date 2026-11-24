@@ -1722,6 +1722,7 @@ class AgVigilancia(Base):
     expediente: Mapped[str] = mapped_column(String(80))  # como lo publica el tribunal, p. ej. 1234/2026
     sala: Mapped[str | None] = mapped_column(String(120))
     id_sala: Mapped[str | None] = mapped_column(String(10))  # clave de la sala en el sistema del tribunal
+    circuito: Mapped[str | None] = mapped_column(String(10))  # PJF: circuito judicial (clave de la consulta oficial)
     promociones: Mapped[list | None] = mapped_column(JSON)  # números de promoción presentados que se quieren seguir
     activa: Mapped[bool] = mapped_column(Boolean, default=True)
     ultima_revision: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -2050,3 +2051,84 @@ class LqCalculo(Base):
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AsSolicitud(Base):
+    """Asistente IA: un borrador, resumen o explicación generado para el despacho (texto editable por el abogado)."""
+    __tablename__ = "as_solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    ag_asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="SET NULL"), index=True)
+    tipo: Mapped[str] = mapped_column(String(15))  # borrador | resumen | acuerdo
+    plantilla: Mapped[str | None] = mapped_column(String(40))  # tipo de escrito
+    titulo: Mapped[str] = mapped_column(String(200))
+    instrucciones: Mapped[str | None] = mapped_column(Text)
+    documentos: Mapped[list | None] = mapped_column(JSON)  # [{nombre, caracteres}] — el contenido no se guarda
+    estado: Mapped[str] = mapped_column(String(12), default="generando")  # generando | listo | error
+    resultado: Mapped[str | None] = mapped_column(Text)
+    editado: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str | None] = mapped_column(String(300))
+    modelo: Mapped[str | None] = mapped_column(String(60))
+    tokens_entrada: Mapped[int | None] = mapped_column(Integer)
+    tokens_salida: Mapped[int | None] = mapped_column(Integer)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CrConfigCobro(Base):
+    """Cobro en línea (Stripe del propio despacho) y factura electrónica (Facturapi del propio despacho). Llaves cifradas."""
+    __tablename__ = "cr_config_cobro"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    stripe_llave_cifrada: Mapped[str | None] = mapped_column(Text)
+    stripe_pista: Mapped[str | None] = mapped_column(String(30))
+    facturapi_llave_cifrada: Mapped[str | None] = mapped_column(Text)
+    facturapi_pista: Mapped[str | None] = mapped_column(String(30))
+    clave_producto: Mapped[str | None] = mapped_column(String(8))  # ClaveProdServ del SAT (lo confirma su contador)
+    clave_unidad: Mapped[str] = mapped_column(String(5), default="E48")  # Unidad de servicio
+    uso_cfdi: Mapped[str] = mapped_column(String(5), default="G03")
+    retenciones: Mapped[str] = mapped_column(String(15), default="ninguna")  # ninguna | honorarios | resico (solo a personas morales)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CrLigaPago(Base):
+    """Liga de pago (Stripe Checkout del despacho) por lo pendiente de un cargo. Al pagarse se registra el pago."""
+    __tablename__ = "cr_ligas_pago"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    cargo_id: Mapped[int | None] = mapped_column(ForeignKey("cr_cargos.id", ondelete="SET NULL"))
+    concepto: Mapped[str] = mapped_column(String(250))
+    monto: Mapped[Decimal] = mapped_column(DINERO)
+    stripe_sesion: Mapped[str] = mapped_column(String(120), unique=True)
+    url: Mapped[str] = mapped_column(String(1000))
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | pagada | vencida | cancelada
+    pago_id: Mapped[int | None] = mapped_column(ForeignKey("cr_pagos.id", ondelete="SET NULL"))
+    expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revisada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    pagada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CrFactura(Base):
+    """CFDI 4.0 timbrado con el Facturapi del despacho, ligado a un pago (método PUE)."""
+    __tablename__ = "cr_facturas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    pago_id: Mapped[int | None] = mapped_column(ForeignKey("cr_pagos.id", ondelete="SET NULL"), index=True)
+    facturapi_id: Mapped[str] = mapped_column(String(60), unique=True)
+    uuid: Mapped[str | None] = mapped_column(String(40))
+    serie_folio: Mapped[str | None] = mapped_column(String(40))
+    subtotal: Mapped[Decimal] = mapped_column(DINERO)
+    total: Mapped[Decimal] = mapped_column(DINERO)
+    uso: Mapped[str] = mapped_column(String(5))
+    forma_pago: Mapped[str] = mapped_column(String(3))
+    prueba: Mapped[bool] = mapped_column(Boolean, default=False)  # timbrada con llave de prueba (sin validez fiscal)
+    estado: Mapped[str] = mapped_column(String(16), default="valida")  # valida | en_cancelacion | cancelada
+    motivo_cancelacion: Mapped[str | None] = mapped_column(String(5))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

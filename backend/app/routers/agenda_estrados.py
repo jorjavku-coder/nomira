@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..db import get_db
 from ..deps import auditar, puede_editar, usuario_actual
-from ..services.agenda import base, estrados as est
+from ..services.agenda import base, estrados as est, pjf
 
 router = APIRouter(prefix="/api/agenda", tags=["Nomira Agenda Jurídica · Estrados"])
 MAX_PDF = 15 * 1024 * 1024
@@ -47,6 +47,7 @@ def _vig_dict(db: Session, v: m.AgVigilancia, a: m.AgAsunto | None = None) -> di
     nv = db.scalar(select(func.count(m.AgPublicacion.id)).where(m.AgPublicacion.vigilancia_id == v.id, m.AgPublicacion.vista_en.is_(None))) or 0
     return {"id": v.id, "asunto_id": v.asunto_id, "asunto": a.titulo if a else None, "asunto_estado": a.estado if a else None,
             "fuente": v.fuente, "fuente_texto": est.FUENTES[v.fuente]["nombre"], "expediente": v.expediente, "sala": v.sala, "id_sala": v.id_sala,
+            "circuito": v.circuito, "circuito_texto": pjf.CIRCUITOS.get(v.circuito or ""),
             "promociones": v.promociones or [], "activa": v.activa,
             "ultima_revision": v.ultima_revision.isoformat() if v.ultima_revision else None, "ultimo_estado": v.ultimo_estado,
             "ultimo_error": v.ultimo_error, "publicaciones": n, "sin_ver": nv}
@@ -81,6 +82,7 @@ def resumen(solo_sin_ver: bool = False, u: m.Usuario = Depends(usuario_actual), 
     pubs = db.scalars(q.order_by(m.AgPublicacion.fecha_publicacion.desc(), m.AgPublicacion.id.desc()).limit(100)).all()
     nombres = _nombres(db, u.organizacion_id)
     return {"automatica": est.configurado(), "salas": [{"id": k, "nombre": n} for k, n in est.SALAS_TRIJAEM.items()], "fuentes": [{"clave": k, **f} for k, f in est.FUENTES.items()],
+            "circuitos": [{"id": k, "nombre": n} for k, n in pjf.CIRCUITOS.items()], "revision_pjf": _revision_pjf(vig),
             "revisar_cada_horas": est.REVISAR_CADA_HORAS, "horario": list(est.HORARIO),
             "vigilancias": [_vig_dict(db, v) for v in vig], "publicaciones": [_pub_dict(db, p, nombres) for p in pubs],
             "sin_ver": sin_ver(db, u), "puede_editar": u.rol in ("administrador", "analista")}
@@ -88,9 +90,35 @@ def resumen(solo_sin_ver: bool = False, u: m.Usuario = Depends(usuario_actual), 
 
 # ------------------------------------------------------------------ vigilar un asunto
 
+def _revision_pjf(vig: list[m.AgVigilancia]) -> list[dict]:
+    """Expedientes federales vigilados agrupados por órgano: una búsqueda por órgano en la consulta oficial."""
+    grupos: dict[str, dict] = {}
+    for v in vig:
+        if v.fuente != "pjf" or not v.activa:
+            continue
+        g = grupos.setdefault(v.id_sala or (v.sala or "").lower(), {"organo": v.sala, "id_organo": v.id_sala, "circuito": pjf.CIRCUITOS.get(v.circuito or ""),
+                                                                   "expedientes": []})
+        if v.expediente not in g["expedientes"]:
+            g["expedientes"].append(v.expediente)
+    r = sorted(grupos.values(), key=lambda g: (g["circuito"] or "", g["organo"] or ""))
+    for g in r:
+        g["expedientes"].sort(key=lambda x: est.clave_expediente(x) or (0, 0))
+        g["busqueda"] = ", ".join(est.numero_tribunal(x) or x for x in g["expedientes"])
+    return r
+
+
+@router.get("/estrados/pjf/organos")
+def organos_pjf(circuito: str, u: m.Usuario = Depends(usuario_actual)):
+    try:
+        return {"organos": pjf.organos(circuito)}
+    except pjf.SinCatalogo:
+        raise HTTPException(503, "No pudimos leer la lista de órganos del PJF en este momento. Escriba el nombre del juzgado o tribunal tal como aparece en la consulta oficial.")
+
+
 class VigilanciaIn(BaseModel):
     expediente: str = Field(min_length=3, max_length=80)
     id_sala: str | None = Field(None, max_length=10)
+    circuito: str | None = Field(None, max_length=10)
     sala: str | None = Field(None, max_length=120)  # solo si no se elige de la lista
     promociones: list[str] = Field(default_factory=list, max_length=50)
     fuente: str = "trijaem"
@@ -104,15 +132,27 @@ def vigilar(aid: int, d: VigilanciaIn, request: Request, u: m.Usuario = Depends(
         raise HTTPException(422, "Tribunal no disponible.")
     if not est.clave_expediente(d.expediente):
         raise HTTPException(422, "Escriba el número de expediente como lo publica el tribunal, con número y año (por ejemplo 1234/2026).")
-    v = db.scalar(select(m.AgVigilancia).where(m.AgVigilancia.asunto_id == a.id, m.AgVigilancia.fuente == d.fuente))
+    # una vigilancia por asunto: cambiar de tribunal reutiliza la misma
+    v = db.scalar(select(m.AgVigilancia).where(m.AgVigilancia.asunto_id == a.id).order_by(m.AgVigilancia.id))
     if v is None:
         v = m.AgVigilancia(organizacion_id=u.organizacion_id, asunto_id=a.id, fuente=d.fuente, creado_por_id=u.id)
         db.add(v)
-    if d.id_sala and d.id_sala not in est.SALAS_TRIJAEM:
-        raise HTTPException(422, "Elija la sala de la lista.")
-    sala = est.SALAS_TRIJAEM[d.id_sala] if d.id_sala else ((d.sala or "").strip()[:120] or None)
+    if d.fuente == "pjf":
+        if d.circuito not in pjf.CIRCUITOS:
+            raise HTTPException(422, "Elija el circuito.")
+        sala = (d.sala or "").strip()[:120] or None
+        if not sala:
+            raise HTTPException(422, "Elija o escriba el juzgado o tribunal.")
+        if d.id_sala and not d.id_sala.isdigit():
+            raise HTTPException(422, "Órgano inválido.")
+    else:
+        if d.id_sala and d.id_sala not in est.SALAS_TRIJAEM:
+            raise HTTPException(422, "Elija la sala de la lista.")
+        sala = est.SALAS_TRIJAEM[d.id_sala] if d.id_sala else ((d.sala or "").strip()[:120] or None)
+    cambio_fuente = v.fuente != d.fuente
+    v.fuente, v.circuito = d.fuente, (d.circuito if d.fuente == "pjf" else None)
     promos = list(dict.fromkeys(x.strip()[:30] for x in d.promociones if x and x.strip()))
-    cambio = v.expediente != est.normalizar_expediente(d.expediente) or v.id_sala != (d.id_sala or None)
+    cambio = cambio_fuente or v.expediente != est.normalizar_expediente(d.expediente) or v.id_sala != (d.id_sala or None)
     v.expediente, v.sala, v.id_sala, v.promociones, v.activa = est.normalizar_expediente(d.expediente), sala, d.id_sala or None, promos, d.activa
     if cambio:
         v.ultima_revision, v.ultimo_estado, v.ultimo_error = None, "pendiente", None
@@ -140,6 +180,8 @@ def dejar_de_vigilar(vid: int, request: Request, u: m.Usuario = Depends(puede_ed
 @router.post("/vigilancias/{vid}/revisar")
 def revisar_ahora(vid: int, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
     v = _de_org(db, m.AgVigilancia, vid, u)
+    if v.fuente == "pjf":
+        raise HTTPException(409, "La lista de acuerdos del PJF está protegida con reCAPTCHA y no se consulta en automático. Use «Revisión diaria del PJF».")
     if not est.configurado(v.fuente):
         raise HTTPException(409, "La revisión automática del TRIJAEM está apagada en Nomira. Mientras tanto use «Cotejar lista del día».")
     if not v.id_sala:
@@ -153,11 +195,15 @@ def revisar_ahora(vid: int, u: m.Usuario = Depends(puede_editar), db: Session = 
 
 # ------------------------------------------------------------------ cotejar la lista del día
 
-def _cotejar(db: Session, u: m.Usuario, texto: str, fecha: date, sala: str | None) -> dict:
+def _cotejar(db: Session, u: m.Usuario, texto: str, fecha: date, sala: str | None, fuente: str | None = None, id_organo: str | None = None) -> dict:
     if fecha > base.hoy():
         raise HTTPException(422, "La fecha de publicación no puede ser futura.")
     vig = list(db.scalars(select(m.AgVigilancia).join(m.AgAsunto, m.AgAsunto.id == m.AgVigilancia.asunto_id)
                           .where(m.AgVigilancia.organizacion_id == u.organizacion_id, m.AgVigilancia.activa.is_(True), m.AgAsunto.estado == "activo")))
+    if fuente:
+        vig = [v for v in vig if v.fuente == fuente]
+    if id_organo:
+        vig = [v for v in vig if v.id_sala == id_organo]
     if not vig:
         raise HTTPException(409, "Aún no vigila ningún expediente. Abra un asunto y active «Vigilar en estrados».")
     hallados = est.cotejar_texto(texto, fecha, vig, sala)
@@ -178,12 +224,14 @@ class CotejoIn(BaseModel):
     fecha: date
     texto: str = Field(min_length=5, max_length=2_000_000)
     sala: str | None = Field(None, max_length=120)
+    fuente: str | None = Field(None, max_length=30)
+    id_organo: str | None = Field(None, max_length=10)
 
 
 @router.post("/estrados/cotejar")
 def cotejar(d: CotejoIn, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
-    r = _cotejar(db, u, d.texto, d.fecha, (d.sala or "").strip() or None)
-    auditar(db, u, "ag_estrados_cotejo", "ag_vigilancia", None, {"encontrados": r["encontrados"]}, request)
+    r = _cotejar(db, u, d.texto, d.fecha, None if d.id_organo else ((d.sala or "").strip() or None), d.fuente, d.id_organo)
+    auditar(db, u, "ag_estrados_cotejo", "ag_vigilancia", None, {"encontrados": r["encontrados"], "fuente": d.fuente}, request)
     db.commit()
     return r
 
