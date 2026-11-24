@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import SitioPublico from "@/components/SitioPublico";
 
 export const metadata: Metadata = {
-  title: "Nomira — Análisis de comprobantes de nómina y prestaciones por quincena",
-  description: "Nomira lee comprobantes de nómina en PDF, suma solo las prestaciones de su catálogo autorizado y entrega el desglose por quincena, con cada cifra ligada a su comprobante.",
+  title: "Nomira — Software para despachos de abogados y notarías en México",
+  description: "Liquidaciones LFT, agenda con revisión de estrados, portal para su cliente, cobranza, nómina, evidencia, AFORE, prospectos y escrituración para notarías. Contrate solo los módulos que necesita.",
   openGraph: {
     title: "Nomira — Cada prestación, en claro",
-    description: "Desglose de prestaciones por quincena a partir de comprobantes de nómina en PDF, con trazabilidad completa.",
+    description: "Software para despachos y notarías: liquidaciones, agenda, estrados, portal del cliente y más.",
     type: "website", locale: "es_MX", siteName: "Nomira",
   },
 };

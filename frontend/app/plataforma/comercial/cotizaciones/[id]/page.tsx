@@ -167,7 +167,7 @@ function RevisionEnvio({ c, cat, onEnviada, onError }: { c: any; cat: any; onEnv
         <dt className="text-slate-500">Paquete</dt><dd>{calc.paquete.nombre} · cobro {calc.periodicidad.nombre.toLowerCase()}</dd>
         <dt className="text-slate-500">Módulos</dt><dd>{calc.modulos.map((m: any) => m.nombre + (m.incluido ? "" : " (adicional)")).join(", ")}</dd>
         <dt className="text-slate-500">Capacidades</dt><dd>{calc.usuarios.total} usuarios internos · {calc.almacenamiento.total_gb} GB</dd>
-        <dt className="text-slate-500">Precio</dt><dd>Subtotal {mxn(calc.subtotal)}{calc.descuento ? ` · descuento -${mxn(calc.descuento.importe)}` : ""} · IVA {mxn(calc.iva)} · <b>Total {mxn(calc.total)} MXN</b></dd>
+        <dt className="text-slate-500">Precio</dt><dd>Subtotal {mxn(calc.subtotal)}{calc.descuento ? ` · descuento -${mxn(calc.descuento.importe)}` : ""}{calc.cupon ? ` · cupón ${calc.cupon.codigo} -${mxn(calc.cupon.importe)}` : ""} · IVA {mxn(calc.iva)} · <b>Total {mxn(calc.total)} MXN</b></dd>
         <dt className="text-slate-500">Vigencia</dt><dd>Hasta {fechaHora(c.vence_en)}</dd>
         <dt className="text-slate-500">Formas de pago</dt><dd>{formas.length ? formas.map((f: any) => f.nombre).join(", ") : <span className="text-amber-800">Ninguna configurada: el PDF dirá que se compartirán al contratar.</span>}</dd>
       </dl>

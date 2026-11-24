@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,9 @@ from ..config import ajustes
 from ..db import get_db
 from ..deps import ip_cliente
 from ..freno import Ventana
+from ..services import suscripciones as sus
 from ..services.comercial import base as cm
+from ..services.comercial import cupones
 from ..services.comercial import pdf as cm_pdf
 from ..services.comercial import stripe as st
 from .comercial import _aplicar_pagos
@@ -137,6 +139,41 @@ def ajustes_(d: AjusteIn, request: Request, x_enlace: str | None = Header(None),
     c.actualizado_en = cm.ahora()
     db.commit()
     return {"ok": True, "mensaje": "Recibimos su solicitud. El equipo comercial le responderá; la propuesta no cambia hasta que le enviemos una nueva versión."}
+
+
+class CuponIn(BaseModel):
+    codigo: str = Field(min_length=3, max_length=40)
+
+
+_cupon_ip = Ventana(15, 3600)
+
+
+@router.post("/api/propuesta/cupon")
+def aplicar_cupon(d: CuponIn, request: Request, x_enlace: str | None = Header(None), db: Session = Depends(get_db)):
+    """El cliente aplica un código de descuento antes de aceptar. Se crea una versión nueva (mismos precios congelados
+    con el cupón) que pasa a ser la que ve y acepta; la anterior queda en el historial."""
+    _freno(_cupon_ip, request)
+    c, v, no = _abrir(db, x_enlace)
+    if no or c.estado not in cm.ABIERTAS_CLIENTE:
+        raise HTTPException(409, (no or {}).get("mensaje") or "Los cupones se aplican antes de aceptar la propuesta.")
+    if v.calculo.get("cupon"):
+        raise HTTPException(409, f"Esta propuesta ya tiene el cupón {v.calculo['cupon']['codigo']}.")
+    cupon = cupones.buscar(db, d.codigo, sus.hoy())
+    calc = cupones.aplicar(v.calculo, cupon)
+    numero = (db.scalar(select(func.max(m.CmVersion.numero)).where(m.CmVersion.cotizacion_id == c.id)) or 0) + 1
+    nv = m.CmVersion(cotizacion_id=c.id, numero=numero, entrada={**v.entrada, "cupon": cupon.codigo}, nomira=v.nomira,
+                     preparada_por=v.preparada_por, creado_por_id=None)
+    cm.aplicar_calculo(nv, calc)
+    db.add(nv)
+    db.flush()
+    nv.cambios = cm.cambios_entre(v, nv, None, c.vence_en)
+    nv.huella = cm.huella_version(c, nv)
+    nv.enviada_en = cm.ahora()
+    c.version_actual, c.actualizado_en = numero, cm.ahora()
+    cm.evento(db, c, "cupon_aplicado", actor="cliente", version_num=numero,
+              detalle={"codigo": cupon.codigo, "importe": calc["cupon"]["importe"], "version_anterior": v.numero})
+    db.commit()
+    return {"ok": True, **_publica(c, nv, db)}
 
 
 class AceptarIn(BaseModel):

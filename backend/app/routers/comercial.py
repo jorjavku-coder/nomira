@@ -21,6 +21,7 @@ from ..db import get_db
 from ..services import almacenamiento as almacen, correo, envios, modulos, suscripciones as sus
 from ..services.comercial import base as cm
 from ..services.comercial import correo as cm_correo
+from ..services.comercial import cupones
 from ..services.comercial import pdf as cm_pdf
 from ..services.ventas import base as ventas
 from .plataforma import _registrar, admin_plataforma, superadmin
@@ -810,6 +811,7 @@ def _aplicar_pagos(db: Session, c: m.CmCotizacion, v: m.CmVersion, actor: str, a
     pagado = db.scalar(select(func.coalesce(func.sum(m.CmPago.monto), 0)).where(m.CmPago.cotizacion_id == c.id, m.CmPago.estado == "confirmado"))
     if Decimal(pagado) >= v.total and c.estado != "pagada":
         c.estado, c.pagada_en = "pagada", cm.ahora()
+        cupones.contar_uso(db, v.calculo)
         cm.evento(db, c, "pagada", actor=actor, admin=admin, detalle={"pagado": _txt(Decimal(pagado))})
     elif c.estado in ("enviada", "vista", "aceptada"):
         c.estado = "pendiente_pago"

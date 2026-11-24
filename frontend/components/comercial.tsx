@@ -29,7 +29,9 @@ export function ComercialShell({ children }: { children: React.ReactNode }) {
     ["/plataforma/comercial/cotizaciones", "Cotizaciones", ruta.startsWith("/plataforma/comercial/cotizaciones")],
     ["/plataforma/comercial/paquetes", "Paquetes y precios", ruta.startsWith("/plataforma/comercial/paquetes")],
     ["/plataforma/comercial/configuracion", "Configuración comercial", ruta.startsWith("/plataforma/comercial/configuracion")],
-  ] : [["/plataforma/ventas", "← Ventas", false], ["/plataforma/comercial/cotizaciones", "Cotizaciones", deCotizaciones]]) as [string, string, boolean][];
+    ["/plataforma/comercial/cupones", "Cupones", ruta.startsWith("/plataforma/comercial/cupones")],
+  ] : [["/plataforma/ventas", "← Ventas", false], ["/plataforma/comercial/cotizaciones", "Cotizaciones", deCotizaciones],
+    ["/plataforma/comercial/cupones", "Cupones", ruta.startsWith("/plataforma/comercial/cupones")]]) as [string, string, boolean][];
   return (
     <ShellPlataforma>
       <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-700">{super_ ? "Comercial · solo superadministrador" : "Cotizaciones · equipo de ventas"}</p>
@@ -38,7 +40,7 @@ export function ComercialShell({ children }: { children: React.ReactNode }) {
           <Link key={href} href={href} aria-current={activo ? "page" : undefined}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold ${activo ? "border-turquesa text-marino" : "border-transparent text-slate-500 hover:text-marino"}`}>{t}</Link>))}
       </nav>
-      {sesion && !esSuperadmin(sesion) && !deCotizaciones
+      {sesion && !esSuperadmin(sesion) && !deCotizaciones && !ruta.startsWith("/plataforma/comercial/cupones")
         ? <Aviso>Solo un superadministrador de Nomira puede usar el módulo Comercial. Si su rol cambió, cierre sesión y vuelva a entrar.</Aviso>
         : children}
     </ShellPlataforma>
@@ -86,6 +88,7 @@ export function Desglose({ calc }: { calc: any }) {
       <dl className="mt-2 space-y-1 border-t border-crema-300 pt-2">
         <div className="flex justify-between"><dt>Subtotal</dt><dd>{mxn(calc.subtotal)}</dd></div>
         {calc.descuento && <div className="flex justify-between text-emerald-700"><dt>Descuento</dt><dd>-{mxn(calc.descuento.importe)}</dd></div>}
+        {calc.cupon && <div className="flex justify-between text-emerald-700"><dt>Cupón {calc.cupon.codigo} ({calc.cupon.texto})</dt><dd>-{mxn(calc.cupon.importe)}</dd></div>}
         <div className="flex justify-between"><dt>IVA ({Number(calc.iva_pct)}%)</dt><dd>{mxn(calc.iva)}</dd></div>
         <div className="flex justify-between rounded-xl bg-turquesa-700 px-3 py-2 text-base font-bold text-white"><dt>Total MXN</dt><dd>{mxn(calc.total)}</dd></div>
       </dl>
@@ -254,6 +257,10 @@ export function Constructor({ cat, cot, onGuardado, onCancelar, inicial }: { cat
             </div>
             <p className="mt-1 text-xs text-slate-500">El motivo queda registrado y no aparece en el PDF.</p>
           </fieldset>
+          <label className="sm:col-span-2"><span className="etiqueta">Cupón de descuento (opcional)</span>
+            <input className="campo font-mono uppercase" placeholder="p. ej. BLACKDAY2026" value={e.cupon || ""} maxLength={40}
+              onChange={(ev) => setE({ cupon: ev.target.value.replace(/\s/g, "").toUpperCase() || null })} />
+            <span className="mt-0.5 block text-xs text-slate-500">Se valida al calcular. El cliente también puede capturarlo en su propuesta antes de aceptarla.</span></label>
           <fieldset className="rounded-xl border border-crema-300 p-3 sm:col-span-2">
             <legend className="px-1 text-sm font-semibold text-marino">Servicios incluidos (pago único; precio 0 = sin costo)</legend>
             <div className="space-y-2">

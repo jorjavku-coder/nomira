@@ -1500,6 +1500,26 @@ class CmPago(Base):
     confirmado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class CmCupon(Base):
+    """Código de descuento (p. ej. BLACKDAY2026) que se aplica a una cotización, en el panel o en la propuesta del cliente."""
+    __tablename__ = "cm_cupones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(40), unique=True)  # MAYÚSCULAS, sin espacios
+    descripcion: Mapped[str | None] = mapped_column(String(300))  # interna: campaña, motivo
+    tipo: Mapped[str] = mapped_column(String(12))  # porcentaje | monto
+    valor: Mapped[Decimal] = mapped_column(DINERO)
+    aplica_a: Mapped[str] = mapped_column(String(12), default="todo")  # todo | recurrente (solo la suscripción, no servicios ni cursos)
+    inicia_en: Mapped[date | None] = mapped_column(Date)
+    vence_en: Mapped[date | None] = mapped_column(Date)  # último día válido
+    usos_maximos: Mapped[int | None] = mapped_column(Integer)  # vacío = sin límite
+    usos: Mapped[int] = mapped_column(Integer, default=0)  # cotizaciones PAGADAS con el cupón
+    minimo: Mapped[Decimal | None] = mapped_column(DINERO)  # subtotal mínimo antes de IVA
+    estado: Mapped[str] = mapped_column(String(12), default="activo")  # activo | suspendido
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("administradores_plataforma.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CmEventoStripe(Base):
     """Eventos de Stripe ya procesados: el mismo evento nunca se aplica dos veces."""
     __tablename__ = "cm_eventos_stripe"

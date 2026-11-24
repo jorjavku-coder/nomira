@@ -139,3 +139,10 @@ def test_permisos_modulo_y_aislamiento(org, org2, plataforma):
     assert org.c.get(L, headers=org.h).status_code == 403
     activar(plataforma, org, "nomina")
     assert org.c.delete(f"{L}/{x['id']}", headers=org.h).json() == {"ok": True}
+
+
+def test_calculadora_publica(cliente):
+    r = cliente.post("/api/publico/finiquito", json={"fecha_ingreso": "2023-01-16", "fecha_baja": "2026-07-15", "causa": "renuncia", "salario_diario": "400"})
+    assert r.status_code == 200 and r.json()["total"] == "7684.93"
+    assert cliente.post("/api/publico/finiquito", json={**DATOS, "otros": [{"concepto": "PTU", "importe": "1"}]}).status_code == 422
+    assert cliente.post("/api/publico/finiquito", json={**DATOS, "fecha_baja": "2019-01-01"}).status_code == 422

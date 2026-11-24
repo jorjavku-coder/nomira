@@ -8,6 +8,7 @@ const EVENTO = "nomira-plataforma-sesion";
 
 export type AdminP = { id: number; nombre: string; email: string; activo: boolean; ultimo_acceso: string | null; rol?: string };
 export const esSuperadmin = (s: SesionP | null) => s?.admin.rol === "superadministrador";
+export const esEjecutivo = (s: SesionP | null) => s?.admin.rol === "ejecutivo_comercial";
 export type SesionP = { token: string; admin: AdminP };
 
 export function leerSesionP(): SesionP | null {

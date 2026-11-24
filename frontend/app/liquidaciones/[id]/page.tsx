@@ -77,7 +77,7 @@ function Editor() {
       setPersona({ trabajador: c.trabajador, patron: c.patron || "", titulo: c.titulo, ag_asunto_id: c.ag_asunto_id ? String(c.ag_asunto_id) : "",
         propuesta: c.propuesta || "", autorizado: c.autorizado || "", notas: c.notas || "" });
       setCliente(c.cliente);
-      if (c.datos.salario_integrado || c.datos.salario_minimo || Number(c.datos.otras_prestaciones_diarias) > 0 || c.datos.aguinaldo_dias !== "15" || c.datos.prima_vacacional_pct !== "25") setMasSalario(true);
+      if (c.datos.salario_integrado || c.datos.salario_minimo || Number(c.datos.otras_prestaciones_diarias) > 0 || Number(c.datos.aguinaldo_dias ?? 15) !== 15 || Number(c.datos.prima_vacacional_pct ?? 25) !== 25) setMasSalario(true);
       setCargado(true);
     }).catch((e) => setError(e.message));
   }, [id, nuevo, sp]);

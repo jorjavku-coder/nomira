@@ -42,7 +42,7 @@ EVENTOS = {
     "enlace_revocado": "Enlace del cliente revocado", "vista": "El cliente consultó la propuesta",
     "ajuste_solicitado": "El cliente pidió ajustes", "aceptada": "El cliente registró su aceptación",
     "pago_iniciado": "Pago con tarjeta iniciado", "transferencia_reportada": "El cliente indicó que pagará o pagó por transferencia",
-    "pago_registrado": "Pago registrado", "pagada": "Pagada", "vencida": "Venció", "cancelada": "Cancelada",
+    "pago_registrado": "Pago registrado", "pagada": "Pagada", "vencida": "Venció", "cancelada": "Cancelada", "cupon_aplicado": "El cliente aplicó un cupón",
     "duplicada": "Duplicada", "convertida": "Asignada a la organización", "descargada": "PDF descargado",
 }
 
@@ -281,7 +281,7 @@ def calcular(db: Session, e: dict) -> dict:
     total = base + iva
     total_gb = paq.almacenamiento_gb + bloques * gb_bloque
     asuntos = (total_gb * 1024) // c.mb_promedio_por_asunto if c.mb_promedio_por_asunto else None
-    return {
+    calc = {
         "paquete": {"id": paq.id, "clave": paq.clave, "nombre": paq.nombre, "precio_mensual": txt(paq.precio_mensual),
                     "modulos_incluidos": paq.modulos_incluidos, "usuarios": paq.usuarios, "almacenamiento_gb": paq.almacenamiento_gb},
         "periodicidad": {"clave": per, "nombre": nombre_per, "meses": meses},
@@ -295,6 +295,11 @@ def calcular(db: Session, e: dict) -> dict:
         "subtotal": txt(subtotal), "descuento": desc_info, "base_iva": txt(base), "iva_pct": txt(iva_pct), "iva": txt(iva),
         "total": txt(total), "moneda": "MXN",
     }
+    if e.get("cupon"):
+        from . import cupones
+        from .. import suscripciones as sus
+        calc = cupones.aplicar(calc, cupones.buscar(db, e["cupon"], sus.hoy()))
+    return calc
 
 
 def limpiar_entrada(e: dict) -> dict:
@@ -308,6 +313,7 @@ def limpiar_entrada(e: dict) -> dict:
         "servicios": [{"clave": s.get("clave"), "descripcion": (s.get("descripcion") or "")[:300], "precio": str(s.get("precio") or 0)}
                       for s in (e.get("servicios") or [])[:4] if isinstance(s, dict)],
         "descuento": {"tipo": d.get("tipo"), "valor": str(d.get("valor") or 0), "motivo": (d.get("motivo") or "")[:300]} if d else None,
+        "cupon": "".join(str(e.get("cupon") or "").split()).upper()[:40] or None,
         "emision": e.get("emision"), "condiciones_pago": (e.get("condiciones_pago") or "")[:2000] or None,
         "fecha_limite_pago": e.get("fecha_limite_pago") or None,
         "terminos": (e.get("terminos") or "")[:6000] or None, "observaciones": (e.get("observaciones") or "")[:3000] or None,
@@ -347,6 +353,8 @@ def aplicar_calculo(v: m.CmVersion, calc: dict) -> None:
     v.calculo = calc
     v.subtotal, v.iva, v.total = Decimal(calc["subtotal"]), Decimal(calc["iva"]), Decimal(calc["total"])
     v.descuento = Decimal(calc["descuento"]["importe"]) if calc.get("descuento") else Decimal("0")
+    if calc.get("cupon"):
+        v.descuento += Decimal(calc["cupon"]["importe"])
 
 
 def _resumen_cambio(a: dict, b: dict) -> list[str]:
@@ -368,6 +376,8 @@ def _resumen_cambio(a: dict, b: dict) -> list[str]:
         res.append(f"Periodicidad: {a['periodicidad']['nombre']} → {b['periodicidad']['nombre']}")
     if (a.get("descuento") or {}).get("importe") != (b.get("descuento") or {}).get("importe"):
         res.append(f"Descuento: ${(a.get('descuento') or {}).get('importe') or '0.00'} → ${(b.get('descuento') or {}).get('importe') or '0.00'}")
+    if (a.get("cupon") or {}).get("codigo") != (b.get("cupon") or {}).get("codigo"):
+        res.append(f"Cupón: {(a.get('cupon') or {}).get('codigo') or 'ninguno'} → {(b.get('cupon') or {}).get('codigo') or 'ninguno'}")
     if [s["clave"] + s["precio"] for s in a.get("servicios", [])] != [s["clave"] + s["precio"] for s in b.get("servicios", [])]:
         res.append("Servicios adicionales modificados")
     if [x["id"] for x in a.get("cursos", [])] != [x["id"] for x in b.get("cursos", [])] or a.get("cursos_extra", 0) != b.get("cursos_extra", 0):
