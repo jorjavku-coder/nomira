@@ -16,7 +16,7 @@ from .. import models as m
 from ..db import get_db
 
 MODULOS = {
-    "nomina": {"nombre": "Nómina y prestaciones", "descripcion": "Desglose de prestaciones por quincena a partir de comprobantes de nómina.",
+    "nomina": {"nombre": "Nómina y prestaciones", "descripcion": "Desglose de prestaciones por quincena a partir de comprobantes de nómina y calculadora de finiquitos y liquidaciones (LFT).",
                "por_defecto": True},
     "evidencia": {"nombre": "Nomira Evidencia", "descripcion": "Expediente probatorio: documentos, hechos con fuente, cronología, matriz de evidencia y pendientes.",
                   "por_defecto": False},
