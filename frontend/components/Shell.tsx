@@ -10,6 +10,7 @@ import { Sesion, alCambiarSesion, api, guardarSesion, leerSesion } from "@/lib/a
 const ROLES: Record<string, string> = { administrador: "Administrador", analista: "Analista", consulta: "Consulta" };
 
 const ICONOS: Record<string, React.ReactNode> = {
+  tesis: <><path d="M12 4v16M5 8h14M7 8l-3 6a3 3 0 0 0 6 0L7 8Zm10 0-3 6a3 3 0 0 0 6 0l-3-6ZM8 20h8" /></>,
   bolsa: <><rect x="3.5" y="7" width="17" height="12.5" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   clientes: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M15.5 5.3a3 3 0 0 1 0 5.4M17 14a5 5 0 0 1 3.5 5" /></>,
   expedientes: <path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />,
@@ -140,7 +141,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Nómina", href: "/catalogos", texto: "Catálogos", icono: "catalogos", activo: ruta.startsWith("/catalogos") }] : []),
     ...(activos.includes("escrituracion") ? [
       { grupo: "Módulos", href: "/escrituracion", texto: "Escrituración", icono: "escrituracion", activo: deEscrituracion }] : []),
-    { grupo: "Módulos", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },  // incluido en todos los planes
+    { grupo: "Módulos", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },
+    { grupo: "Módulos", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
     ...(activos.includes("agenda") ? [
       { grupo: "Módulos", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     ...(activos.includes("evidencia") ? [

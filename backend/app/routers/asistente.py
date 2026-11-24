@@ -18,6 +18,7 @@ from ..config import ajustes
 from ..db import get_db
 from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services.asistente import base as ab
+from ..services.tesis import base as tb
 
 router = APIRouter(prefix="/api/asistente", tags=["Nomira Asistente IA"])
 
@@ -37,8 +38,10 @@ def _vista(db: Session, s: m.AsSolicitud, completo: bool = True) -> dict:
          "asunto": {"id": a.id, "titulo": a.titulo} if a else None, "por": u.nombre if u else None,
          "documentos": s.documentos or [], "creado_en": s.creado_en.isoformat(),
          "terminado_en": s.terminado_en.isoformat() if s.terminado_en else None}
+    x.update({"con_tesis": s.con_tesis, "citas_eliminadas": s.citas_eliminadas or 0, "n_tesis": len(s.tesis_citadas or [])})
     if completo:
-        x.update({"instrucciones": s.instrucciones, "resultado": s.resultado})
+        tesis = [db.get(m.JTesis, r) for r in (s.tesis_citadas or [])]
+        x.update({"instrucciones": s.instrucciones, "resultado": s.resultado, "tesis": [tb.a_dict(t, completo=False) for t in tesis if t]})
     return x
 
 
@@ -51,7 +54,7 @@ def config(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)
 
     return {"disponible": ok, "motivo": motivo, "cuota": ab.cuota(db, u.organizacion_id), "paquete": _paquete_precio(),
             "pago_en_linea": cm.stripe_estado()["conectado"], "es_admin": u.rol == "administrador",
-            "tipos": [{"clave": k, "nombre": v} for k, v in ab.TIPOS.items()],
+            "tipos": [{"clave": k, "nombre": v} for k, v in ab.TIPOS.items()], "biblioteca_tesis": tb.total(db),
             "plantillas": [{"clave": k, "nombre": v} for k, v in ab.PLANTILLAS.items()],
             "asuntos": [{"id": a.id, "titulo": a.titulo, "numero": a.numero} for a in asuntos],
             "puede_editar": u.rol in ("administrador", "analista")}
@@ -102,7 +105,7 @@ def listar(asunto: int | None = None, u: m.Usuario = Depends(usuario_actual), db
 @router.post("/solicitudes", status_code=201)
 async def crear(request: Request, tareas: BackgroundTasks, tipo: str = Form(...), plantilla: str | None = Form(None),
                 instrucciones: str | None = Form(None), texto: str | None = Form(None), ag_asunto_id: int | None = Form(None),
-                titulo: str | None = Form(None), archivos: list[UploadFile] = File(default=[]),
+                titulo: str | None = Form(None), con_tesis: bool = Form(False), archivos: list[UploadFile] = File(default=[]),
                 u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
     ok, motivo = ab.disponible()
     if not ok:
@@ -111,6 +114,10 @@ async def crear(request: Request, tareas: BackgroundTasks, tipo: str = Form(...)
         raise HTTPException(422, "Tipo de solicitud inválido.")
     if tipo == "borrador" and plantilla not in ab.PLANTILLAS:
         raise HTTPException(422, "Elija qué documento quiere redactar.")
+    if tipo == "investigar" and not (instrucciones or "").strip():
+        raise HTTPException(422, "Escriba qué quiere investigar: el problema jurídico y los hechos clave.")
+    if (tipo == "investigar" or con_tesis) and not tb.total(db):
+        raise HTTPException(409, "La biblioteca de tesis de Nomira todavía se está cargando. Intente más tarde.")
     db.scalar(select(m.Organizacion.id).where(m.Organizacion.id == u.organizacion_id).with_for_update())  # evita gastar el mismo uso dos veces
     q = ab.cuota(db, u.organizacion_id)
     if q["disponibles"] <= 0:
@@ -152,7 +159,7 @@ async def crear(request: Request, tareas: BackgroundTasks, tipo: str = Form(...)
     s = m.AsSolicitud(organizacion_id=u.organizacion_id, usuario_id=u.id, ag_asunto_id=a.id if a else None, tipo=tipo,
                       plantilla=plantilla if tipo == "borrador" else None, titulo=nombre[:200], instrucciones=(instrucciones or "").strip()[:8000] or None,
                       documentos=[{"nombre": n, "caracteres": len(t)} for n, t in documentos], modelo=ajustes().ia_modelo_asistente,
-                      de_paquete=de_paquete)
+                      de_paquete=de_paquete, con_tesis=tipo == "investigar" or (con_tesis and tipo == "borrador"))
     db.add(s)
     db.flush()
     # en la bitácora solo queda que se envió texto al proveedor de IA, nunca el contenido

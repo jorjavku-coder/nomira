@@ -253,6 +253,7 @@ export const MANUALES: Manual[] = [
     ],
     consejos: ["Desde una publicación de estrados use «Explicar con IA» para entender el acuerdo en segundos.",
       "El asistente no inventa tesis ni jurisprudencias: si las necesita, agréguelas usted y verifíquelas.",
+      "«Investigar con tesis» responde con tesis reales del Semanario Judicial de la Federación: la IA solo puede citar tesis de la biblioteca de Nomira y cualquier cita que no se pueda verificar se elimina.",
       "Viene incluido en todos los planes: 30 usos al mes por despacho (10 durante la prueba gratis). Lo que le queda lo ve arriba a la derecha.",
       "Si se le acaban, un administrador puede comprar un paquete de 100 usos que no caduca. Las solicitudes que fallan no cuentan."],
     preguntas: [
@@ -260,6 +261,27 @@ export const MANUALES: Manual[] = [
       { p: "¿A dónde se envía mi información?", r: "El texto de la solicitud se envía a Anthropic, el proveedor de IA de Nomira, solo para generar la respuesta. Los archivos no se guardan en Nomira; el resultado sí, para que pueda editarlo." },
       { p: "¿Cuesta extra?", r: "No. Todos los planes incluyen 30 usos al mes para todo el despacho, sin importar cuántos usuarios tenga. Solo si necesita más puede comprar paquetes de 100 usos." },
             { p: "¿Lee PDF escaneados?", r: "Todavía no: necesita PDF con texto seleccionable, Word o texto. Si es una imagen, copie y pegue el texto." },
+    ],
+  },
+  {
+    clave: "tesis",
+    modulo: null,
+    titulo: "Tesis del Semanario (SJF)",
+    resumen: "Busque tesis y jurisprudencia oficiales por palabras o por registro digital, léalas completas, descargue su ficha y ábralas en el Semanario Judicial de la Federación. Es la misma biblioteca que usa el Asistente IA para citar.",
+    paraQue: ["Encontrar criterios para fundamentar un escrito.", "Confirmar el rubro y el registro digital de una tesis antes de citarla.",
+      "Que la IA cite solo tesis reales: el Asistente únicamente puede usar las que están en esta biblioteca."],
+    pasos: [
+      { titulo: "Busque", texto: "Escriba palabras del rubro o del texto (no importan los acentos) o un registro digital. Filtre por jurisprudencia o aisladas y por época." },
+      { titulo: "Lea y verifique", texto: "«Leer completa» muestra el texto, los datos de publicación y de dónde se copió. «Ver en el Semanario» abre la versión oficial en el sitio de la SCJN." },
+      { titulo: "Cite", texto: "«Copiar cita» copia el rubro, la instancia, la época, la clave y el registro digital. «Ficha PDF» descarga una ficha con la liga oficial." },
+      { titulo: "Pídale a la IA", texto: "En Asistente IA → «Investigar con tesis», plantee el problema: la IA responde citando solo tesis de esta biblioteca y Nomira elimina cualquier cita que no pueda verificar." },
+    ],
+    consejos: ["La versión que vale es la del Semanario: confirme vigencia, aclaraciones y si una jurisprudencia fue superada antes de citarla.",
+      "Prefiera la jurisprudencia (obligatoria) sobre las tesis aisladas (orientadoras)."],
+    preguntas: [
+      { p: "¿De dónde salen las tesis?", r: "De fuentes oficiales de la SCJN: el Repositorio de datos abiertos y las publicaciones semanales del Semanario Judicial de la Federación. Se actualiza cada semana." },
+      { p: "¿Puede la IA inventar una tesis?", r: "Nomira le da a la IA solo tesis de esta biblioteca y después revisa cada registro digital y cada clave que escribe. Si alguno no está en lo que se le dio (ni en sus propios documentos), lo borra y le avisa con «[CITA ELIMINADA]»." },
+      { p: "No encuentro una tesis que sí existe.", r: "Puede ser de una época anterior a la Décima o de una publicación que aún no se carga. Búsquela directamente en el Semanario Judicial de la Federación." },
     ],
   },
   {

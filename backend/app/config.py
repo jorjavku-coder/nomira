@@ -91,6 +91,10 @@ class Ajustes(BaseSettings):
     # La clave se toma de ANTHROPIC_API_KEY (variable de entorno estándar del SDK).
     ia_habilitada: bool = False
     ia_modelo: str = "claude-opus-5-5"
+    tesis_sincronizar: bool = True  # Repositorio de datos abiertos de la SCJN; se detiene sola si la SCJN la bloquea
+    tesis_repositorio_url: str = "https://bicentenario.scjn.gob.mx/repositorio-scjn/api/v1"
+    tesis_por_tanda: int = 500  # tesis por hora como máximo (una por segundo)
+    tesis_epoca_minima: int = 10  # Décima Época en adelante
     ia_modelo_asistente: str = "claude-sonnet-5-5"  # Asistente IA: más económico para poder incluirlo en todos los planes
     ia_usos_incluidos: int = 30  # Asistente IA: usos al mes incluidos en cualquier plan
     ia_usos_prueba: int = 10  # durante la prueba gratis de 7 días

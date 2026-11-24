@@ -68,6 +68,7 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     { href: "/plataforma/correos", texto: "Correos", icono: "correos", activo: ruta.startsWith("/plataforma/correos") },
     { href: "/plataforma/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/plataforma/soporte"), n: cont?.tickets_sin_leer },
     { href: "/plataforma/legal", texto: "Legal", icono: "legal", activo: ruta.startsWith("/plataforma/legal"), n: cont?.arco_pendientes },
+    { href: "/plataforma/tesis", texto: "Tesis (SJF)", icono: "legal", activo: ruta.startsWith("/plataforma/tesis") },
     ...(esSuperadmin(sesion) ? [{ href: "/plataforma/comercial", texto: "Comercial", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial") },
       { href: "/plataforma/academia", texto: "Academia", icono: "academia", activo: ruta.startsWith("/plataforma/academia") }] : []),
     { href: "/plataforma/admins", texto: "Administradores", icono: "admins", activo: ruta.startsWith("/plataforma/admins") },

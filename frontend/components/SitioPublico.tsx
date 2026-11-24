@@ -63,6 +63,7 @@ const PREGUNTAS = [
   ["¿Puedo corregir una lectura?", "Sí. Cada corrección pide un motivo y queda registrada; el comprobante original no se modifica."],
   ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: Nómina y liquidaciones, Agenda Jurídica, Evidencia, AFORE, Leads, Academia o Escrituración, en la combinación que necesite. Clientes y cobranza y el Asistente IA vienen incluidos en todos los planes. Desactivar un módulo no borra su información."],
   ["¿Tiene inteligencia artificial?", "Sí. El Asistente IA viene incluido en todos los planes, con 30 usos al mes para todo el despacho: redacta borradores de escritos con los datos del asunto, resume documentos y explica acuerdos. No inventa tesis y lo que falta lo marca para que usted lo complete. Si necesita más usos, hay paquetes de 100 que no caducan."],
+  ["¿La inteligencia artificial inventa tesis?", "No. El Asistente IA de Nomira solo puede citar tesis de su biblioteca, copiada de fuentes oficiales de la SCJN. Después de redactar, Nomira revisa cada registro digital y cada clave: si alguno no lo puede verificar, lo elimina y se lo avisa. Cada tesis citada trae su texto, su ficha y la liga al Semanario Judicial de la Federación."],
   ["¿Puedo publicar vacantes?", "Sí, gratis. Publique vacantes en su propia página de empleos y en la bolsa de trabajo jurídica de Nomira, reciba CVs y dé seguimiento por etapas. Con el módulo de Pruebas psicométricas también aplica pruebas de personalidad, razonamiento, atención y conocimientos jurídicos en línea."],
   ["¿Puedo cobrarle y facturarle a mis clientes desde Nomira?", "Sí, con sus propias cuentas. Conecte su Stripe para mandar ligas de pago por WhatsApp (tarjeta, OXXO o transferencia, según lo que tenga activo) y su Facturapi para timbrar facturas CFDI 4.0. El dinero llega directo a su cuenta y el pago se registra solo en el estado de cuenta del cliente."],
   ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
@@ -79,7 +80,7 @@ const PREGUNTAS = [
 
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
-const CINTA = ["Nómina y prestaciones", "Liquidaciones LFT", "Agenda Jurídica", "Estrados digitales", "Escrituración", "Clientes y cobranza", "Asistente IA incluido", "Ligas de pago y CFDI 4.0", "Bolsa de trabajo", "Pruebas psicométricas", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
+const CINTA = ["Nómina y prestaciones", "Liquidaciones LFT", "Agenda Jurídica", "Estrados digitales", "Escrituración", "Clientes y cobranza", "Asistente IA incluido", "IA que no inventa tesis", "Buscador de tesis del SJF", "Ligas de pago y CFDI 4.0", "Bolsa de trabajo", "Pruebas psicométricas", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
   "WhatsApp oficial de Meta", "Bitácora completa", "Datos cifrados", "Excel y PDF con su logotipo", "Constancias de participación", "Campañas y resultados"];
 
 /** Animaciones del sitio: aparición al desplazarse, encabezado compacto y barra de lectura. */

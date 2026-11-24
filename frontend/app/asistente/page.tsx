@@ -4,10 +4,11 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import BotonAyuda from "@/components/BotonAyuda";
 import Shell from "@/components/Shell";
+import { LeerTesis, TarjetaTesis } from "@/components/tesis";
 import { Aviso, ConfirmarEliminar } from "@/components/ui";
 import { api, fechaHora } from "@/lib/api";
 
-const ICONO_TIPO: Record<string, string> = { borrador: "✍️", resumen: "📄", acuerdo: "⚖️" };
+const ICONO_TIPO: Record<string, string> = { investigar: "🔎", borrador: "✍️", resumen: "📄", acuerdo: "⚖️" };
 
 function SinUsos({ cfg, onError }: { cfg: any; onError: (m: string) => void }) {
   const [yendo, setYendo] = useState(false);
@@ -34,7 +35,8 @@ function Asistente() {
   const [cfg, setCfg] = useState<any>(null);
   const [lista, setLista] = useState<any[]>([]);
   const [actual, setActual] = useState<any>(null);
-  const [f, setF] = useState({ tipo: sp.get("tipo") || "borrador", plantilla: "promocion", ag_asunto_id: sp.get("asunto") || "", instrucciones: "", texto: sp.get("texto") || "" });
+  const [f, setF] = useState({ tipo: sp.get("tipo") || "borrador", plantilla: "promocion", ag_asunto_id: sp.get("asunto") || "", instrucciones: "", texto: sp.get("texto") || "", con_tesis: true });
+  const [leer, setLeer] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -61,6 +63,7 @@ function Asistente() {
     if (f.ag_asunto_id) d.append("ag_asunto_id", f.ag_asunto_id);
     if (f.instrucciones.trim()) d.append("instrucciones", f.instrucciones);
     if (f.texto.trim()) d.append("texto", f.texto);
+    if (f.tipo === "borrador" && f.con_tesis && cfg?.biblioteca_tesis) d.append("con_tesis", "true");
     for (const a of Array.from(archivos.current?.files || [])) d.append("archivos", a);
     try {
       const s = await api.subir("/asistente/solicitudes", d);
@@ -79,7 +82,7 @@ function Asistente() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-turquesa-700">Inteligencia artificial</p>
           <h1 className="text-3xl font-extrabold text-marino">Asistente IA</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">Borradores de escritos, resúmenes de documentos y explicación de acuerdos, con los datos de su asunto. Siempre es un borrador: usted lo revisa y decide.</p></div>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">Investigue con tesis reales del Semanario Judicial de la Federación, redacte escritos, resuma documentos y entienda acuerdos. <b className="text-marino">La IA que no inventa:</b> solo cita tesis que Nomira verificó, cada una con su liga oficial.</p></div>
         <div className="flex items-center gap-2"><BotonAyuda modulo="asistente" />
           {cfg && <span className="rounded-full bg-crema px-3 py-1 text-xs text-slate-600" title="Los usos incluidos se renuevan cada mes; los de paquetes extra no caducan.">
             Te quedan {cfg.cuota.restantes_mes} de {cfg.cuota.incluidos} usos {cfg.cuota.en_prueba ? "de tu prueba gratis" : "este mes"}{cfg.cuota.extra ? ` + ${cfg.cuota.extra} extra` : ""}</span>}</div>
@@ -103,15 +106,19 @@ function Asistente() {
                   <option value="">— Sin asunto —</option>{cfg.asuntos.map((a: any) => <option key={a.id} value={a.id}>{a.titulo}{a.numero ? ` (${a.numero})` : ""}</option>)}</select>
                 <span className="mt-0.5 block text-xs text-slate-500">Toma número, tribunal, cliente y últimas actuaciones.</span></label>
             </div>
-            <label className="block"><span className="etiqueta">{f.tipo === "borrador" ? "¿Qué necesita? Hechos, peticiones, tono…" : "Indicaciones (opcional)"}</span>
+            {f.tipo === "investigar" && <p className="rounded-xl bg-turquesa-50 px-3 py-2 text-sm text-marino">Plantee el problema jurídico. Nomira busca en su biblioteca de {Number(cfg.biblioteca_tesis).toLocaleString("es-MX")} tesis del Semanario y la IA responde citando <b>solo</b> las que encontró; cualquier cita que no pueda verificar se elimina.</p>}
+            <label className="block"><span className="etiqueta">{f.tipo === "borrador" ? "¿Qué necesita? Hechos, peticiones, tono…" : f.tipo === "investigar" ? "¿Qué quiere investigar?" : "Indicaciones (opcional)"}</span>
               <textarea className="campo" rows={4} maxLength={8000} value={f.instrucciones} onChange={(e) => setF({ ...f, instrucciones: e.target.value })}
-                placeholder={f.tipo === "borrador" ? "Ej. Desahogar la prevención del acuerdo de 20 de noviembre aclarando el acto reclamado y la autoridad responsable." : "Ej. Enfócate en los plazos y en lo que pide la contraparte."} /></label>
+                placeholder={f.tipo === "investigar" ? "Ej. ¿Procede la suspensión en amparo indirecto contra la clausura de un restaurante por falta de licencia de funcionamiento?" : f.tipo === "borrador" ? "Ej. Desahogar la prevención del acuerdo de 20 de noviembre aclarando el acto reclamado y la autoridad responsable." : "Ej. Enfócate en los plazos y en lo que pide la contraparte."} /></label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block"><span className="etiqueta">Documentos (PDF, Word o texto; hasta 3)</span>
                 <input ref={archivos} className="campo" type="file" multiple accept=".pdf,.docx,.txt,application/pdf" /></label>
               <label className="block"><span className="etiqueta">…o pegue el texto</span>
                 <textarea className="campo font-mono text-xs" rows={3} value={f.texto} onChange={(e) => setF({ ...f, texto: e.target.value })} placeholder="Texto del acuerdo, la demanda, el contrato…" /></label>
             </div>
+            {f.tipo === "borrador" && <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="mt-1" checked={f.con_tesis && !!cfg.biblioteca_tesis} disabled={!cfg.biblioteca_tesis} onChange={(e) => setF({ ...f, con_tesis: e.target.checked })} />
+              <span>Fundamentar con tesis del Semanario Judicial de la Federación <span className="block text-xs text-slate-500">{cfg.biblioteca_tesis ? "Solo cita tesis verificadas de la biblioteca de Nomira, con su registro digital." : "La biblioteca de tesis todavía se está cargando."}</span></span></label>}
             <p className="text-xs text-slate-500">El texto se envía a Anthropic, el proveedor de IA de Nomira, solo para generar la respuesta. Los archivos no se guardan; el resultado sí, para que lo edite.</p>
             <div className="flex justify-end"><button className="btn-turquesa" disabled={!puede || enviando}>{enviando ? "Enviando…" : "Generar con IA"}</button></div>
           </form>}
@@ -130,7 +137,11 @@ function Asistente() {
             {actual.estado === "error" && <Aviso>{actual.error}</Aviso>}
             {actual.estado === "listo" && <>
               <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">Borrador generado con IA: revise hechos, fundamentos y datos marcados [COMPLETAR] antes de usarlo.</p>
-              <textarea className="campo mt-3 min-h-[28rem] font-serif text-[15px] leading-relaxed" value={texto} onChange={(e) => setTexto(e.target.value)} readOnly={!cfg?.puede_editar} aria-label="Texto generado" /></>}
+              {actual.citas_eliminadas > 0 && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800" role="status">Nomira quitó {actual.citas_eliminadas === 1 ? "1 cita" : `${actual.citas_eliminadas} citas`} de tesis que no pudo verificar (aparecen como [CITA ELIMINADA]). No las agregue sin revisarlas en el Semanario.</p>}
+              <textarea className="campo mt-3 min-h-[28rem] font-serif text-[15px] leading-relaxed" value={texto} onChange={(e) => setTexto(e.target.value)} readOnly={!cfg?.puede_editar} aria-label="Texto generado" />
+              {actual.con_tesis && <div className="mt-4"><h3 className="font-semibold text-marino">Tesis citadas ({actual.tesis.length})</h3>
+                {actual.tesis.length ? <ul className="mt-2 space-y-2">{actual.tesis.map((t: any) => <TarjetaTesis key={t.registro} t={t} verificada onLeer={() => setLeer(t.registro)} />)}</ul>
+                  : <p className="mt-1 text-sm text-slate-500">La respuesta no cita tesis de la biblioteca.</p>}</div>}</>}
           </section>}
         </div>
 
@@ -147,6 +158,7 @@ function Asistente() {
           <p className="border-t border-crema-300 px-4 py-3 text-xs text-slate-500">También puede abrirlo desde un asunto de la <Link href="/agenda/asuntos" className="underline">Agenda</Link> o desde una publicación de estrados.</p>
         </aside>
       </div>
+      {leer && <LeerTesis registro={leer} onCerrar={() => setLeer(null)} />}
       {borrar && <ConfirmarEliminar titulo="Borrar del historial" onCerrar={() => setBorrar(null)}
         onConfirmar={async () => { await api.borrar(`/asistente/solicitudes/${borrar.id}`); if (actual?.id === borrar.id) setActual(null); cargarLista(); }}>
         Se borrará «{borrar.titulo}». No se puede deshacer.</ConfirmarEliminar>}

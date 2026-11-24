@@ -2,9 +2,10 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import (JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
+from sqlalchemy import (JSON, Computed, Index, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text,
                         UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import TSVECTOR
 
 from .db import Base
 
@@ -2072,6 +2073,9 @@ class AsSolicitud(Base):
     modelo: Mapped[str | None] = mapped_column(String(60))
     tokens_entrada: Mapped[int | None] = mapped_column(Integer)
     tokens_salida: Mapped[int | None] = mapped_column(Integer)
+    con_tesis: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # fundamentar con la biblioteca de tesis
+    tesis_citadas: Mapped[list | None] = mapped_column(JSON)  # registros verificados que cita el resultado
+    citas_eliminadas: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     de_paquete: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # se descontó de un paquete extra
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
     terminado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -2251,3 +2255,45 @@ class BtAplicacion(Base):
     resultado: Mapped[dict | None] = mapped_column(JSON)
     enviada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ------------------------------------------------------------------ Tesis del Semanario Judicial de la Federación (biblioteca común)
+
+class JTesis(Base):
+    """Copia del registro oficial de una tesis del SJF. Es común a todos los despachos (información pública)."""
+    __tablename__ = "j_tesis"
+    __table_args__ = (Index("ix_j_tesis_buscable", "buscable", postgresql_using="gin"),)
+    registro: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)  # registro digital
+    rubro: Mapped[str] = mapped_column(Text)
+    texto: Mapped[str] = mapped_column(Text)
+    precedentes: Mapped[str | None] = mapped_column(Text)
+    clave: Mapped[str | None] = mapped_column(String(120))  # p. ej. «P./J. 42/2026 (12a.)»
+    tipo: Mapped[str | None] = mapped_column(String(20), index=True)  # jurisprudencia | aislada
+    epoca: Mapped[str | None] = mapped_column(String(30), index=True)
+    instancia: Mapped[str | None] = mapped_column(String(200))
+    organo: Mapped[str | None] = mapped_column(String(300))
+    materias: Mapped[str | None] = mapped_column(String(200))
+    fuente: Mapped[str | None] = mapped_column(String(300))
+    publicada: Mapped[str | None] = mapped_column(String(200))  # nota de publicación tal como viene
+    huella_oficial: Mapped[str | None] = mapped_column(String(128))  # SHA-256 que entrega el Repositorio de la SCJN, si existe
+    origen: Mapped[str] = mapped_column(String(20))  # repositorio | pdf_semanal | json
+    origen_ref: Mapped[str | None] = mapped_column(String(300))  # nombre del archivo o URL de donde se cargó
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    # Búsqueda en español sin acentos: el rubro pesa más que el texto. La calcula Postgres.
+    buscable: Mapped[str | None] = mapped_column(TSVECTOR, Computed(
+        "setweight(to_tsvector('spanish'::regconfig, translate(lower(coalesce(rubro, '')), 'áéíóúü', 'aeiouu')), 'A') || "
+        "setweight(to_tsvector('spanish'::regconfig, translate(lower(coalesce(texto, '')), 'áéíóúü', 'aeiouu')), 'B')", persisted=True))
+
+
+class JSincronizacion(Base):
+    """Avance de la sincronización con el Repositorio de datos abiertos de la SCJN (una sola fila)."""
+    __tablename__ = "j_sincronizacion"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente | descargando | al_dia | bloqueada | error | apagada
+    total_remoto: Mapped[int | None] = mapped_column(Integer)
+    pendientes: Mapped[list | None] = mapped_column(JSON)  # registros por descargar (de más nuevo a más viejo)
+    descargadas: Mapped[int] = mapped_column(Integer, default=0)
+    omitidas: Mapped[int] = mapped_column(Integer, default=0)  # de épocas que no se guardan
+    mensaje: Mapped[str | None] = mapped_column(String(500))
+    ultima_corrida: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    proximo_intento: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
