@@ -25,7 +25,7 @@ from ..afore import cifrado, identificadores
 CERO = Decimal("0.00")
 TIPOS_DOC = {"identificacion": "Identificación oficial", "constancia": "Constancia de situación fiscal", "domicilio": "Comprobante de domicilio",
              "contrato": "Contrato de servicios", "poder": "Poder notarial", "otro": "Otro documento"}
-METODOS = {"transferencia": "Transferencia", "efectivo": "Efectivo", "tarjeta": "Tarjeta", "cheque": "Cheque", "deposito": "Depósito", "otro": "Otro"}
+METODOS = {"transferencia": "Transferencia", "efectivo": "Efectivo", "tarjeta": "Tarjeta", "cheque": "Cheque", "deposito": "Depósito", "en_linea": "Pago en línea", "otro": "Otro"}
 RFC = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 CURP = re.compile(r"^[A-Z][AEIOUX][A-Z]{2}\d{6}[HMX][A-Z]{5}[A-Z0-9]\d$")
 

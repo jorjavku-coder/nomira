@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { FormCliente } from "@/components/clientes";
+import { CobroCliente } from "@/components/cobro";
 import { Aviso, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api, hoyLocal, mxn } from "@/lib/api";
 
@@ -103,6 +104,8 @@ export default function FichaCliente() {
                     {c.es_admin && !p.cancelado && <button className="text-slate-500 underline" onClick={() => setCancelar({ tipo: "pago", id: p.id, texto: `pago folio ${p.folio}` })}>Cancelar</button>}</span>
                 </li>))}</ul></>}
           </section>
+
+          <CobroCliente c={c} onCambio={cargar} />
 
           {/* ---------------- Módulos ---------------- */}
           <section className="tarjeta p-4">

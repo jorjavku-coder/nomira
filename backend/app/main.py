@@ -9,12 +9,13 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, clientes, cobro, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
 from .services.agenda import avisos as agenda_avisos, estrados as agenda_estrados_srv
+from .services.clientes import cobro as cobro_srv
 from .services.modulos import requiere_modulo
 from .services import correo
 from .services.envios import ejecutar_recordatorios
@@ -82,6 +83,10 @@ def _una_revision_agenda() -> None:
         r = agenda_avisos.ejecutar(db)
         if any(r.values()):
             logging.getLogger("nomira.agenda").info("Agenda: %s avisos, %s correos, %s resúmenes", r["avisos"], r["correos"], r["resumenes"])
+    with SessionLocal() as db:  # ligas de pago de los despachos: confirma las pagadas en Stripe
+        n = cobro_srv.sincronizar_pendientes(db)
+        if n:
+            logging.getLogger("nomira.cobro").info("Ligas de pago actualizadas: %s", n)
     with SessionLocal() as db:  # estrados digitales: solo si la consulta automática está configurada
         r = agenda_estrados_srv.ejecutar(db)
         if r["revisadas"]:
@@ -118,6 +123,7 @@ app.include_router(leads.router, dependencies=[Depends(requiere_modulo("leads"))
 # Formulario de contacto, entrada de otros sistemas y anuncios de Meta: validan su enlace, clave o firma.
 app.include_router(leads_publico.router)
 app.include_router(academia.router, dependencies=[Depends(requiere_modulo("academia"))])
+app.include_router(cobro.router)  # Cobro en línea y CFDI con las cuentas del propio despacho
 app.include_router(clientes.router)  # Clientes del despacho: incluido en todos los planes
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])
 app.include_router(escrituracion_publico.router)  # seguimiento por enlace (X-Enlace)
