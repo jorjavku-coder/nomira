@@ -26,7 +26,7 @@ export default function Contacto() {
               {c.fase === "sql" ? "SQL · contacto" : c.fase === "mql" ? "MQL · lead" : `Descartado: ${c.motivo_descarte_texto}`}</span></div>
           {c.fase === "sql" && c.calificado_en && <p className="text-xs text-emerald-700">Calificado {new Date(c.calificado_en).toLocaleDateString("es-MX")} · {c.calificacion_texto}</p>}
           <p className="text-sm text-slate-600">{[c.cargo, c.despacho, c.ciudad].filter(Boolean).join(" · ")}</p>
-          <p className="text-sm">{c.email && <a className="text-turquesa-700 underline" href={`mailto:${c.email}`}>{c.email}</a>}{c.telefono && ` · ${c.telefono}`}</p>
+          <p className="text-sm">{c.email && <a className="text-turquesa-700 underline" href={`mailto:${c.email}`}>{c.email}</a>}{c.telefono && `${c.email ? " · " : ""}${c.telefono}`}</p>
           <p className="text-xs text-slate-500">{c.origen_texto}{c.campana ? ` · ${c.campana}` : ""} · Responsable: {c.propietario || "sin asignar"}</p>
           {c.organizacion && <p className="mt-1 text-sm">Cliente de Nomira: <Link className="font-semibold text-turquesa-700 underline" href={`/plataforma/clientes/${c.organizacion.id}`}>{c.organizacion.nombre}</Link></p>}
           {c.no_contactar && <p className="mt-1 inline-block rounded bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">Pidió no ser contactado</p>}</div>
@@ -44,6 +44,7 @@ export default function Contacto() {
           <Historial actividades={c.actividades} onCambio={cargar} />
         </section>
         <div className="space-y-5">
+          {c.telefono && !c.no_contactar && <ResponderWhatsApp c={c} onListo={cargar} />}
           <section className="tarjeta p-4 text-sm"><h3 className="mb-2 font-semibold text-marino">Oportunidades</h3>
             {c.oportunidades.length ? <ul className="divide-y divide-crema-200">{c.oportunidades.map((o: any) => (
               <li key={o.id} className="py-2"><Link href={`/plataforma/ventas/oportunidades/${o.id}`} className="font-semibold text-marino hover:underline">{o.titulo}</Link>
@@ -64,5 +65,32 @@ export default function Contacto() {
         onConfirmar={async () => { try { await apiP.borrar(`/ventas/contactos/${c.id}`); router.push(c.fase === "sql" ? "/plataforma/ventas/contactos" : "/plataforma/ventas/leads"); } catch (e: any) { setError(e.message); setDialogo(""); } }}>
         Se borran el contacto, sus oportunidades y su historial (por ejemplo, si pidió que borremos sus datos). Las cotizaciones se conservan.</ConfirmarEliminar>}
     </VentasShell>
+  );
+}
+
+function ResponderWhatsApp({ c, onListo }: { c: any; onListo: () => void }) {
+  const [estado, setEstado] = useState<{ configurado: boolean; faltan: string[] } | null>(null);
+  const [texto, setTexto] = useState("");
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  useEffect(() => { apiP.get("/ventas/whatsapp/estado").then(setEstado).catch(() => setEstado(null)); }, []);
+  if (!estado) return null;
+  const enviar = async () => {
+    setEnviando(true); setError("");
+    try { await apiP.post(`/ventas/contactos/${c.id}/whatsapp`, { texto }); setTexto(""); onListo(); }
+    catch (e: any) { setError(e.message); } finally { setEnviando(false); }
+  };
+  return (
+    <section className="tarjeta p-4 text-sm">
+      <h3 className="mb-1 font-semibold text-marino">WhatsApp de Nomira</h3>
+      {!estado.configurado ? <p className="text-slate-500">Aún no está conectado. Cuando se configure en Render, aquí podrá responder y los mensajes entrarán solos a Ventas.</p>
+        : c.whatsapp_abierto ? <>
+          <p className="mb-2 text-xs text-slate-500">Último mensaje: {new Date(c.whatsapp_ultimo_entrante).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })} · Puede responder durante 24 h desde ese mensaje.</p>
+          <textarea className="campo min-h-24" maxLength={4000} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escriba su respuesta…" aria-label="Respuesta por WhatsApp" />
+          <Aviso>{error}</Aviso>
+          <button className="btn-turquesa mt-2 w-full" disabled={enviando || !texto.trim()} onClick={enviar}>{enviando ? "Enviando…" : "Enviar por WhatsApp"}</button></>
+        : <p className="text-slate-500">{c.whatsapp_ultimo_entrante ? "Pasaron más de 24 h desde su último mensaje: Meta no deja escribirle texto libre. Llámele o espere a que vuelva a escribir." : "Esta persona no le ha escrito por WhatsApp. Por reglas de Meta, solo puede responder cuando ella escriba primero."}</p>}
+      {c.acepta_whatsapp && <p className="mt-2 text-xs text-emerald-700">Aceptó recibir avisos de su cuenta por WhatsApp.</p>}
+    </section>
   );
 }

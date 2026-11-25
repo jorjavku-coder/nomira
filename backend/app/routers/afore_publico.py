@@ -27,6 +27,7 @@ from ..db import get_db
 from ..deps import auditar, ip_cliente
 from ..freno import Ventana
 from ..services import envios, modulos, plantillas_correo
+from ..services import whatsapp_nomira as wa_nomira
 from ..services.afore import catalogos as cat
 from ..services.afore import portal, whatsapp
 from ..services.evidencia import solicitudes as sol
@@ -261,6 +262,10 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
         for cambio in entrada.get("changes", []):
             v = cambio.get("value") or {}
             pid = (v.get("metadata") or {}).get("phone_number_id")
+            if wa_nomira.es_numero_nomira(pid):  # el número de Nomira (la empresa): los mensajes entran a Ventas
+                for mensaje in v.get("messages", []):
+                    wa_nomira.entrante(db, mensaje, v.get("contacts"))
+                continue
             cfg = db.scalar(select(m.AfConfig).where(m.AfConfig.wa_phone_number_id == pid)) if pid else None
             # El mismo número puede estar conectado también en Nomira Leads (módulo independiente)
             ld = leads_wa.config_por_numero(db, pid)

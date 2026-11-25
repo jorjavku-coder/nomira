@@ -103,6 +103,16 @@ def ejecutar_recordatorios(db: Session, ref: date | None = None) -> list[dict]:
         if x["en_pausa"]:
             resultados.append({**base, "estado": "omitido", "detalle": "Falló 3 veces en 24 h; se reintentará después."})
             continue
+        try:  # aviso por WhatsApp a quien lo autorizó; independiente del correo
+            from . import whatsapp_nomira
+            wa = whatsapp_nomira.aviso(db, "vencimiento", o.id, [u.email for u in admins],
+                                       [admins[0].nombre if len(admins) == 1 else "equipo", sus.PLANES[p.plan][0], p.fin.strftime("%d/%m/%Y")],
+                                       f"vencimiento:{p.id}")
+            db.commit()
+        except Exception:
+            db.rollback()
+            wa = "error"
+        base["whatsapp"] = wa
         if not correo.configurado():
             resultados.append({**base, "estado": "omitido", "detalle": "El envío de correos no está configurado."})
             continue

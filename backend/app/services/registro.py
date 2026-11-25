@@ -97,7 +97,8 @@ def enviar_codigo(db: Session, email: str, nombre: str, codigo: str, para: str) 
 
 
 def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, hash_contrasena: str, elegidos: list[str],
-                 telefono: str | None, via: str, google_sub: str | None = None, ip: str | None = None) -> m.Usuario:
+                 telefono: str | None, via: str, google_sub: str | None = None, ip: str | None = None,
+                 acepta_whatsapp: bool = False) -> m.Usuario:
     """Organización + primer administrador + módulos elegidos + prueba de 7 días + lead en Ventas. No hace commit."""
     if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
         raise HTTPException(409, "Ese correo ya tiene cuenta. Inicie sesión o recupere su contraseña.")
@@ -118,7 +119,7 @@ def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, has
     db.add(m.PeriodoSuscripcion(organizacion_id=org.id, plan="prueba", inicio=inicio, fin=fin, pagado=False,
                                 nota=f"Prueba en línea ({'Google' if via == 'google' else 'correo'})"))
     nombres = [modulos.MODULOS[x]["nombre"] for x in elegidos]
-    sol = m.Solicitud(tipo="prueba", nombre=nombre, empresa=organizacion, email=email, telefono=telefono, ip=(ip or "")[:60] or None,
+    sol = m.Solicitud(tipo="prueba", nombre=nombre, empresa=organizacion, email=email, telefono=telefono, acepta_whatsapp=bool(telefono and acepta_whatsapp), ip=(ip or "")[:60] or None,
                       mensaje=f"Se registró en línea con prueba gratuita de 7 días ({'con Google' if via == 'google' else 'con su correo'}). "
                               f"Módulos elegidos: {', '.join(nombres)}. La prueba termina el {fin.isoformat()}.")
     db.add(sol)
@@ -130,6 +131,11 @@ def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, has
             envios.registrar_y_enviar(db, "bienvenida_prueba", [email], asunto, html, texto, organizacion_id=org.id, llave=f"bienvenida_prueba:{org.id}")
         except Exception:  # el correo de bienvenida no impide crear la cuenta
             pass
+    try:  # aviso por WhatsApp solo si lo autorizó (y si el WhatsApp de Nomira está conectado)
+        from . import whatsapp_nomira
+        whatsapp_nomira.aviso(db, "bienvenida", org.id, [email], [nombre, organizacion, fin.strftime("%d/%m/%Y")], f"bienvenida:{org.id}")
+    except Exception:
+        pass
     return u
 
 
