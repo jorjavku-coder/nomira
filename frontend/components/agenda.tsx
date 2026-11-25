@@ -220,7 +220,7 @@ export function FormEvento({ inicial, asuntoFijo, onCerrar, onGuardado }: { inic
               <label><span className="etiqueta">Tipo de días</span><select className="campo" value={f.calculo.tipo_dias} onChange={(e) => setC("tipo_dias", e.target.value)}>
                 {Object.entries(cat.tipos_dias).map(([k, t]: any) => <option key={k} value={k}>{t}</option>)}</select></label>
               <label><span className="etiqueta">La notificación surte efectos</span><select className="campo" value={f.calculo.surte_efectos} onChange={(e) => setC("surte_efectos", e.target.value)}>
-                <option value="">Elija según la ley aplicable…</option>{Object.entries(cat.surte_efectos).map(([k, t]: any) => <option key={k} value={k}>{t}</option>)}</select></label>
+                <option value="">Elija…</option>{Object.entries(cat.surte_efectos).map(([k, t]: any) => <option key={k} value={k}>{t}</option>)}</select></label>
             </div>
             {f.calculo.tipo_dias === "naturales" && <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" className="accent-turquesa" checked={f.calculo.recorrer_inhabil}
               onChange={(e) => setC("recorrer_inhabil", e.target.checked)} />Si el último día es inhábil, recorrer al siguiente día hábil</label>}

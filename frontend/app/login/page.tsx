@@ -112,7 +112,7 @@ export default function Login() {
   function listo(s: any) {
     if (s.requiere_codigo) { setReto(s.reto); setModo("dos_pasos"); return; }
     guardarSesion(s);
-    router.replace("/app");
+    router.replace("/inicio");
   }
   async function hacer(fn: () => Promise<any>) {
     setError(""); setOk(""); setCargando(true);

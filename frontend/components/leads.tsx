@@ -18,7 +18,8 @@ export function LeadsShell({ children }: { children: React.ReactNode }) {
   const cat = useCatalogosLeads();
   return (
     <Shell>
-      <div className="mb-1 flex items-center justify-between gap-2"><p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Nomira Leads</p><BotonAyuda modulo="leads" /></div>
+      <div className="mb-1 flex items-center justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-wider text-turquesa-700">Prospectos (Nomira Leads)</p>
+        <p className="text-sm text-slate-500">Las personas que preguntan por sus servicios: a quién contestar, citas, seguimientos y de dónde llegan sus clientes.</p></div><BotonAyuda modulo="leads" /></div>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-crema-300" aria-label="Nomira Leads">
         {enlaces.map(([href, t, activo]) => (
           <Link key={href} href={href} aria-current={activo ? "page" : undefined}

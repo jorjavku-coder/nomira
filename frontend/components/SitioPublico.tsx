@@ -6,7 +6,7 @@ import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, leerSesion, mxn } from "@/lib/api";
 
-const NAV = [["#modulos", "Módulos"], ["#por-que", "Por qué Nomira"], ["/calculadora-finiquito", "Calculadora gratis"], ["/empleos", "Bolsa de trabajo"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
+const NAV = [["#jurisprudencia", "Jurisprudencia"], ["#modulos", "Módulos"], ["/calculadora-finiquito", "Calculadora"], ["/empleos", "Empleos"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
 
 const MODULOS = [
   { clave: "nomina", nombre: "Nómina y liquidaciones", lema: "Del PDF al desglose, y de ahí a la liquidación",
@@ -64,6 +64,7 @@ const PREGUNTAS = [
   ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: Nómina y liquidaciones, Agenda Jurídica, Evidencia, AFORE, Leads, Academia o Escrituración, en la combinación que necesite. Clientes y cobranza y el Asistente IA vienen incluidos en todos los planes. Desactivar un módulo no borra su información."],
   ["¿Tiene inteligencia artificial?", "Sí. El Asistente IA viene incluido en todos los planes, con 30 usos al mes para todo el despacho: redacta borradores de escritos con los datos del asunto, resume documentos y explica acuerdos. No inventa tesis y lo que falta lo marca para que usted lo complete. Si necesita más usos, hay paquetes de 100 que no caducan."],
   ["¿La inteligencia artificial inventa tesis?", "No. El Asistente IA de Nomira solo puede citar tesis de su biblioteca, copiada de fuentes oficiales de la SCJN. Después de redactar, Nomira revisa cada registro digital y cada clave: si alguno no lo puede verificar, lo elimina y se lo avisa. Cada tesis citada trae su texto, su ficha y la liga al Semanario Judicial de la Federación."],
+  ["¿Puedo buscar jurisprudencia con filtros?", "Sí. El buscador de tesis de Nomira filtra por jurisprudencia o tesis aislada, materia, órgano (Pleno, Primera y Segunda Sala, Plenos Regionales, Plenos de Circuito y Tribunales Colegiados), año y época, o encuentra una tesis por su registro digital. Viene incluido en todos los planes."],
   ["¿Puedo publicar vacantes?", "Sí, gratis. Publique vacantes en su propia página de empleos y en la bolsa de trabajo jurídica de Nomira, reciba CVs y dé seguimiento por etapas. Con el módulo de Pruebas psicométricas también aplica pruebas de personalidad, razonamiento, atención y conocimientos jurídicos en línea."],
   ["¿Puedo cobrarle y facturarle a mis clientes desde Nomira?", "Sí, con sus propias cuentas. Conecte su Stripe para mandar ligas de pago por WhatsApp (tarjeta, OXXO o transferencia, según lo que tenga activo) y su Facturapi para timbrar facturas CFDI 4.0. El dinero llega directo a su cuenta y el pago se registra solo en el estado de cuenta del cliente."],
   ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
@@ -198,7 +199,7 @@ export default function SitioPublico() {
     api.get("/publico").then((p) => { setWhatsapp(p.whatsapp || null); setDesde(p.precio_desde || null); setPrueba(!!p.permitir_registro); }).catch(() => {});
   }, []);
   const acceso = conSesion
-    ? <Link href="/app" className="btn-turquesa">Ir a Nomira</Link>
+    ? <Link href="/inicio" className="btn-turquesa">Ir a Nomira</Link>
     : <Link href="/login" className="btn-sec">Iniciar sesión</Link>;
 
   return (
@@ -210,7 +211,7 @@ export default function SitioPublico() {
         <div className={`mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 transition-all duration-300 ${desplazado ? "py-2.5" : "py-4"}`}>
           <Link href="/" aria-label="Nomira, inicio"><Logo oscuro={oscuro} /></Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex" aria-label="Secciones">
-            {NAV.map(([h, t]) => <a key={h} href={h} className={`group relative transition hover:text-marino ${h.startsWith("/") ? "font-semibold text-turquesa-700" : ""}`}>{t}
+            {NAV.map(([h, t]) => <a key={h} href={h} className={`group relative whitespace-nowrap transition hover:text-marino ${h.startsWith("/") ? "font-semibold text-turquesa-700" : ""}`}>{t}
               <span className="absolute -bottom-1 left-0 h-0.5 w-full origin-left scale-x-0 rounded-full bg-turquesa transition-transform duration-300 group-hover:scale-x-100" aria-hidden /></a>)}
           </nav>
           <div className="flex items-center gap-2">
@@ -304,6 +305,50 @@ export default function SitioPublico() {
             <p style={d(150)} className="s-revelar text-lg leading-relaxed text-white/75">
               Sumar quincenas a mano, buscar una fecha entre decenas de documentos, perseguir al cliente por un acta o recordar en qué va
               cada folio con la AFORE, dar seguimiento a cada prospecto o capacitar al equipo. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
+          </div>
+        </section>
+
+        {/* Jurisprudencia: buscador con filtros + IA que no inventa */}
+        <section id="jurisprudencia" className="scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-5 pt-20">
+            <div className="s-revelar max-w-3xl">
+              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Jurisprudencia</span>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Así busca jurisprudencia hoy. <span className="text-turquesa-700">Así la busca un despacho con Nomira.</span></h2>
+              <p className="mt-3 text-slate-600">Encuentre la tesis exacta con filtros y pídale a la IA que le explique cuál aplica a su caso, citando solo tesis reales del Semanario Judicial de la Federación.</p>
+            </div>
+            <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.25fr] lg:items-stretch">
+              <div className="s-revelar-lado rounded-3xl border border-crema-300 bg-white/70 p-6">
+                <p className="text-sm font-bold uppercase tracking-wide text-slate-500">Búsqueda tradicional</p>
+                <ul className="mt-4 space-y-3 text-slate-600">
+                  {["Cientos de resultados que hay que abrir uno por uno.", "Copiar a mano el rubro, la clave y el registro digital.",
+                    "Leer cada tesis para saber si de verdad aplica a su caso.", "La IA genérica «cita» tesis que no existen y nadie lo nota hasta la audiencia."].map((t) => (
+                    <li key={t} className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600" aria-hidden>✕</span>{t}</li>))}
+                </ul>
+              </div>
+              <div style={d(150)} className="s-revelar rounded-3xl bg-marino p-6 text-white shadow-[0_30px_60px_-30px_rgba(11,37,69,.6)]">
+                <p className="text-sm font-bold uppercase tracking-wide text-turquesa-brillante">Con Nomira</p>
+                <div className="mt-4 rounded-2xl bg-white p-4 text-marino" aria-label="Ejemplo de búsqueda de tesis en Nomira">
+                  <div className="flex gap-2"><div className="flex-1 rounded-lg border border-crema-300 px-3 py-2 text-sm text-slate-500">suspensión clausura establecimiento</div>
+                    <span className="rounded-lg bg-turquesa px-3 py-2 text-sm font-bold text-white">Buscar</span></div>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                    {["Jurisprudencia", "Materia: Común", "Órgano: Segunda Sala", "Desde 2021"].map((t) => <span key={t} className="rounded-full bg-turquesa-50 px-2.5 py-1 text-turquesa-700">{t}</span>)}</div>
+                  <div className="mt-3 rounded-xl border border-crema-300 p-3">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]"><span className="rounded-full bg-marino px-2 py-0.5 font-semibold text-white">Jurisprudencia</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">✓ Verificada</span><span className="text-slate-500">Registro digital · clave · época</span></div>
+                    <p className="mt-1.5 text-sm font-bold">Rubro oficial de la tesis</p>
+                    <p className="text-xs text-slate-500">Texto completo · Ficha PDF · Liga al Semanario · Copiar cita</p>
+                  </div>
+                </div>
+                <ul className="mt-5 space-y-3 text-white/85">
+                  {["Filtros por tipo, materia, órgano (Pleno, Salas, Plenos Regionales, Colegiados), año y época.",
+                    "La IA responde su pregunta citando solo tesis de la biblioteca. Si escribe una que no puede verificar, Nomira la borra y se lo avisa.",
+                    "Cada tesis con su texto, su ficha en PDF, la liga oficial y la cita lista para pegar en su escrito.",
+                    "Fundamente escritos completos: el Asistente redacta y cita tesis verificadas."].map((t) => (
+                    <li key={t} className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-turquesa text-sm font-bold text-white" aria-hidden>✓</span>{t}</li>))}
+                </ul>
+                <Link href="/login?registro=1" className="btn-turquesa mt-6 inline-flex px-5 py-3">Pruébelo 7 días gratis →</Link>
+              </div>
+            </div>
           </div>
         </section>
 

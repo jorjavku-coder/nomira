@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import models as m
@@ -14,14 +15,18 @@ router = APIRouter(prefix="/api/tesis", tags=["Tesis del SJF"])
 
 
 @router.get("")
-def buscar(q: str = "", tipo: str | None = None, epoca: str | None = None, instancia: str | None = None, pagina: int = 1,
+def buscar(q: str = "", tipo: str | None = None, epoca: str | None = None, instancia: str | None = None, materia: str | None = None,
+           anio_desde: int | None = None, anio_hasta: int | None = None, pagina: int = 1,
            u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
     pagina = max(1, min(pagina, 50))
-    filas, n = tb.buscar(db, q, tipo, epoca, instancia, limite=20, desde=(pagina - 1) * 20)
+    filas, n = tb.buscar(db, q, tipo, epoca, instancia, limite=20, desde=(pagina - 1) * 20, materia=materia, anio_desde=anio_desde,
+                         anio_hasta=anio_hasta)
+    anios = db.execute(select(func.min(m.JTesis.anio), func.max(m.JTesis.anio))).one()
     e = rp.estado(db)
     db.commit()
     return {"resultados": [tb.a_dict(t, completo=False) for t in filas], "total": n, "pagina": pagina, "en_biblioteca": tb.total(db),
-            "sincronizacion": e.estado, "actualizada": e.ultima_corrida.isoformat() if e.ultima_corrida else None}
+            "sincronizacion": e.estado, "materias": tb.MATERIAS, "instancias": {k: v[0] for k, v in tb.INSTANCIAS.items()},
+            "anios": [anios[0], anios[1]] if anios[0] else None, "actualizada": e.ultima_corrida.isoformat() if e.ultima_corrida else None}
 
 
 @router.get("/{registro}")

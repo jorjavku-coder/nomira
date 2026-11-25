@@ -17,7 +17,7 @@ await p.goto(base + "/login");
 await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await p.getByRole("button", { name: "Entrar" }).click();
-await p.getByRole("link", { name: "Leads", exact: true }).click();
+await p.getByRole("link", { name: "Prospectos", exact: true }).click();
 await p.getByText("Falta el aviso de privacidad de su despacho.").waitFor();
 ok(true, "Leads avisa al despacho que falta su aviso de privacidad");
 await foto(p, "av-01-falta-aviso");
