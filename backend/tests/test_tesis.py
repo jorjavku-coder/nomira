@@ -142,3 +142,15 @@ def test_filtros_materia_organo_anio(db, org):
     assert tb.buscar(db, "")[1] == 0  # sin palabras ni filtros no lista todo
     r = org.c.get("/api/tesis", headers=org.h, params={"tipo": "jurisprudencia", "materia": "Civil", "instancia": "pleno", "anio_desde": 2026}).json()
     assert r["total"] == 1 and r["resultados"][0]["anio"] == 2026 and r["anios"] == [2025, 2026] and "Laboral" in r["materias"]
+
+
+def test_zip_csv_del_repositorio(plataforma):
+    """ZIP que entrega «Descargar» del Repositorio de la SCJN: CSV con las tesis y un acuse firmado en PDF (que se ignora)."""
+    from pathlib import Path
+    zipb = (Path(__file__).parent / "datos" / "repositorio_scjn_muestra.zip").read_bytes()
+    t, _ = tb.leer_archivo("archivoSJF.zip", zipb)
+    assert [x["registro"] for x in t] == [2032977, 2032976, 2032975]
+    assert t[0]["clave"] == "I.8o.P.15 P (12a.)" and t[0]["materias"] == "Penal, Común" and t[0]["tipo"] == "aislada"
+    assert t[0]["rubro"].startswith("SUSPENSIÓN PROVISIONAL") and "20 de noviembre de 2026" in t[0]["publicada"]
+    r = plataforma.c.post("/api/plataforma/tesis/importar", headers=plataforma.h, files={"archivo": ("archivoSJF.zip", zipb, "application/zip")})
+    assert r.status_code == 200 and r.json()["importadas"] == 3, r.text
