@@ -1,4 +1,4 @@
-// Sitio público: módulos nuevos, «Por qué Nomira», calculadora gratuita de finiquito (sin sesión) y SEO básico.
+// Sitio público: módulos, «Cómo empezar», «Por qué Nomira», calculadora gratuita de finiquito (sin sesión) y SEO básico.
 // Uso: node e2e/sitio.mjs [base] [capturas]
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
@@ -15,9 +15,12 @@ p.on("pageerror", (e) => errores.push(String(e)));
 p.on("console", (m) => m.type() === "error" && !/favicon/.test(m.text()) && errores.push(m.text()));
 await p.goto(base + "/");
 await p.getByRole("heading", { name: "Un módulo para cada parte de su trabajo" }).waitFor();
-for (const t of ["Nómina y liquidaciones", "Agenda Jurídica", "Escrituración para notarías", "Clientes y cobranza"])
+for (const t of ["Nómina y liquidaciones", "Agenda Jurídica", "Escrituración para notarías", "Recursos humanos", "Pruebas psicométricas"])
   ok(await p.getByRole("heading", { name: t }).count() === 1, `módulo en el sitio: ${t}`);
 ok(await p.getByRole("heading", { name: "Más que un control de expedientes" }).count() === 1, "sección «Por qué Nomira»");
+ok(await p.getByRole("heading", { name: "En tres pasos, sin compromiso" }).count() === 1, "sección «Cómo empezar»");
+ok(await p.getByText("Incluido en todos los planes").count() === 1, "lo incluido en todos los planes");
+ok(await p.locator("#preguntas details").count() <= 10, "preguntas frecuentes cortas");
 ok((await p.title()).includes("notarías"), "título para buscadores actualizado");
 // que se vean las secciones animadas al desplazarse
 for (let y = 0; y < 14000; y += 700) { await p.mouse.wheel(0, 700); await p.waitForTimeout(80); }

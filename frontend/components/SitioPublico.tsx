@@ -6,84 +6,69 @@ import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, leerSesion, mxn } from "@/lib/api";
 
-const NAV = [["#jurisprudencia", "Jurisprudencia"], ["#modulos", "Módulos"], ["/calculadora-finiquito", "Calculadora"], ["/empleos", "Empleos"], ["#seguridad", "Seguridad"], ["#preguntas", "Preguntas"]];
+const NAV = [["#modulos", "Módulos"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["#preguntas", "Preguntas"]];
 
 const MODULOS = [
-  { clave: "nomina", nombre: "Nómina y liquidaciones", lema: "Del PDF al desglose, y de ahí a la liquidación",
-    texto: "Lee comprobantes de nómina y suma solo las prestaciones de su catálogo. Incluye la calculadora de finiquito y liquidación de la Ley Federal del Trabajo, con la operación y el artículo de cada concepto.",
-    puntos: ["Lectura de PDF y OCR, cada cifra ligada a su página", "Finiquito, indemnización, prima de antigüedad y salarios caídos", "Horas extra con la reforma de 40 horas", "Propuesta de convenio y exposición por asunto", "Excel y PDF con su logotipo"],
+  { clave: "nomina", nombre: "Nómina y liquidaciones", lema: "Del PDF al desglose",
+    texto: "Lee comprobantes de nómina, suma solo las prestaciones de su catálogo y calcula finiquitos y liquidaciones de la LFT.",
+    puntos: ["Cada cifra ligada a su página", "Liquidación con operación y artículo", "Excel y PDF con su logotipo"],
     imagen: "/sitio/liquidaciones.webp", alt: "Calculadora de liquidación de Nomira con el desglose por concepto (datos ficticios)." },
   { clave: "agenda", nombre: "Agenda Jurídica", lema: "Ningún plazo se le pasa",
-    texto: "Plazos, audiencias y pendientes de cada asunto con días hábiles del tribunal, responsables y avisos que escalan. Además, revisa por usted los estrados digitales y le avisa cuando sale algo de su expediente.",
-    puntos: ["Cálculo asistido de días hábiles", "Avisos escalonados al responsable", "Revisión automática de estrados (TRIJAEM)", "Expedientes federales (PJF) con revisión diaria", "Calendario para Google y Outlook", "Exposición económica de cada asunto"],
+    texto: "Plazos y audiencias con días hábiles del tribunal, responsables y avisos. Revisa los estrados por usted.",
+    puntos: ["Cálculo asistido de días hábiles", "Avisos al responsable", "Estrados TRIJAEM y expedientes del PJF"],
     imagen: "/sitio/agenda.webp", alt: "Asunto en la Agenda Jurídica de Nomira con pendientes y exposición económica (datos ficticios)." },
   { clave: "evidencia", nombre: "Nomira Evidencia", lema: "El expediente probatorio, ordenado",
-    texto: "Organiza los documentos de un asunto, propone hechos con su cita y página, y le ayuda a encontrar diferencias entre fuentes. Usted valida y decide.",
-    puntos: ["Hechos con cita, documento y página", "Fecha del documento ≠ fecha del evento", "Posibles diferencias lado a lado", "Matriz de evidencia y cronología", "Búsqueda dentro de los documentos"],
+    texto: "Ordena los documentos de un asunto y propone hechos con su cita y página. Usted valida y decide.",
+    puntos: ["Hechos con documento y página", "Diferencias entre fuentes", "Cronología y matriz de evidencia"],
     imagen: "/sitio/evidencia.webp", alt: "Bandeja «Requiere tu atención» de Nomira Evidencia (datos ficticios)." },
-  { clave: "afore", nombre: "Nomira AFORE", lema: "Casos AFORE y SAR sin perder el hilo",
-    texto: "Alta guiada del caso, checklist por tipo de problema, folios, respuestas y seguimientos, y un portal donde el cliente ve sus avances y envía documentos.",
-    puntos: ["Checklist editable por problema", "Folios, acuses y fechas con su naturaleza", "CURP y NSS cifrados y enmascarados", "Mensajes con aprobación del abogado", "WhatsApp oficial de Meta (opcional)"],
+  { clave: "afore", nombre: "Nomira AFORE", lema: "Casos AFORE y SAR al día",
+    texto: "Checklist por tipo de problema, folios y seguimientos, y un portal donde el cliente ve su avance.",
+    puntos: ["Checklist por problema", "CURP y NSS cifrados", "Mensajes con su aprobación"],
     imagen: "/sitio/afore.webp", alt: "Resumen «¿Qué requiere atención ahora?» de Nomira AFORE (datos ficticios)." },
   { clave: "leads", nombre: "Nomira Leads", lema: "Ningún prospecto sin respuesta",
-    texto: "Una bandeja que le dice a quién atender hoy, un tablero de seguimiento y el próximo paso de cada prospecto. Sepa qué campañas de WhatsApp, correo y redes sociales le traen clientes.",
-    puntos: ["Alta de prospectos en menos de un minuto", "Tablero con etapas a su medida", "Campañas por WhatsApp, correo y redes", "Formulario de contacto para anuncios", "Resultados y costo por cliente"],
+    texto: "Le dice a quién atender hoy y qué campañas le traen clientes.",
+    puntos: ["Alta en menos de un minuto", "Tablero de seguimiento", "Costo por cliente por campaña"],
     imagen: "/sitio/leads.webp", alt: "Bandeja «¿A quién hay que atender?» de Nomira Leads (datos ficticios)." },
-  { clave: "academia", nombre: "Nomira Academia", lema: "Capacite a su equipo a su ritmo",
-    texto: "Cursos breves y prácticos por materia: asígnelos a su equipo, vea quién avanza y quién terminó, y entregue constancias de participación al concluir.",
-    puntos: ["Cursos propios y cursos de Nomira", "Video, lecturas, materiales y preguntas", "Avance guardado: retoma donde se quedó", "Asignación por persona o equipo", "Constancia de participación en PDF"],
+  { clave: "academia", nombre: "Nomira Academia", lema: "Capacite a su equipo",
+    texto: "Cursos breves por materia: asígnelos, vea quién avanza y entregue constancias de participación.",
+    puntos: ["Cursos propios y de Nomira", "Avance por persona", "Constancia en PDF"],
     imagen: "/sitio/academia.webp", alt: "Pantalla «Mi aprendizaje» de Nomira Academia (datos ficticios)." },
   { clave: "escrituracion", nombre: "Escrituración para notarías", lema: "«¿Ya está lista mi escritura?», resuelto",
-    texto: "Cada operación con sus etapas y su lista de documentos con vigencias. Un semáforo le dice qué expediente está listo para firmar, y su cliente, la inmobiliaria y el banco ven el avance con un enlace.",
-    puntos: ["Semáforo «listo para firmar»", "Vigencias de certificados y constancias", "El cliente sube sus documentos desde el celular", "Avisos de avance por correo", "Enlaces para inmobiliaria y banco"],
+    texto: "Etapas, documentos con vigencia y un semáforo de «listo para firmar». El cliente, la inmobiliaria y el banco ven el avance.",
+    puntos: ["Semáforo «listo para firmar»", "Vigencias de certificados", "Documentos desde el celular"],
     imagen: "/sitio/escrituracion.webp", alt: "Lista de expedientes de escrituración con semáforo (datos ficticios)." },
 ];
 
-const PASOS = [
-  ["Cree el expediente", "Nombre del trabajador y periodo a revisar. Si sube primero los PDF, Nomira propone esos datos por usted."],
-  ["Suba los comprobantes", "Los PDF de nómina tal como los tiene: digitales o escaneados. Nomira lee clave, concepto e importe de cada percepción."],
-  ["Revise solo lo dudoso", "Lo ilegible, lo duplicado o lo que no cuadra queda señalado para que una persona decida. Nada se corrige solo."],
-  ["Descargue el resultado", "Desglose por quincena y por clave, listo en Excel y PDF con el logotipo de su despacho."],
+/** Módulos sin captura en el sitio y lo que viene en todos los planes. */
+const OTROS_MODULOS = [
+  ["Recursos humanos", "Expedientes del personal, vacaciones LFT, avisos con acuse y portal del empleado."],
+  ["Pruebas psicométricas", "Personalidad, razonamiento y conocimientos jurídicos para sus vacantes."],
+];
+const INCLUIDO = [
+  ["Clientes y cobranza", "Directorio único, honorarios, pagos y recibos."],
+  ["Asistente IA", "Borradores y resúmenes; 30 usos al mes."],
+  ["Buscador de tesis", "Jurisprudencia del SJF con filtros."],
+  ["Bolsa de trabajo", "Publique vacantes y reciba CVs gratis."],
 ];
 
-const BENEFICIOS = [
-  ["Solo lo que está en su catálogo", "Se suman únicamente las percepciones cuya clave coincide exactamente con su catálogo autorizado. Las deducciones nunca se suman."],
-  ["Cada cifra con su origen", "Del total a la quincena, y de ahí a la página del comprobante donde se leyó, en un clic."],
-  ["Nada se inventa", "Si un importe no se lee, queda pendiente. Si falta una quincena, se señala como faltante; nunca se rellena."],
-  ["Detecta lo que se escapa a mano", "Recibos repetidos, complementarios, de otro trabajador o fuera de periodo, y trabajadores con más de una plaza."],
-  ["Su catálogo, a su medida", "Cárguelo desde el PDF oficial y agregue las claves que le falten. Cada cambio queda como una versión nueva."],
-  ["Trabajo en equipo con bitácora", "Usuarios por rol (administrador, analista, consulta) y registro de cada corrección: quién, cuándo y por qué."],
+const PASOS = [
+  ["Cree su cuenta", "Elija hasta 3 módulos y úselos 2 días gratis. Sin tarjeta."],
+  ["Pruébelo con un caso real", "Suba sus documentos y vea el resultado. Si quiere, le acompañamos en el primero."],
+  ["Quédese solo con lo que use", "Encienda o apague módulos desde su perfil y pague mes a mes. Su información se conserva."],
 ];
 
 const PREGUNTAS = [
-  ["¿Qué documentos acepta?", "Comprobantes de nómina en PDF, tanto digitales como escaneados (en ese caso se leen con reconocimiento de texto). Puede subir uno o varios archivos por expediente."],
-  ["¿Qué pasa si una clave no está en mi catálogo?", "Esa percepción queda fuera del total y se muestra en la lista de excluidos con el motivo. Si debe contar, la agrega a su catálogo y el expediente se recalcula."],
-  ["¿Quién puede ver mis expedientes?", "Solo los usuarios de su organización. Ni otras empresas ni el equipo de Nomira tienen acceso a sus expedientes ni a sus documentos."],
   ["¿Tengo que instalar algo?", "No. Nomira funciona desde el navegador, en computadora o tableta."],
-  ["¿Puedo corregir una lectura?", "Sí. Cada corrección pide un motivo y queda registrada; el comprobante original no se modifica."],
-  ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado: Nómina y liquidaciones, Agenda Jurídica, Evidencia, AFORE, Leads, Academia o Escrituración, en la combinación que necesite. Clientes y cobranza y el Asistente IA vienen incluidos en todos los planes. Desactivar un módulo no borra su información."],
-  ["¿Tiene inteligencia artificial?", "Sí. El Asistente IA viene incluido en todos los planes, con 30 usos al mes para todo el despacho: redacta borradores de escritos con los datos del asunto, resume documentos y explica acuerdos. No inventa tesis y lo que falta lo marca para que usted lo complete. Si necesita más usos, hay paquetes de 100 que no caducan."],
-  ["¿La inteligencia artificial inventa tesis?", "No. El Asistente IA de Nomira solo puede citar tesis de su biblioteca, copiada de fuentes oficiales de la SCJN. Después de redactar, Nomira revisa cada registro digital y cada clave: si alguno no lo puede verificar, lo elimina y se lo avisa. Cada tesis citada trae su texto, su ficha y la liga al Semanario Judicial de la Federación."],
-  ["¿Puedo buscar jurisprudencia con filtros?", "Sí. El buscador de tesis de Nomira filtra por jurisprudencia o tesis aislada, materia, órgano (Pleno, Primera y Segunda Sala, Plenos Regionales, Plenos de Circuito y Tribunales Colegiados), año y época, o encuentra una tesis por su registro digital. Viene incluido en todos los planes."],
-  ["¿Puedo llevar Recursos Humanos?", "Sí. El módulo de Recursos humanos lleva el personal de su despacho y el de las empresas a las que les da servicio: expediente con documentos, vacaciones según la LFT, faltas e incapacidades, avisos con acuse de lectura, nómina de control con recibos y Excel para el contador, y un portal para que cada empleado lo vea en su celular."],
-  ["¿Puedo publicar vacantes?", "Sí, gratis. Publique vacantes en su propia página de empleos y en la bolsa de trabajo jurídica de Nomira, reciba CVs y dé seguimiento por etapas. Con el módulo de Pruebas psicométricas también aplica pruebas de personalidad, razonamiento, atención y conocimientos jurídicos en línea."],
-  ["¿Puedo cobrarle y facturarle a mis clientes desde Nomira?", "Sí, con sus propias cuentas. Conecte su Stripe para mandar ligas de pago por WhatsApp (tarjeta, OXXO o transferencia, según lo que tenga activo) y su Facturapi para timbrar facturas CFDI 4.0. El dinero llega directo a su cuenta y el pago se registra solo en el estado de cuenta del cliente."],
-  ["¿Nomira decide si un hecho está probado o si el cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica, la estrategia y cualquier decisión las toma siempre el abogado."],
-  ["¿Cómo envía documentos mi cliente?", "Usted le manda un enlace seguro que vence: lo abre en su celular, confirma un código que le llega a su correo y sube sus archivos. Solo puede enviar; no ve nada interno de su despacho."],
-  ["¿Nomira manda mensajes de WhatsApp por su cuenta?", "Solo con la API oficial de WhatsApp Business de Meta conectada a su número, con el consentimiento del cliente y, por omisión, con la aprobación del abogado. Si algo falta, el mensaje queda como borrador."],
-  ["¿Nomira Leads me consigue clientes?", "Nomira no publica anuncios ni promete clientes. Le ayuda a responder a tiempo a quien ya le contactó, a dar seguimiento ordenado y a medir qué campañas (WhatsApp, correo, redes sociales, su sitio web) le traen clientes."],
-  ["¿La constancia de Nomira Academia es una certificación oficial?", "No. Es una constancia de participación interna que indica curso, participante, despacho y fecha. No sustituye certificaciones, acreditaciones ni avales de ninguna institución."],
-  ["¿La calculadora de liquidaciones está al día?", "Sí. Usa la tabla de vacaciones vigente desde 2023, el salario mínimo de cada año y zona para el tope de la prima de antigüedad, el tope de 12 meses de salarios caídos y la reducción gradual de la jornada a 40 horas con el nuevo tope de horas extra. Cada concepto muestra su operación para que usted la revise."],
-  ["¿Qué estrados revisa la Agenda?", "Por ahora, los estrados digitales del Tribunal de Justicia Administrativa del Estado de México (TRIJAEM). Usted registra el expediente y la sala, y Nomira le avisa cuando aparece una publicación nueva."],
-  ["¿Sirve para notarías?", "Sí, con el módulo de Escrituración: expedientes por acto, documentos con vigencia, semáforo «listo para firmar» y seguimiento en línea para el cliente, la inmobiliaria y el banco. No sustituye el protocolo electrónico, la firma notarial, el timbrado ni los avisos a la UIF."],
-  ["¿Cómo empiezo?", "Cree su cuenta en línea, elija hasta 3 módulos y úselos gratis 2 días, sin tarjeta. Si prefiere que le acompañemos, llene el formulario de informes o escríbanos y le ayudamos con su primer caso."],
-  ["¿Qué pasa al terminar la prueba?", "Su información se conserva. Para seguir usando Nomira, contrate el plan con los módulos que necesite; un asesor le ayuda a elegirlo."],
+  ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado y usted elige la combinación. Clientes y cobranza, el Asistente IA y el buscador de tesis vienen incluidos. Apagar un módulo no borra su información."],
+  ["¿La inteligencia artificial inventa tesis?", "No. Solo puede citar tesis de la biblioteca de Nomira, copiada de fuentes oficiales de la SCJN. Si escribe una que no puede verificar, Nomira la elimina y se lo avisa."],
+  ["¿Quién puede ver mis expedientes?", "Solo los usuarios de su despacho. Ni otras empresas ni el equipo de Nomira tienen acceso a sus expedientes ni a sus documentos."],
+  ["¿Nomira decide si mi cliente tiene derecho?", "No. Nomira lee, organiza y señala lo que hay que revisar. La valoración jurídica y las decisiones son siempre del abogado."],
+  ["¿Sirve para notarías?", "Sí, con el módulo de Escrituración. No sustituye el protocolo electrónico, la firma notarial, el timbrado ni los avisos a la UIF."],
+  ["¿Puedo cobrar y facturar a mis clientes?", "Sí, con sus propias cuentas de Stripe y Facturapi: ligas de pago por WhatsApp y facturas CFDI 4.0. El dinero llega directo a su cuenta."],
+  ["¿Qué pasa al terminar la prueba?", "Su información se conserva. Para seguir, contrate desde su perfil los módulos que necesite o pida ayuda a un asesor."],
 ];
 
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
-
-const CINTA = ["Nómina y prestaciones", "Liquidaciones LFT", "Agenda Jurídica", "Estrados digitales", "Escrituración", "Clientes y cobranza", "Asistente IA incluido", "IA que no inventa tesis", "Buscador de tesis del SJF", "Ligas de pago y CFDI 4.0", "Bolsa de trabajo", "Pruebas psicométricas", "Recursos humanos y portal del empleado", "Nomira Evidencia", "Nomira AFORE", "Nomira Leads", "Nomira Academia", "Portal del cliente",
-  "WhatsApp oficial de Meta", "Bitácora completa", "Datos cifrados", "Excel y PDF con su logotipo", "Constancias de participación", "Campañas y resultados"];
 
 /** Animaciones del sitio: aparición al desplazarse, encabezado compacto y barra de lectura. */
 function useAnimaciones(raiz: React.RefObject<HTMLDivElement | null>) {
@@ -244,19 +229,16 @@ export default function SitioPublico() {
               <span className="s-entrada inline-flex items-center gap-2 rounded-full border border-turquesa/20 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700 backdrop-blur">
                 <span className="s-pulso h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Software para despachos y áreas jurídicas</span>
               <h1 style={d(100)} className="s-entrada mt-5 font-marca text-4xl font-extrabold leading-[1.08] text-marino sm:text-5xl lg:text-[3.4rem]">
-                Cada prestación,<br /><span className="s-degradado">en claro.</span></h1>
+                Todo su despacho,<br /><span className="s-degradado">en claro.</span></h1>
               <p style={d(200)} className="s-entrada mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-                Nomira lee sus documentos, ordena la información y le muestra de dónde sale cada dato, para que usted dedique su tiempo a
-                <b className="text-marino"> decidir</b>, no a copiar y pegar. Contrate solo los módulos que necesita.</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                {MODULOS.map((m, i) => <a key={m.clave} href="#modulos" style={d(300 + i * 70)} className="s-entrada rounded-full border border-turquesa/40 bg-white/80 px-3 py-1 text-sm font-semibold text-marino backdrop-blur transition hover:-translate-y-0.5 hover:border-turquesa hover:shadow-suave">{m.nombre}</a>)}
-              </div>
+                Plazos, liquidaciones, jurisprudencia, clientes y cobranza en un solo lugar. Nomira hace el trabajo repetitivo;
+                <b className="text-marino"> usted decide</b>.</p>
               <div style={d(650)} className="s-entrada mt-8 flex flex-wrap gap-3">
                 {prueba ? <>
                   <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Pruebe 2 días gratis →</Link>
                   <a href="#informes" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Solicitar informes</a></>
                   : <><a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Solicitar informes →</a>
-                  <a href="#como-funciona" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Ver cómo funciona</a></>}
+                  <a href="#empezar" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Ver cómo empezar</a></>}
               </div>
               <ul style={d(800)} className="s-entrada mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
                 {[prueba ? "2 días gratis, sin tarjeta" : "Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
@@ -278,34 +260,19 @@ export default function SitioPublico() {
                 <div style={d(-2000)} className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
                   <span className="s-pulso h-2 w-2 rounded-full bg-turquesa" />Nuevo prospecto · WhatsApp</div>
               </div>
-              <div aria-hidden className="pointer-events-none absolute left-10 top-[74%] hidden sm:block">
-                <div style={d(-4000)} className="s-flotar flex items-center gap-2 rounded-2xl bg-marino px-3 py-2 text-xs font-semibold text-white shadow-flotante">
-                  <span className="text-turquesa-brillante">★</span>Constancia emitida</div>
-              </div>
               <p className="relative mt-8 text-center text-xs text-slate-500">Datos ficticios de demostración.</p>
             </div>
 
           </div>
         </section>
 
-        {/* Cinta de módulos y funciones */}
-        <div className="s-cinta-marco relative overflow-hidden border-y border-crema-300 bg-white/70 py-4" aria-hidden>
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" />
-          <div className="s-cinta flex w-max gap-10 whitespace-nowrap">
-            {[...CINTA, ...CINTA].map((t, i) => (
-              <span key={i} className="flex items-center gap-10 font-marca text-sm font-bold uppercase tracking-wider text-marino/70">{t}<span className="h-1.5 w-1.5 rounded-full bg-turquesa" /></span>))}
-          </div>
-        </div>
-
         {/* El problema */}
         <section className="relative overflow-hidden bg-marino-700 text-white">
           <div className="s-aurora pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-turquesa-brillante/15 blur-3xl" aria-hidden />
-          <div className="relative mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[1fr_1.4fr] md:items-center">
+          <div className="relative mx-auto grid max-w-6xl gap-6 px-5 py-12 md:grid-cols-[1fr_1.4fr] md:items-center">
             <h2 className="s-revelar-lado font-marca text-3xl font-extrabold leading-tight">El trabajo repetitivo<br /><span className="text-turquesa-brillante">no debería tomar días.</span></h2>
             <p style={d(150)} className="s-revelar text-lg leading-relaxed text-white/75">
-              Sumar quincenas a mano, buscar una fecha entre decenas de documentos, perseguir al cliente por un acta o recordar en qué va
-              cada folio con la AFORE, dar seguimiento a cada prospecto o capacitar al equipo. Nomira hace la lectura, el orden y el seguimiento, y le deja a usted lo que de verdad requiere criterio.</p>
+              Sumar quincenas, buscar fechas entre documentos o perseguir al cliente por un acta. Nomira se encarga de eso y le deja lo que requiere su criterio.</p>
           </div>
         </section>
 
@@ -315,14 +282,14 @@ export default function SitioPublico() {
             <div className="s-revelar max-w-3xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Jurisprudencia</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Así busca jurisprudencia hoy. <span className="text-turquesa-700">Así la busca un despacho con Nomira.</span></h2>
-              <p className="mt-3 text-slate-600">Encuentre la tesis exacta con filtros y pídale a la IA que le explique cuál aplica a su caso, citando solo tesis reales del Semanario Judicial de la Federación.</p>
+              <p className="mt-3 text-slate-600">Encuentre la tesis exacta con filtros y pida a la IA que le explique cuál aplica, citando solo tesis reales del Semanario Judicial de la Federación.</p>
             </div>
             <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.25fr] lg:items-stretch">
               <div className="s-revelar-lado rounded-3xl border border-crema-300 bg-white/70 p-6">
                 <p className="text-sm font-bold uppercase tracking-wide text-slate-500">Búsqueda tradicional</p>
                 <ul className="mt-4 space-y-3 text-slate-600">
-                  {["Cientos de resultados que hay que abrir uno por uno.", "Copiar a mano el rubro, la clave y el registro digital.",
-                    "Leer cada tesis para saber si de verdad aplica a su caso.", "La IA genérica «cita» tesis que no existen y nadie lo nota hasta la audiencia."].map((t) => (
+                  {["Cientos de resultados que hay que abrir uno por uno.", "Copiar a mano rubro, clave y registro digital.",
+                    "La IA genérica «cita» tesis que no existen."].map((t) => (
                     <li key={t} className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600" aria-hidden>✕</span>{t}</li>))}
                 </ul>
               </div>
@@ -341,10 +308,9 @@ export default function SitioPublico() {
                   </div>
                 </div>
                 <ul className="mt-5 space-y-3 text-white/85">
-                  {["Filtros por tipo, materia, órgano (Pleno, Salas, Plenos Regionales, Colegiados), año y época.",
-                    "La IA responde su pregunta citando solo tesis de la biblioteca. Si escribe una que no puede verificar, Nomira la borra y se lo avisa.",
-                    "Cada tesis con su texto, su ficha en PDF, la liga oficial y la cita lista para pegar en su escrito.",
-                    "Fundamente escritos completos: el Asistente redacta y cita tesis verificadas."].map((t) => (
+                  {["Filtros por tipo, materia, órgano, año y época.",
+                    "La IA cita solo tesis verificadas. Si no puede comprobar una, la borra y se lo avisa.",
+                    "Texto, ficha PDF, liga oficial y la cita lista para pegar."].map((t) => (
                     <li key={t} className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-turquesa text-sm font-bold text-white" aria-hidden>✓</span>{t}</li>))}
                 </ul>
                 <Link href="/login?registro=1" className="btn-turquesa mt-6 inline-flex px-5 py-3">Pruébelo 2 días gratis →</Link>
@@ -359,7 +325,7 @@ export default function SitioPublico() {
             <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Módulos</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Un módulo para cada parte de su trabajo</h2>
-              <p className="mt-3 text-slate-600">Contrate solo los que necesita. Todos comparten los mismos usuarios, su directorio de clientes, la bitácora y la seguridad de su despacho.</p>
+              <p className="mt-3 text-slate-600">Contrate solo los que necesita. Todos comparten usuarios, clientes y seguridad.</p>
             </div>
             <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
               {MODULOS.map((m, i) => (
@@ -377,16 +343,16 @@ export default function SitioPublico() {
                 </article>
               ))}
             </div>
-            <div className="s-revelar mt-8 grid gap-6 rounded-3xl border border-turquesa/30 bg-gradient-to-br from-turquesa-50 to-white p-6 md:grid-cols-[1fr_1.3fr] md:items-center md:p-8">
-              <div>
-                <span className="rounded-full bg-turquesa px-3 py-1 text-xs font-bold uppercase tracking-wider text-marino-900">Incluido en todos los planes</span>
-                <h3 className="mt-3 font-marca text-2xl font-extrabold text-marino">Clientes y cobranza</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">Capture a cada cliente una sola vez y úselo en todos los módulos. Llene sus datos desde la Constancia de Situación Fiscal y lleve sus honorarios, pagos y recibos.</p>
-              </div>
-              <ul className="grid gap-2 text-sm sm:grid-cols-2">
-                {["Directorio único de clientes", "Datos desde la Constancia de Situación Fiscal (PDF)", "Importación desde Excel", "Honorarios únicos o mensuales (igualas)",
-                  "Pagos con recibo y cantidad con letra", "Recordatorio de pago por correo"].map((p) => (
-                  <li key={p} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>{p}</li>))}
+            <div className="s-revelar mt-6 grid gap-4 sm:grid-cols-2">
+              {OTROS_MODULOS.map(([t, dd]) => (
+                <div key={t} className="tarjeta p-5"><h3 className="font-marca text-lg font-extrabold text-marino">{t}</h3><p className="mt-1 text-sm text-slate-600">{dd}</p></div>))}
+            </div>
+            <div className="s-revelar mt-6 rounded-3xl border border-turquesa/30 bg-gradient-to-br from-turquesa-50 to-white p-6 md:p-8">
+              <span className="rounded-full bg-turquesa px-3 py-1 text-xs font-bold uppercase tracking-wider text-marino-900">Incluido en todos los planes</span>
+              <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {INCLUIDO.map(([t, dd]) => (
+                  <li key={t} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>
+                    <span><span className="block font-bold text-marino">{t}</span><span className="block text-sm text-slate-600">{dd}</span></span></li>))}
               </ul>
             </div>
           </div>
@@ -411,10 +377,8 @@ export default function SitioPublico() {
                   ["Cobranza de honorarios con recibos", true, true],
                   ["Su cliente ve el avance y sube documentos desde el celular", false, true],
                   ["Revisión automática de estrados digitales", false, true],
-                  ["Liquidación LFT con operación y artículo, al día con la reforma de 40 horas", false, true],
-                  ["Lectura de comprobantes de nómina en PDF", false, true],
-                  ["Seguimiento de prospectos y campañas", false, true],
-                  ["Módulo para notarías con semáforo «listo para firmar»", false, true],
+                  ["Liquidación LFT con operación y artículo", false, true],
+                  ["IA que cita solo tesis verificadas", false, true],
                   ["Contrata solo lo que usa", false, true],
                 ] as [string, boolean, boolean][]).map(([t, a, b]) => (
                   <tr key={t} className="border-b border-crema-200 last:border-0">
@@ -430,22 +394,22 @@ export default function SitioPublico() {
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-turquesa-brillante">Herramienta gratuita</span>
                 <h3 className="mt-2 font-marca text-2xl font-extrabold sm:text-3xl">Calcule un finiquito o una liquidación ahora</h3>
-                <p className="mt-2 text-white/75">Con fecha de ingreso, fecha de baja y salario ve el desglose al instante: aguinaldo, vacaciones, prima de antigüedad, indemnización y salarios caídos, con el artículo de cada concepto. Sin registrarse.</p>
+                <p className="mt-2 text-white/75">Con fechas y salario ve el desglose al instante, con el artículo de cada concepto. Sin registrarse.</p>
               </div>
               <div className="flex md:justify-end"><Link href="/calculadora-finiquito" className="btn-turquesa s-brillo px-5 py-3 text-base">Abrir la calculadora →</Link></div>
             </div>
           </div>
         </section>
 
-        {/* Cómo funciona */}
-        <section id="como-funciona" className="scroll-mt-20">
+        {/* Cómo empezar */}
+        <section id="empezar" className="scroll-mt-20">
           <div className="mx-auto max-w-6xl px-5 py-20">
             <div className="s-revelar max-w-2xl">
-              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Cómo funciona</span>
-              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Nómina y prestaciones: de los PDF al desglose en cuatro pasos</h2>
+              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Cómo empezar</span>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">En tres pasos, sin compromiso</h2>
             </div>
-            <ol className="s-revelar relative mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <span className="s-trazo absolute left-6 right-6 top-11 hidden h-0.5 rounded-full bg-gradient-to-r from-turquesa via-turquesa-brillante to-marino lg:block" aria-hidden />
+            <ol className="s-revelar relative mt-10 grid gap-5 md:grid-cols-3">
+              <span className="s-trazo absolute left-6 right-6 top-11 hidden h-0.5 rounded-full bg-gradient-to-r from-turquesa via-turquesa-brillante to-marino md:block" aria-hidden />
               {PASOS.map(([t, dd], i) => (
                 <li key={t} style={d(i * 130)} className="s-revelar s-tarjeta tarjeta relative p-6">
                   <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-marino font-marca text-lg font-extrabold text-white">{i + 1}</span>
@@ -454,31 +418,11 @@ export default function SitioPublico() {
                 </li>
               ))}
             </ol>
-          </div>
-        </section>
-
-        {/* Beneficios */}
-        <section id="beneficios" className="scroll-mt-20 border-y border-crema-300 bg-white">
-          <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 lg:grid-cols-[1.25fr_1fr] lg:items-start">
-            <div className="s-revelar">
-              <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Nómina y prestaciones · Beneficios</span>
-              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Un resultado que puede defender</h2>
-              <p className="mt-3 max-w-xl text-slate-600">Nomira no adivina: aplica reglas claras y le muestra de dónde sale cada número.</p>
-              <ul className="mt-8 grid gap-6 sm:grid-cols-2">
-                {BENEFICIOS.map(([t, dd], i) => (
-                  <li key={t} style={d((i % 2) * 120)} className="s-revelar flex gap-3">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-turquesa-50 text-turquesa-700"><Palomita /></span>
-                    <span><span className="block font-bold text-marino">{t}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{dd}</span></span>
-                  </li>
-                ))}
-              </ul>
+            <div className="s-revelar mt-8 flex flex-wrap items-center gap-4">
+              {prueba ? <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base">Pruebe 2 días gratis →</Link>
+                : <a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base">Solicitar informes →</a>}
+              {desde && <span className="text-sm text-slate-600">Paquetes desde <b className="text-marino">{mxn(desde).replace(/\.00$/, "")} MXN + IVA</b></span>}
             </div>
-            <figure style={d(200)} className="s-revelar lg:sticky lg:top-24">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/sitio/resultados.webp" width={1099} height={1076} loading="lazy" alt="Tabla de Nomira con el total por clave de prestación: clave, concepto del catálogo, veces que aparece y total."
-                className="w-full rounded-3xl border border-crema-300 shadow-flotante" />
-              <figcaption className="mt-3 text-center text-xs text-slate-500">Total por clave de prestación (datos ficticios).</figcaption>
-            </figure>
           </div>
         </section>
 
@@ -488,12 +432,11 @@ export default function SitioPublico() {
             <div className="s-revelar-lado">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Su cliente, conectado</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Menos llamadas de «¿cómo va mi asunto?»</h2>
-              <p className="mt-3 text-slate-600">Su cliente recibe un enlace seguro desde su celular: ve solo lo que usted decide compartir, sabe qué documentos faltan y los envía en un minuto.</p>
+              <p className="mt-3 text-slate-600">Su cliente ve en su celular solo lo que usted comparte, sabe qué documentos faltan y los envía en un minuto.</p>
               <ul className="mt-6 space-y-4">
-                {[["Solicitud de documentos con enlace seguro", "Vence, se puede cancelar y pide un código que llega al correo del cliente. Solo sirve para enviar archivos."],
-                  ["Usted revisa antes que nada", "Lo que llega queda «pendiente de revisión»: no se lee ni se agrega al expediente hasta que usted lo acepta."],
-                  ["Avisos con su aprobación", "Correos de bienvenida, recordatorios y avisos de novedades. En AFORE, también WhatsApp oficial, siempre con consentimiento del cliente."],
-                  ["Sin datos sensibles en los mensajes", "Los avisos solo dicen que hay novedades: los detalles se consultan en el portal seguro."]].map(([t, d]) => (
+                {[["Enlace seguro que vence", "Pide un código al correo del cliente y solo sirve para enviar archivos."],
+                  ["Usted revisa antes que nada", "Lo que llega queda pendiente hasta que usted lo acepta."],
+                  ["Sin datos sensibles en los mensajes", "Los avisos solo dicen que hay novedades; el detalle está en el portal."]].map(([t, d]) => (
                   <li key={t} className="flex gap-3">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-turquesa-50 text-turquesa-700"><Palomita /></span>
                     <span><span className="block font-bold text-marino">{t}</span><span className="mt-1 block text-sm leading-relaxed text-slate-600">{d}</span></span>
@@ -510,26 +453,6 @@ export default function SitioPublico() {
           </div>
         </section>
 
-        {/* Para quién */}
-        <section>
-          <div className="mx-auto max-w-6xl px-5 py-16">
-            <h2 className="s-revelar text-center font-marca text-2xl font-extrabold text-marino">Pensado para quien trabaja con documentos y plazos</h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[["Despachos laborales", "Calcule liquidaciones con la ley al día, integre prestaciones con su comprobante y vigile los estrados."],
-                ["Familiar, civil y mercantil", "Ordene documentos, hechos y fechas de cada asunto, y detecte versiones distintas entre fuentes."],
-                ["Seguridad social y AFORE", "Lleve cada caso AFORE/SAR con su checklist, folios, respuestas y seguimientos al día."],
-                ["Despachos que quieren crecer", "Atienda cada consulta a tiempo y sepa qué campañas le traen clientes, sin depender de la memoria de nadie."],
-                ["Notarías", "Sepa qué escrituras están listas para firmar y deje que el cliente, la inmobiliaria y el banco vean el avance solos."],
-                ["Equipos en formación", "Capacite a abogados y personal de apoyo con cursos breves, y compruebe quién ya los terminó."],
-                ["Recursos humanos y áreas jurídicas", "Verifique pagos de varios periodos con trazabilidad completa, lista para un expediente."]].map(([t, dd], i) => (
-                <div key={t} style={d((i % 3) * 110)} className="s-revelar s-tarjeta rounded-3xl border border-crema-300 bg-white/60 p-6">
-                  <h3 className="font-bold text-marino">{t}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{dd}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Seguridad */}
         <section id="seguridad" className="relative scroll-mt-20 overflow-hidden bg-marino-900 text-white">
           <div className="s-aurora pointer-events-none absolute -left-24 top-10 h-96 w-96 rounded-full bg-turquesa/15 blur-3xl" aria-hidden />
@@ -537,15 +460,15 @@ export default function SitioPublico() {
             <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-brillante">Seguridad y privacidad</span>
               <h2 className="mt-2 font-marca text-3xl font-extrabold sm:text-4xl">Sus expedientes son solo suyos</h2>
-              <p className="mt-3 text-white/70">Sus documentos contienen datos personales y secreto profesional. Nomira está construido para tratarlos con ese cuidado.</p>
+              <p className="mt-3 text-white/70">Datos personales y secreto profesional, tratados con ese cuidado.</p>
             </div>
             <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {[["Separado por organización", "Cada despacho ve únicamente sus propios expedientes, casos, documentos y clientes."],
                 ["Ni nosotros los vemos", "El equipo de Nomira administra cuentas, pero no tiene acceso a sus expedientes ni a sus documentos."],
-                ["Accesos protegidos", "Conexión cifrada (HTTPS), contraseñas protegidas, bloqueo ante intentos repetidos y documentos restringidos por usuario."],
+                ["Accesos protegidos", "Conexión cifrada (HTTPS), contraseñas protegidas y bloqueo ante intentos repetidos."],
                 ["Datos sensibles cifrados", "CURP, NSS y credenciales se guardan cifrados y se muestran enmascarados; verlos completos queda registrado."],
                 ["Enlaces que vencen", "Los enlaces para sus clientes caducan, se pueden cancelar, piden código y no contienen información del caso."],
-                ["Todo queda registrado", "Bitácora de quién creó, editó, validó, envió o descargó cada cosa y cuándo."]].map(([t, dd], i) => (
+                ["Todo queda registrado", "Bitácora de quién hizo qué y cuándo."]].map(([t, dd], i) => (
                 <div key={t} style={d((i % 3) * 110)} className="s-revelar s-oscura rounded-3xl border border-white/10 bg-white/[0.04] p-6">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-turquesa-brillante/15 text-turquesa-brillante">
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 4.4-3 8.2-7 9.5-4-1.3-7-5.1-7-9.5V6z" /><path d="M9.5 12l1.8 1.8 3.5-3.6" /></svg>
@@ -580,8 +503,6 @@ export default function SitioPublico() {
               <span className="rounded-full bg-turquesa-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700">Informes y suscripción</span>
               <h2 className="mt-4 font-marca text-3xl font-extrabold leading-tight text-marino sm:text-4xl">Hablemos de su operación</h2>
               <p className="mt-3 text-slate-600">Cuéntenos qué módulos le interesan, cuántos asuntos lleva y cómo trabaja hoy. Le respondemos para explicarle cómo empezar.</p>
-              {desde && <p className="mt-4 inline-flex items-center gap-2 rounded-xl border border-turquesa/40 bg-turquesa-50 px-4 py-2 text-sm text-marino">
-                <b>Paquetes desde {mxn(desde).replace(/\.00$/, "")} MXN + IVA</b><span className="text-slate-600">· le enviamos una cotización a la medida</span></p>}
               {whatsapp && (
                 <a href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, me interesa conocer Nomira.")}`} target="_blank" rel="noopener noreferrer"
                   className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2.5 text-sm font-semibold text-[#128C4B] transition hover:bg-[#25D366]/20">
@@ -599,8 +520,10 @@ export default function SitioPublico() {
           <div className="flex items-center gap-3"><Logo oscuro /><span className="hidden text-white/40 sm:inline">Cada prestación, en claro</span></div>
           <nav className="flex flex-wrap gap-5" aria-label="Pie de página">
             <a href="#modulos" className="hover:text-white">Módulos</a>
-            <a href="#como-funciona" className="hover:text-white">Cómo funciona</a>
+            <a href="#empezar" className="hover:text-white">Cómo empezar</a>
+            <a href="#seguridad" className="hover:text-white">Seguridad</a>
             <a href="#informes" className="hover:text-white">Informes</a>
+            <Link href="/empleos" className="hover:text-white">Empleos</Link>
             <Link href="/calculadora-finiquito" className="hover:text-white">Calculadora de finiquito</Link>
             <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
           </nav>
