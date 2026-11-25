@@ -72,8 +72,8 @@ def bienvenida(nombre: str, organizacion: str, email: str, contrasena_temporal: 
     if fin_prueba:
         prueba_html = f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px">
 <tr><td style="background:#E0F2FE;border-radius:12px;padding:14px 18px;font-size:15px;color:#075985">
-🎁 <b>Su prueba gratuita de 7 días está activa</b> hasta el <b>{fecha_larga(fin_prueba)}</b>.</td></tr></table>"""
-        prueba_txt = f"Su prueba gratuita de 7 días está activa hasta el {fecha_larga(fin_prueba)}.\n\n"
+🎁 <b>Su prueba gratuita de 2 días está activa</b> hasta el <b>{fecha_larga(fin_prueba)}</b>.</td></tr></table>"""
+        prueba_txt = f"Su prueba gratuita de 2 días está activa hasta el {fecha_larga(fin_prueba)}.\n\n"
     pasos = [("Cambie su contraseña", "En «Mi perfil», en cuanto entre por primera vez."),
              ("Cargue su catálogo", "En «Catálogos», desde el PDF de su catálogo de prestaciones."),
              ("Cree su primer expediente", "Suba los comprobantes en PDF y revise el desglose por quincena.")]

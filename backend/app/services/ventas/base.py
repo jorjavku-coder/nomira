@@ -119,7 +119,7 @@ def desde_solicitud(db: Session, sol: m.Solicitud) -> m.VtContacto | None:
     ct.solicitud_id = ct.solicitud_id or sol.id
     if sol.acepta_whatsapp and sol.telefono:  # autorizó avisos de su cuenta por WhatsApp al registrarse
         ct.acepta_whatsapp, ct.telefono = True, ct.telefono or sol.telefono
-    actividad(db, ct.id, None, "nota", ("Se registró con prueba gratuita de 7 días" if sol.tipo == "prueba" else f"Llegó una solicitud desde el sitio ({'suscripción' if sol.tipo == 'suscripcion' else 'informes'})"), sol.mensaje)
+    actividad(db, ct.id, None, "nota", ("Se registró con prueba gratuita de 2 días" if sol.tipo == "prueba" else f"Llegó una solicitud desde el sitio ({'suscripción' if sol.tipo == 'suscripcion' else 'informes'})"), sol.mensaje)
     actividad(db, ct.id, None, "tarea", "Primer contacto con el prospecto", None, vence_en=m.ahora() + timedelta(hours=24), asignado_id=ct.propietario_id)
     return ct
 

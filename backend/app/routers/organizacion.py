@@ -83,6 +83,79 @@ def activar_modulo(modulo: str, d: Activacion, request: Request, u: m.Usuario = 
     return nuevo
 
 
+@router.get("/modulos/tienda")
+def tienda(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """Todos los módulos con su estado, precio mensual + IVA y la suscripción en línea, si la hay."""
+    from ..services import modulos_compra as mc
+    return {**mc.catalogo(db, _org(db, u)), "es_admin": u.rol == "administrador"}
+
+
+@router.post("/modulos/{modulo}/contratar")
+def contratar_modulo(modulo: str, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """En prueba: se enciende gratis hasta que termine la prueba. Si no: liga de pago de Stripe con cargo mensual automático;
+    el módulo se enciende cuando Stripe confirma el pago."""
+    from ..config import ajustes
+    from ..services import modulos_compra as mc
+    from ..services.comercial import base as cm
+    from ..services.comercial import stripe as st
+
+    if modulo not in modulos.MODULOS:
+        raise HTTPException(404, "Módulo desconocido.")
+    o = _org(db, u)
+    if modulos.estado(db, o.id)[modulo]["contratado"]:
+        nuevo = modulos.fijar(db, o.id, modulo, activo=True)
+        db.commit()
+        return {"activado": True, "modulo": nuevo}
+    if mc.en_prueba(db, o):
+        mc.activar_en_prueba(db, o, modulo)
+        auditar(db, u, "modulo_activado_en_prueba", "organizacion", o.id, {"modulo": modulo}, request)
+        db.commit()
+        return {"activado": True, "en_prueba": True}
+    p = mc.precio(db, modulo)
+    if not p:
+        raise HTTPException(409, "Este módulo no tiene precio publicado. Escríbanos a Soporte para contratarlo.")
+    if not cm.stripe_estado()["conectado"]:
+        raise HTTPException(409, "El pago en línea no está disponible por ahora. Escríbanos a Soporte y lo activamos.")
+    if mc.vigente(db, o.id, modulo):
+        raise HTTPException(409, "Ya tiene una suscripción a este módulo.")
+    s = m.MdSuscripcion(organizacion_id=o.id, modulo=modulo, usuario_id=u.id, precio=p["precio"], iva=p["iva"], total=p["total"])
+    db.add(s)
+    db.flush()
+    base_url = ajustes().url_publica.rstrip("/")
+    try:
+        sesion = st.crear_suscripcion(nombre=f"Nomira · {modulos.MODULOS[modulo]['nombre']} (mensual)", total_mensual=s.total, email=u.email,
+                                      url_exito=f"{base_url}/organizacion?compra=procesando&modulo={modulo}",
+                                      url_cancelar=f"{base_url}/organizacion?compra=cancelada",
+                                      idempotencia=f"nomira-modulo-{s.id}", referencia=f"modulo-{modulo}-org-{o.id}",
+                                      metadata={"tipo": "modulo", "suscripcion_id": str(s.id), "modulo": modulo, "organizacion_id": str(o.id)})
+    except st.StripeError as e:
+        db.rollback()
+        raise HTTPException(502, str(e))
+    s.stripe_sesion = sesion["id"]
+    auditar(db, u, "modulo_compra_iniciada", "md_suscripcion", s.id, {"modulo": modulo}, request)
+    db.commit()
+    return {"url": sesion["url"]}
+
+
+@router.post("/modulos/{modulo}/cancelar")
+def cancelar_modulo(modulo: str, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """Cancela la suscripción en línea: el módulo sigue hasta el fin del mes pagado y entonces se apaga (sin borrar datos)."""
+    from ..services import modulos_compra as mc
+    from ..services.comercial import stripe as st
+
+    s = mc.vigente(db, u.organizacion_id, modulo)
+    if not s or not s.stripe_suscripcion:
+        raise HTTPException(404, "Este módulo no tiene una suscripción en línea. Para cambios de su plan, escríbanos a Soporte.")
+    try:
+        st.cancelar_al_final(s.stripe_suscripcion)
+    except st.StripeError as e:
+        raise HTTPException(502, str(e))
+    s.estado = "cancelando"
+    auditar(db, u, "modulo_cancelacion_solicitada", "md_suscripcion", s.id, {"modulo": modulo}, request)
+    db.commit()
+    return {"ok": True}
+
+
 @router.patch("")
 def renombrar(d: Nombre, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
     o = _org(db, u)

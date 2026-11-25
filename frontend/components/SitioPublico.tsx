@@ -76,7 +76,7 @@ const PREGUNTAS = [
   ["¿La calculadora de liquidaciones está al día?", "Sí. Usa la tabla de vacaciones vigente desde 2023, el salario mínimo de cada año y zona para el tope de la prima de antigüedad, el tope de 12 meses de salarios caídos y la reducción gradual de la jornada a 40 horas con el nuevo tope de horas extra. Cada concepto muestra su operación para que usted la revise."],
   ["¿Qué estrados revisa la Agenda?", "Por ahora, los estrados digitales del Tribunal de Justicia Administrativa del Estado de México (TRIJAEM). Usted registra el expediente y la sala, y Nomira le avisa cuando aparece una publicación nueva."],
   ["¿Sirve para notarías?", "Sí, con el módulo de Escrituración: expedientes por acto, documentos con vigencia, semáforo «listo para firmar» y seguimiento en línea para el cliente, la inmobiliaria y el banco. No sustituye el protocolo electrónico, la firma notarial, el timbrado ni los avisos a la UIF."],
-  ["¿Cómo empiezo?", "Cree su cuenta en línea, elija hasta 3 módulos y úselos gratis 7 días, sin tarjeta. Si prefiere que le acompañemos, llene el formulario de informes o escríbanos y le ayudamos con su primer caso."],
+  ["¿Cómo empiezo?", "Cree su cuenta en línea, elija hasta 3 módulos y úselos gratis 2 días, sin tarjeta. Si prefiere que le acompañemos, llene el formulario de informes o escríbanos y le ayudamos con su primer caso."],
   ["¿Qué pasa al terminar la prueba?", "Su información se conserva. Para seguir usando Nomira, contrate el plan con los módulos que necesite; un asesor le ayuda a elegirlo."],
 ];
 
@@ -217,7 +217,7 @@ export default function SitioPublico() {
           </nav>
           <div className="flex items-center gap-2">
             <BotonTema oscuro={oscuro} onCambiar={cambiar} />
-            {prueba && !conSesion ? <Link href="/login?registro=1" className="btn-primario hidden sm:inline-flex">Pruebe 7 días gratis</Link>
+            {prueba && !conSesion ? <Link href="/login?registro=1" className="btn-primario hidden sm:inline-flex">Pruebe 2 días gratis</Link>
               : <a href="#informes" className="btn-primario hidden sm:inline-flex">Solicitar informes</a>}
             {acceso}
             <button className="rounded-lg p-2 text-marino md:hidden" aria-label="Abrir menú" aria-expanded={menu} onClick={() => setMenu(!menu)}>
@@ -253,13 +253,13 @@ export default function SitioPublico() {
               </div>
               <div style={d(650)} className="s-entrada mt-8 flex flex-wrap gap-3">
                 {prueba ? <>
-                  <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Pruebe 7 días gratis →</Link>
+                  <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Pruebe 2 días gratis →</Link>
                   <a href="#informes" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Solicitar informes</a></>
                   : <><a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Solicitar informes →</a>
                   <a href="#como-funciona" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Ver cómo funciona</a></>}
               </div>
               <ul style={d(800)} className="s-entrada mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-                {[prueba ? "7 días gratis, sin tarjeta" : "Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
+                {[prueba ? "2 días gratis, sin tarjeta" : "Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
                   <li key={t} className="flex items-center gap-2"><span className="text-turquesa-700"><Palomita /></span>{t}</li>))}
               </ul>
             </div>
@@ -347,7 +347,7 @@ export default function SitioPublico() {
                     "Fundamente escritos completos: el Asistente redacta y cita tesis verificadas."].map((t) => (
                     <li key={t} className="flex gap-3"><span className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-turquesa text-sm font-bold text-white" aria-hidden>✓</span>{t}</li>))}
                 </ul>
-                <Link href="/login?registro=1" className="btn-turquesa mt-6 inline-flex px-5 py-3">Pruébelo 7 días gratis →</Link>
+                <Link href="/login?registro=1" className="btn-turquesa mt-6 inline-flex px-5 py-3">Pruébelo 2 días gratis →</Link>
               </div>
             </div>
           </div>

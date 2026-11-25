@@ -1,4 +1,4 @@
-"""Control de periodos de venta: prueba de 7 días, mensual, semestral y anual."""
+"""Control de periodos de venta: prueba de 2 días, mensual, semestral y anual."""
 from datetime import date, timedelta
 
 import pytest
@@ -10,7 +10,7 @@ from app.services import suscripciones as sus
 # ---------- fechas ----------
 
 @pytest.mark.parametrize("plan,inicio,fin", [
-    ("prueba", date(2026, 11, 17), date(2026, 11, 23)),      # 7 días contando el primero
+    ("prueba", date(2026, 11, 17), date(2026, 11, 18)),      # 2 días contando el primero
     ("mensual", date(2026, 11, 17), date(2026, 12, 16)),
     ("mensual", date(2026, 1, 31), date(2026, 2, 27)),        # 31 ene + 1 mes = 28 feb → termina el 27
     ("mensual", date(2028, 1, 31), date(2028, 2, 28)),        # año bisiesto: 29 feb → termina el 28
@@ -31,8 +31,8 @@ def _p(plan, inicio, pagado=False, monto=None):
 def test_estados():
     hoy = date(2026, 11, 17)
     assert sus.estado([], hoy)["estado"] == "sin_plan"
-    e = sus.estado([_p("prueba", date(2026, 11, 15))], hoy)
-    assert e["estado"] == "prueba" and e["dias_restantes"] == 5 and e["fin"] == "2026-11-21"
+    e = sus.estado([_p("prueba", date(2026, 11, 16))], hoy)
+    assert e["estado"] == "prueba" and e["dias_restantes"] == 1 and e["fin"] == "2026-11-17"
     assert sus.estado([_p("mensual", date(2026, 11, 1), True)], hoy)["estado"] == "activa"
     e = sus.estado([_p("mensual", date(2026, 10, 25), True)], hoy)   # vence el 24 nov: faltan 8 días
     assert e["estado"] == "activa" and e["dias_restantes"] == 8
@@ -42,7 +42,7 @@ def test_estados():
     e = sus.estado([_p("mensual", date(2026, 10, 24), True), _p("mensual", date(2026, 11, 24))], hoy)
     assert e["estado"] == "activa" and e["siguiente"]["inicio"] == "2026-11-24"
     e = sus.estado([_p("prueba", date(2026, 11, 1))], hoy)
-    assert e["estado"] == "vencida" and e["dias_vencida"] == 10
+    assert e["estado"] == "vencida" and e["dias_vencida"] == 15
     assert sus.estado([_p("anual", date(2026, 12, 1))], hoy)["estado"] == "programada"
     e = sus.estado([_p("mensual", date(2026, 11, 1), monto=1500)], hoy)
     assert e["pagos_pendientes"] == 1 and e["monto_pendiente"] == "1500"
@@ -67,8 +67,8 @@ def test_cliente_nuevo_empieza_en_prueba(plataforma):
     cid = _crear(plataforma)
     s = plataforma.c.get(f"/api/plataforma/clientes/{cid}/suscripcion", headers=plataforma.h).json()
     hoy = sus.hoy()
-    assert s["estado"] == "prueba" and s["dias_restantes"] == 7
-    assert s["fin"] == (hoy + timedelta(days=6)).isoformat()
+    assert s["estado"] == "prueba" and s["dias_restantes"] == 2
+    assert s["fin"] == (hoy + timedelta(days=1)).isoformat()
     assert [p["plan"] for p in s["periodos"]] == ["prueba"]
     assert {p["clave"] for p in s["planes"]} == {"prueba", "mensual", "semestral", "anual"}
     # Sin plan si así se pide
@@ -81,7 +81,7 @@ def test_vender_renovar_y_cobrar(plataforma, db):
     cid = _crear(plataforma)
     s = plataforma.c.get(f"/api/plataforma/clientes/{cid}/suscripcion", headers=plataforma.h).json()
     inicio = s["sugerido_inicio"]  # el día siguiente a que termina la prueba
-    assert inicio == (sus.hoy() + timedelta(days=7)).isoformat()
+    assert inicio == (sus.hoy() + timedelta(days=2)).isoformat()
     r = plataforma.c.post(f"/api/plataforma/clientes/{cid}/periodos", headers=plataforma.h,
                           json={"plan": "semestral", "inicio": inicio, "monto": "5400.00", "nota": "Factura A-12"})
     assert r.status_code == 201, r.text
@@ -107,7 +107,7 @@ def test_reglas(plataforma):
     url = f"/api/plataforma/clientes/{cid}/periodos"
     otra_prueba = plataforma.c.post(url, headers=plataforma.h, json={"plan": "prueba", "inicio": (hoy + timedelta(days=30)).isoformat()})
     assert otra_prueba.status_code == 409 and "ya tuvo" in otra_prueba.json()["detail"]
-    encima = plataforma.c.post(url, headers=plataforma.h, json={"plan": "mensual", "inicio": (hoy + timedelta(days=3)).isoformat()})
+    encima = plataforma.c.post(url, headers=plataforma.h, json={"plan": "mensual", "inicio": (hoy + timedelta(days=1)).isoformat()})
     assert encima.status_code == 409 and "Se encima" in encima.json()["detail"]
     assert plataforma.c.post(url, headers=plataforma.h, json={"plan": "trimestral", "inicio": hoy.isoformat()}).status_code == 422
     assert plataforma.c.post(url, headers=plataforma.h, json={"plan": "mensual", "inicio": "2020-01-01"}).status_code == 422

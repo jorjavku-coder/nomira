@@ -182,7 +182,7 @@ export function EstadoSuscripcion({ s, compacto = false }: { s: any; compacto?: 
 }
 
 const NOMBRES_PLAN: Record<string, string> = { prueba: "Prueba gratuita", mensual: "Mensual", semestral: "Semestral", anual: "Anual" };
-const DURACION: Record<string, string> = { prueba: "7 días", mensual: "1 mes", semestral: "6 meses", anual: "12 meses" };
+const DURACION: Record<string, string> = { prueba: "2 días", mensual: "1 mes", semestral: "6 meses", anual: "12 meses" };
 
 function sumarMeses(iso: string, meses: number): Date {
   const [a, m, d] = iso.split("-").map(Number);
@@ -195,7 +195,7 @@ export function finDePlan(plan: string, inicio: string): string {
   if (!inicio) return "";
   const meses = { prueba: 0, mensual: 1, semestral: 6, anual: 12 }[plan] ?? 1;
   const [a, m, d] = inicio.split("-").map(Number);
-  const f = meses === 0 ? new Date(a, m - 1, d + 6) : (() => { const x = sumarMeses(inicio, meses); x.setDate(x.getDate() - 1); return x; })();
+  const f = meses === 0 ? new Date(a, m - 1, d + 1) : (() => { const x = sumarMeses(inicio, meses); x.setDate(x.getDate() - 1); return x; })();
   return `${String(f.getDate()).padStart(2, "0")}/${String(f.getMonth() + 1).padStart(2, "0")}/${f.getFullYear()}`;
 }
 
@@ -258,7 +258,7 @@ export function PlanInicial({ valor, onCambio }: { valor: string | null; onCambi
   return (
     <label className="block"><span className="etiqueta">Empieza con</span>
       <select className="campo" value={valor ?? ""} onChange={(e) => onCambio(e.target.value || null)}>
-        <option value="prueba">Prueba gratuita de 7 días (vence {finDePlan("prueba", iso)})</option>
+        <option value="prueba">Prueba gratuita de 2 días (vence {finDePlan("prueba", iso)})</option>
         <option value="mensual">Plan mensual desde hoy (vence {finDePlan("mensual", iso)})</option>
         <option value="semestral">Plan semestral desde hoy (vence {finDePlan("semestral", iso)})</option>
         <option value="anual">Plan anual desde hoy (vence {finDePlan("anual", iso)})</option>

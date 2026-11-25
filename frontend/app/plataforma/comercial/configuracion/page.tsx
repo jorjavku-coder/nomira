@@ -75,7 +75,7 @@ export default function ConfiguracionComercial() {
         </section>
         <section className="tarjeta p-5"><h2 className="font-semibold text-marino">Registro en línea</h2>
           <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-turquesa" checked={!!f.registro_prueba} onChange={set("registro_prueba")} />
-            <span>Permitir que los despachos se registren solos con prueba gratuita de 7 días. <span className="block text-xs text-slate-500">Eligen hasta 3 módulos, confirman su correo (o entran con Google) y llegan a Ventas como lead. Al terminar la prueba se bloquea el uso hasta contratar; sus datos se conservan.</span></span></label>
+            <span>Permitir que los despachos se registren solos con prueba gratuita de 2 días. <span className="block text-xs text-slate-500">Eligen hasta 3 módulos, confirman su correo (o entran con Google) y llegan a Ventas como lead. Al terminar la prueba se bloquea el uso hasta contratar; sus datos se conservan.</span></span></label>
         </section>
         <section className="tarjeta p-5"><h2 className="font-semibold text-marino">Precios en el sitio web</h2>
           <div className="mt-3 space-y-2 text-sm">

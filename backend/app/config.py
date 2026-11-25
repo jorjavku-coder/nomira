@@ -105,7 +105,7 @@ class Ajustes(BaseSettings):
     tesis_epoca_minima: int = 10  # Décima Época en adelante
     ia_modelo_asistente: str = "claude-sonnet-5-5"  # Asistente IA: más económico para poder incluirlo en todos los planes
     ia_usos_incluidos: int = 30  # Asistente IA: usos al mes incluidos en cualquier plan
-    ia_usos_prueba: int = 10  # durante la prueba gratis de 7 días
+    ia_usos_prueba: int = 10  # durante la prueba gratis de 2 días
     ia_paquete_usos: int = 100  # paquete extra (no caduca)
     ia_paquete_precio: str = "149"  # MXN antes de IVA  # Asistente IA: solicitudes por organización al mes (control de costo)
 

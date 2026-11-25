@@ -36,7 +36,8 @@ await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 ok(await page.getByRole("link", { name: "Solicitudes" }).count() === 0, "un cliente no ve la bandeja de solicitudes");
 
-await page.getByRole("link", { name: "Datos y módulos" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("button", { name: "Más" }).click();  // menú «Más»
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Datos y módulos" }).click();
 await page.locator('input[type="file"]').setInputFiles(new URL("../datos/ejemplos/logo_cliente_ficticio.png", import.meta.url).pathname);
 await page.getByText("Logotipo actualizado.").waitFor();
 await page.getByAltText(/^Logotipo de /).waitFor();
