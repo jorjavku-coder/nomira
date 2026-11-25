@@ -14,7 +14,7 @@ from .routers import (acceso, academia, asistente, academia_medios, afore, agend
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
 from .services.academia import nomira as cursos_nomira
-from .services.agenda import avisos as agenda_avisos, estrados as agenda_estrados_srv
+from .services.agenda import avisos as agenda_avisos, estrados as agenda_estrados_srv, pjedomex as agenda_pjedomex
 from .services.tesis import repositorio as tesis_repo
 from .services.clientes import cobro as cobro_srv
 from .services.modulos import requiere_modulo
@@ -115,6 +115,10 @@ def _una_revision_agenda() -> None:
         n = cobro_srv.sincronizar_pendientes(db)
         if n:
             logging.getLogger("nomira.cobro").info("Ligas de pago actualizadas: %s", n)
+    with SessionLocal() as db:  # calendario oficial del PJEdomex (datos abiertos): una vez al día
+        r = agenda_pjedomex.sincronizar_si_toca(db)
+        if r.get("calendarios"):
+            logging.getLogger("nomira.pjedomex").info("Calendario PJEdomex: %s calendarios, %s días nuevos, %s quitados", r["calendarios"], r["nuevos"], r["quitados"])
     with SessionLocal() as db:  # estrados digitales: solo si la consulta automática está configurada
         r = agenda_estrados_srv.ejecutar(db)
         if r["revisadas"]:

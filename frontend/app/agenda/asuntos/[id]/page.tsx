@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgendaShell, diaLargo, Etq, FilaEvento, FormAsunto, FormEvento, useCatalogosAgenda } from "@/components/agenda";
 import { VigilanciaAsunto } from "@/components/estrados";
+import { AccesosPjedomex } from "@/components/pjedomex";
 import { AsistenteAsunto, ExposicionAsunto } from "@/components/liquidaciones";
 import { Aviso } from "@/components/ui";
 import { api, fecha } from "@/lib/api";
@@ -54,10 +55,11 @@ export default function Asunto() {
           {a.notas && <section className="tarjeta p-4 text-sm"><h2 className="mb-1 font-semibold text-marino">Notas</h2><p className="whitespace-pre-line text-slate-700">{a.notas}</p></section>}
         </div>
         <div className="space-y-5">
+        <AccesosPjedomex asunto={a} />
         <ExposicionAsunto asunto={a} puedeEditar={!!cat?.puede_editar} />
         <AsistenteAsunto asunto={a} />
         <VigilanciaAsunto asunto={a} puedeEditar={!!cat?.puede_editar} onCambio={cargar} />
-        <section className="tarjeta p-4">
+        <section id="actuaciones" className="tarjeta scroll-mt-4 p-4">
           <h2 className="font-semibold text-marino">Actuaciones</h2>
           {cat?.puede_editar && a.estado === "activo" && <form className="mt-3 space-y-2 rounded-xl bg-crema/60 p-3" onSubmit={async (ev) => {
             ev.preventDefault();

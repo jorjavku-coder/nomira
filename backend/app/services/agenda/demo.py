@@ -34,7 +34,11 @@ def sembrar(db: Session, email: str = "admin@demo.local") -> bool:
                     responsable_id=analista.id, creado_por_id=admin.id, actualizado_en=m.ahora())
     a2 = m.AgAsunto(organizacion_id=oid, titulo="Amparo indirecto Demo", numero="88/2026", jurisdiccion="federal", tribunal="Juzgado de Distrito Ficticio",
                     materia="amparo", responsable_id=admin.id, creado_por_id=admin.id, actualizado_en=m.ahora())
-    db.add_all([a1, a2])
+    a3 = m.AgAsunto(organizacion_id=oid, titulo="Divorcio incausado Demo", numero="512/2026", jurisdiccion="estatal",
+                    entidad="Estado de México", tribunal="Juzgado Primero Familiar de Toluca", materia="familiar",
+                    responsable_id=admin.id, creado_por_id=admin.id, actualizado_en=m.ahora(),
+                    notas="Ejemplo de asunto ante el Poder Judicial del Estado de México: vea los accesos a sus sistemas en esta ficha.")
+    db.add_all([a1, a2, a3])
     db.flush()
     notif = hoy - timedelta(days=3)
     act = m.AgActuacion(organizacion_id=oid, asunto_id=a1.id, fecha=notif - timedelta(days=1), tipo="acuerdo",

@@ -1,0 +1,31 @@
+{
+  "config": {"titulo": "Calendario oficial 2026", "origen": "Poder Judicial del Estado de México"},
+  "dias_especiales": [
+    { "fecha": "2026-01-01", "tipo": "inhabil", "titulo": "Inicio del año 2026" },
+    { "fecha": "2026-02-02", "tipo": "festivo", "titulo": "En conmemoración del 05 de febrero (Aniversario de la Promulgación de la Constitución Política de los Estados Unidos Mexicanos)" },
+    { "fecha": "2026-03-02", "tipo": "festivo", "titulo": "Aniversario de la fundación del Estado de México" },
+    { "fecha": "2026-03-08", "tipo": "festivo", "titulo": "Día Internacional de la Mujer" },
+    { "fecha": "2026-03-16", "tipo": "inhabil", "titulo": "En conmemoración al 21 de marzo (Natalicio del Licenciado Benito Juárez García)" },
+    { "fecha": "2026-05-01", "tipo": "inhabil", "titulo": "Día del Trabajo" },
+    { "fecha": "2026-05-05", "tipo": "inhabil", "titulo": "Aniversario de la Batalla de Puebla" },
+    { "fecha": "2026-05-08", "tipo": "festivo", "titulo": "Día de las Madres" },
+    { "fecha": "2026-07-13", "tipo": "festivo", "titulo": "Día del Abogado" },
+    { "fecha": "2026-09-03", "tipo": "inhabil", "titulo": "Suspensión de labores" },
+    { "fecha": "2026-09-14", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-09-15", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-09-16", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-09-16", "tipo": "festivo", "titulo": "Aniversario del inicio de la Independencia de México" },
+    { "fecha": "2026-11-01", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-11-02", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-11-02", "tipo": "festivo", "titulo": "Día de muertos" },
+    { "fecha": "2026-11-16", "tipo": "festivo", "titulo": "En conmemoración del 20 de noviembre (Aniversario del inicio de la Revolución Mexicana)" },
+    { "fecha": "2026-11-16", "tipo": "inhabil", "titulo": "Suspensión de Labores" },
+    { "fecha": "2026-12-12", "tipo": "inhabil", "titulo": "Suspensión de labores" },
+    { "fecha": "2026-12-25", "tipo": "festivo", "titulo": "Navidad" }
+  ],
+  "periodos": [
+    { "inicio": "2026-03-29", "fin": "2026-04-05", "tipo": "vacaciones", "titulo": "Suspensión de Labores", "descripcion": "Se incluyen sábado y domingo por aquellas áreas que laboran en fin de semana." },
+    { "inicio": "2026-07-16", "fin": "2026-07-31", "tipo": "vacaciones", "titulo": "Primer periodo vacacional (verano 2026)", "grupo": "General" },
+    { "inicio": "2026-12-16", "fin": "2027-01-06", "tipo": "vacaciones", "titulo": "Segundo periodo vacacional (invierno 2026)", "grupo": "General" }
+  ]
+}

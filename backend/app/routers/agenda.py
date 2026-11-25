@@ -24,7 +24,7 @@ from ..db import get_db
 from ..services.clientes import base as clientes_base
 from ..deps import auditar, puede_editar, solo_admin, usuario_actual
 from ..services import modulos
-from ..services.agenda import base, dias as calc
+from ..services.agenda import base, dias as calc, pjedomex
 from ..services.academia.sesiones import plataforma
 
 def estrados_sin_ver(db: Session, u: m.Usuario) -> int:
@@ -72,7 +72,8 @@ def _cal_dict(db: Session, c: m.AgCalendario) -> dict:
     return {"id": c.id, "nombre": c.nombre, "jurisdiccion": c.jurisdiccion, "entidad": c.entidad, "descripcion": c.descripcion, "fuente": c.fuente,
             "dias_semana_inhabiles": c.dias_semana_inhabiles if c.dias_semana_inhabiles is not None else [5, 6],
             "incluir_descanso_lft": c.incluir_descanso_lft, "activo": c.activo, "dias_capturados": n,
-            "actualizado_en": (c.actualizado_en or c.creado_en).isoformat()}
+            "actualizado_en": (c.actualizado_en or c.creado_en).isoformat(), "oficial": c.oficial,
+            "sincronizado_en": c.sincronizado_en.isoformat() if c.sincronizado_en else None, "sincronizacion_error": c.sincronizacion_error}
 
 
 def _cliente_nombre(db: Session, cid: int | None) -> str | None:
@@ -237,7 +238,7 @@ def dias_del_anio(cid: int, anio: int, u: m.Usuario = Depends(usuario_actual), d
     c = _de_org(db, m.AgCalendario, cid, u)
     capturados = {d.fecha: d for d in db.scalars(select(m.AgDia).where(m.AgDia.calendario_id == c.id, m.AgDia.fecha >= date(anio, 1, 1),
                                                                        m.AgDia.fecha <= date(anio, 12, 31)))}
-    res = [{"id": x.id, "fecha": f.isoformat(), "tipo": x.tipo, "motivo": x.motivo, "origen": "capturado"} for f, x in sorted(capturados.items())]
+    res = [{"id": x.id, "fecha": f.isoformat(), "tipo": x.tipo, "motivo": x.motivo, "origen": x.origen or "capturado"} for f, x in sorted(capturados.items())]
     if c.incluir_descanso_lft:
         for f, mot in sorted(calc.descanso_lft(anio).items()):
             if f not in capturados:
@@ -289,6 +290,32 @@ def quitar_dia(cid: int, did: int, request: Request, u: m.Usuario = Depends(pued
     _aud(db, u, "ag_calendario_dia_quitado", "ag_calendario", c.id, request)
     db.commit()
     return dias_del_anio(c.id, anio, u, db)
+
+
+# ------------------------------------------------------------------ Poder Judicial del Estado de México
+
+@router.get("/pjedomex")
+def pjedomex_info(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    """Accesos a los sistemas oficiales (se abren con la cuenta del abogado) y estado del calendario oficial."""
+    c = db.scalar(select(m.AgCalendario).where(m.AgCalendario.organizacion_id == u.organizacion_id, m.AgCalendario.oficial == pjedomex.CLAVE))
+    cfg = base.config(db, u.organizacion_id)
+    return {"accesos": pjedomex.ACCESOS, "calendario": _cal_dict(db, c) if c else None,
+            "es_predeterminado": bool(c and cfg.calendario_id == c.id)}
+
+
+class PjedomexCalIn(BaseModel):
+    predeterminado: bool = False
+
+
+@router.post("/pjedomex/calendario")
+def pjedomex_conectar(d: PjedomexCalIn, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
+    """Crea o actualiza en este momento el calendario oficial del PJEdomex del despacho."""
+    cal, r = pjedomex.conectar(db, u.organizacion_id)
+    if d.predeterminado:
+        base.config(db, u.organizacion_id).calendario_id = cal.id
+    _aud(db, u, "ag_calendario_pjedomex", "ag_calendario", cal.id, request)
+    db.commit()
+    return {"resultado": r, **pjedomex_info(u, db)}
 
 
 # ------------------------------------------------------------------ plazos frecuentes del despacho
