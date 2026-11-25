@@ -268,6 +268,7 @@ class Solicitud(Base):
     empresa: Mapped[str | None] = mapped_column(String(200))
     email: Mapped[str] = mapped_column(String(254))
     telefono: Mapped[str | None] = mapped_column(String(40))
+    acepta_whatsapp: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # avisos de su cuenta por WhatsApp
     expedientes_mes: Mapped[str | None] = mapped_column(String(20))
     mensaje: Mapped[str | None] = mapped_column(Text)
     estado: Mapped[str] = mapped_column(String(20), default="nueva")  # nueva | atendida
@@ -1876,6 +1877,8 @@ class VtContacto(Base):
     etiquetas: Mapped[list | None] = mapped_column(JSON)
     notas: Mapped[str | None] = mapped_column(Text)
     no_contactar: Mapped[bool] = mapped_column(Boolean, default=False)  # pidió no ser contactado
+    acepta_whatsapp: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")  # aceptó avisos por WhatsApp
+    whatsapp_ultimo_entrante: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # abre la ventana de 24 h de Meta
     # Calificación: mql = lead (aún sin contacto real) · sql = contacto (al menos una llamada efectiva o aceptó por correo) · descartado
     fase: Mapped[str] = mapped_column(String(12), default="mql", server_default="sql", index=True)
     calificacion: Mapped[str | None] = mapped_column(String(15))  # llamada | respuesta | reunion | demo | manual

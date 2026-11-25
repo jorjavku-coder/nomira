@@ -59,6 +59,13 @@ class Ajustes(BaseSettings):
     whatsapp_verify_token: str = ""  # para validar la suscripción del webhook
     whatsapp_app_secret: str = ""  # para validar la firma X-Hub-Signature-256 de cada webhook
     whatsapp_api_version: str = "v21.0"
+    # Número de WhatsApp de NOMIRA (no de un despacho) en la Cloud API: recibe prospectos que entran a Ventas
+    # y manda avisos de cuenta con plantillas aprobadas por Meta. Vacíos: apagado.
+    whatsapp_nomira_phone_id: str = ""
+    whatsapp_nomira_token: str = ""
+    whatsapp_nomira_idioma: str = "es_MX"
+    whatsapp_nomira_plantilla_bienvenida: str = "nomira_bienvenida"  # {{1}} nombre · {{2}} despacho · {{3}} fin de la prueba
+    whatsapp_nomira_plantilla_vencimiento: str = "nomira_vencimiento"  # {{1}} nombre · {{2}} plan · {{3}} fecha de vencimiento
     # API oficial de CURP (opcional, deshabilitada sin credenciales y sin autorización por organización)
     curp_api_url: str = ""
     curp_api_key: str = ""

@@ -21,6 +21,7 @@ from .. import models as m
 from ..db import get_db
 from ..services.agenda.base import ZONA
 from ..services.comercial import base as cm
+from ..services import whatsapp_nomira as wn
 from ..services.ventas import base as vb
 from .plataforma import _registrar, admin_plataforma, superadmin
 
@@ -207,7 +208,9 @@ def _ct_dict(c: m.VtContacto, admins: dict, campanas: dict | None = None) -> dic
             "organizacion_id": c.organizacion_id, "etiquetas": c.etiquetas or [], "notas": c.notas, "no_contactar": c.no_contactar,
             "fase": c.fase, "calificacion": c.calificacion, "calificacion_texto": vb.CALIFICA.get(c.calificacion or "", "Manual" if c.calificacion else None),
             "calificado_en": c.calificado_en.isoformat() if c.calificado_en else None, "motivo_descarte": c.motivo_descarte,
-            "motivo_descarte_texto": vb.DESCARTE.get(c.motivo_descarte or ""), "creado_en": c.creado_en.isoformat()}
+            "motivo_descarte_texto": vb.DESCARTE.get(c.motivo_descarte or ""), "creado_en": c.creado_en.isoformat(),
+            "acepta_whatsapp": c.acepta_whatsapp, "whatsapp_abierto": wn.ventana_abierta(c),
+            "whatsapp_ultimo_entrante": c.whatsapp_ultimo_entrante.isoformat() if c.whatsapp_ultimo_entrante else None}
 
 
 @router.get("/contactos")
@@ -257,6 +260,31 @@ def ver_contacto(cid: int, db: Session = Depends(get_db)):
     org = db.get(m.Organizacion, c.organizacion_id) if c.organizacion_id else None
     return {**_ct_dict(c, admins, campanas), "organizacion": {"id": org.id, "nombre": org.nombre} if org else None,
             "oportunidades": [_op_dict(o, c, admins) for o in ops], "actividades": [_act_dict(x, admins) for x in acts]}
+
+
+class WhatsAppIn(BaseModel):
+    texto: str = Field(min_length=1, max_length=4000)
+
+
+@router.get("/whatsapp/estado")
+def whatsapp_estado():
+    return {"configurado": wn.configurado(), "faltan": wn.faltantes()}
+
+
+@router.post("/contactos/{cid}/whatsapp", status_code=201)
+def whatsapp_responder(cid: int, d: WhatsAppIn, request: Request, a: m.AdminPlataforma = Depends(admin_plataforma), db: Session = Depends(get_db)):
+    c = _get(db, m.VtContacto, cid)
+    if c.no_contactar:
+        raise HTTPException(409, "Este contacto pidió no ser contactado.")
+    if not wn.configurado():
+        raise HTTPException(409, "El WhatsApp de Nomira todavía no está conectado.")
+    try:
+        x = wn.responder(db, c, d.texto.strip(), a.id)
+    except wn.WaNomiraError as e:
+        raise HTTPException(409, str(e))
+    _registrar(db, a, "ventas_whatsapp_enviado", request, entidad="vt_contacto", entidad_id=c.id)
+    db.commit()
+    return _act_dict(x, _admins(db))
 
 
 @router.put("/contactos/{cid}")

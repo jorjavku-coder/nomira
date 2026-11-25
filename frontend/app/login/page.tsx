@@ -74,6 +74,7 @@ export default function Login() {
   const [f, setF] = useState({ email: "", contrasena: "", nombre: "", organizacion: "", telefono: "" });
   const [mods, setMods] = useState<string[]>([]);
   const [acepto, setAcepto] = useState(false);
+  const [aceptaWa, setAceptaWa] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -123,7 +124,7 @@ export default function Login() {
   const registrar = (e: React.FormEvent) => {
     e.preventDefault();
     hacer(async () => {
-      const r = await api.post("/auth/registro", { ...f, telefono: f.telefono || null, modulos: mods, acepto });
+      const r = await api.post("/auth/registro", { ...f, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono });
       setReto(r.reto); setModo("codigo"); setOk(`Le enviamos un código de 6 dígitos a ${r.email}. Revise también su carpeta de spam.`);
     });
   };
@@ -131,7 +132,7 @@ export default function Login() {
   const reenviar = () => hacer(async () => { const r = await api.post("/auth/registro/reenviar", { reto }); setReto(r.reto); setOk("Le enviamos un código nuevo."); });
   const registrarGoogle = (e: React.FormEvent) => {
     e.preventDefault();
-    hacer(async () => listo(await api.post("/auth/registro/google", { token: tokenGoogle!.token, organizacion: f.organizacion, nombre: f.nombre, telefono: f.telefono || null, modulos: mods, acepto })));
+    hacer(async () => listo(await api.post("/auth/registro/google", { token: tokenGoogle!.token, organizacion: f.organizacion, nombre: f.nombre, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono })));
   };
   const pedirRecuperar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +216,8 @@ export default function Login() {
               <label className="block"><span className="etiqueta">Contraseña (mínimo 10)</span><input className="campo" type="password" required minLength={10} autoComplete="new-password" value={f.contrasena} onChange={cambiar("contrasena")} /></label>
             </div>
             {pub && <ElegirModulos lista={pub.modulos_prueba} max={pub.max_modulos_prueba} valor={mods} onCambio={setMods} />}
+            {f.telefono.trim() && <label className="flex items-start gap-2 text-sm text-slate-600"><input type="checkbox" className="mt-1" checked={aceptaWa} onChange={(e) => setAceptaWa(e.target.checked)} />
+              <span>Acepto recibir por WhatsApp avisos de mi cuenta (bienvenida y vencimiento). Puedo darme de baja escribiendo «BAJA».</span></label>}
             <Acepto valor={acepto} onCambio={setAcepto} />
             {avisos}
             <button className="btn-turquesa w-full py-2.5" disabled={cargando || !mods.length || !acepto}>{cargando ? "Un momento…" : "Crear mi cuenta gratis"}</button>
@@ -240,6 +243,8 @@ export default function Login() {
               <label className="block"><span className="etiqueta">Teléfono (opcional)</span><input className="campo" type="tel" value={f.telefono} onChange={cambiar("telefono")} /></label>
             </div>
             {pub && <ElegirModulos lista={pub.modulos_prueba} max={pub.max_modulos_prueba} valor={mods} onCambio={setMods} />}
+            {f.telefono.trim() && <label className="flex items-start gap-2 text-sm text-slate-600"><input type="checkbox" className="mt-1" checked={aceptaWa} onChange={(e) => setAceptaWa(e.target.checked)} />
+              <span>Acepto recibir por WhatsApp avisos de mi cuenta (bienvenida y vencimiento). Puedo darme de baja escribiendo «BAJA».</span></label>}
             <Acepto valor={acepto} onCambio={setAcepto} />
             {avisos}
             <button className="btn-turquesa w-full py-2.5" disabled={cargando || !mods.length || !acepto}>{cargando ? "Creando su cuenta…" : "Empezar mi prueba gratis"}</button>

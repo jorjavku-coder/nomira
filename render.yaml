@@ -77,6 +77,12 @@ services:
         sync: false
       - key: WHATSAPP_APP_SECRET
         sync: false
+      # WhatsApp de NOMIRA (la empresa): prospectos que entran a Ventas y avisos de cuenta con plantilla.
+      # Identificador del número y token permanente del usuario del sistema de Meta. Vacíos: apagado.
+      - key: WHATSAPP_NOMIRA_PHONE_ID
+        sync: false
+      - key: WHATSAPP_NOMIRA_TOKEN
+        sync: false
       - key: CURP_API_URL
         sync: false
       - key: CURP_API_KEY
