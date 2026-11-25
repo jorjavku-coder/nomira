@@ -359,7 +359,7 @@ export default function SitioPublico() {
                 <p className="text-sm font-bold uppercase tracking-wide text-turquesa-brillante">Con Nomira</p>
                 <div className="mt-4 rounded-2xl bg-white p-4 text-marino" aria-label="Ejemplo de búsqueda de tesis en Nomira">
                   <div className="flex gap-2"><div className="flex-1 rounded-lg border border-crema-300 px-3 py-2 text-sm text-slate-500">suspensión clausura establecimiento</div>
-                    <span className="rounded-lg bg-turquesa px-3 py-2 text-sm font-bold text-white">Buscar</span></div>
+                    <span className="rounded-lg bg-turquesa px-3 py-2 text-sm font-bold text-marino-900">Buscar</span></div>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
                     {["Jurisprudencia", "Materia: Común", "Órgano: Segunda Sala", "Desde 2021"].map((t) => <span key={t} className="rounded-full bg-turquesa-50 px-2.5 py-1 text-turquesa-700">{t}</span>)}</div>
                   <div className="mt-3 rounded-xl border border-crema-300 p-3">
@@ -447,7 +447,7 @@ export default function SitioPublico() {
                 ] as [string, boolean, boolean][]).map(([t, a, b]) => (
                   <tr key={t} className="border-b border-crema-200 last:border-0">
                     <td className="p-4 font-medium text-slate-700">{t}</td>
-                    <td className="p-4 text-center">{a ? <span className="inline-flex text-slate-400"><Palomita className="h-4 w-4" /></span> : <span className="text-slate-300" aria-label="No">—</span>}</td>
+                    <td className="p-4 text-center">{a ? <span className="inline-flex text-slate-400"><Palomita className="h-4 w-4" /></span> : <span className="text-slate-400" aria-label="No">—</span>}</td>
                     <td className="p-4 text-center">{b && <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-turquesa text-marino-900"><Palomita className="h-4 w-4" /></span>}</td>
                   </tr>))}</tbody>
               </table>

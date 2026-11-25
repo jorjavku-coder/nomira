@@ -152,3 +152,14 @@ html.s-tema-oscuro .s-sitio .s-malla { background:
 html.s-tema-oscuro .s-sitio .bg-slate-100 { background-color: #0A1A29; }
 html.s-tema-oscuro .s-sitio .from-white { --tw-gradient-from: #0D2133 var(--tw-gradient-from-position); --tw-gradient-to: rgb(13 33 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
 html.s-tema-oscuro .s-sitio .to-white { --tw-gradient-to: #0D2133 var(--tw-gradient-to-position); }
+/* Modo oscuro: textos y bordes que quedaban sin contraste (tabla comparativa y otros) */
+html.s-tema-oscuro .s-sitio .text-slate-700 { color: #D5DFE9; }
+html.s-tema-oscuro .s-sitio .text-slate-400 { color: #94A3B8; }
+html.s-tema-oscuro .s-sitio .text-slate-300 { color: #64748B; }
+html.s-tema-oscuro .s-sitio .border-crema-200 { border-color: rgba(255, 255, 255, .07); }
+html.s-tema-oscuro .s-sitio .bg-red-50 { background-color: rgba(239, 68, 68, .14); }
+html.s-tema-oscuro .s-sitio .text-red-600 { color: #FCA5A5; }
+html.s-tema-oscuro .s-sitio .text-emerald-800 { color: #6EE7B7; }
+html.s-tema-oscuro .s-sitio .bg-slate-100 .bg-white { background-color: #12283C; }
+html.s-tema-oscuro .s-sitio :is(.btn-turquesa, .bg-turquesa.text-marino-900) { color: #0A1B2B; }
+html.s-tema-oscuro .s-sitio .from-turquesa-50 { --tw-gradient-from: rgba(1, 178, 166, .14) var(--tw-gradient-from-position); --tw-gradient-to: rgb(13 33 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
