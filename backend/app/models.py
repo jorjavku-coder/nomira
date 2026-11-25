@@ -1588,6 +1588,9 @@ class AgCalendario(Base):
     dias_semana_inhabiles: Mapped[list | None] = mapped_column(JSON)  # 0=lunes … 6=domingo; por defecto [5, 6]
     incluir_descanso_lft: Mapped[bool] = mapped_column(Boolean, default=True)  # días de descanso obligatorio (art. 74 LFT)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    oficial: Mapped[str | None] = mapped_column(String(20))  # «pjedomex»: se actualiza solo desde los datos abiertos del tribunal
+    sincronizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sincronizacion_error: Mapped[str | None] = mapped_column(String(300))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -1600,6 +1603,7 @@ class AgDia(Base):
     fecha: Mapped[date] = mapped_column(Date)
     tipo: Mapped[str] = mapped_column(String(10), default="inhabil")  # inhabil | habil (habilitado de forma excepcional)
     motivo: Mapped[str] = mapped_column(String(200))
+    origen: Mapped[str | None] = mapped_column(String(20))  # «pjedomex» = traído del calendario oficial; vacío = capturado
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
 
 

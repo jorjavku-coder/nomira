@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AgendaShell, diaLargo, recargarCatalogosAgenda, useCatalogosAgenda } from "@/components/agenda";
 import { Aviso, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
+import { CalendarioPjedomex } from "@/components/pjedomex";
 
 const SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
@@ -23,6 +24,7 @@ export default function Calendarios() {
         {cat?.puede_editar && <button className="btn-turquesa" onClick={() => setEdit({ nombre: "", jurisdiccion: "federal", entidad: "", descripcion: "", fuente: "", dias_semana_inhabiles: [5, 6], incluir_descanso_lft: true, activo: true })}>+ Nuevo calendario</button>}
       </div>
       <Aviso>{error}</Aviso>
+      <CalendarioPjedomex puede={!!cat?.puede_editar} onListo={(id) => { setSel(id); cargar(); recargarCatalogosAgenda(); }} />
       <div className="grid gap-5 lg:grid-cols-[18rem_1fr]">
         <ul className="tarjeta h-fit divide-y divide-crema-200">{lista.map((c) => (
           <li key={c.id}><button className={`w-full px-4 py-3 text-left text-sm ${sel === c.id ? "bg-turquesa-50" : "hover:bg-crema/40"}`} onClick={() => setSel(c.id)}>
@@ -72,8 +74,8 @@ function DetalleCalendario({ id, onEditar, puede }: { id: number; onEditar: (c: 
       <ul className="mt-3 divide-y divide-crema-200 text-sm">{r.dias.map((d: any) => (
         <li key={d.fecha} className="flex items-center justify-between gap-2 py-1.5">
           <span><span className={`mr-2 inline-block w-20 text-xs font-semibold ${d.tipo === "habil" ? "text-emerald-700" : "text-slate-500"}`}>{d.tipo === "habil" ? "HABILITADO" : d.origen === "lft" ? "ART. 74 LFT" : "INHÁBIL"}</span>
-            {diaLargo(d.fecha)} — {d.motivo}</span>
-          {puede && d.id && <button className="text-xs font-semibold text-red-700 hover:underline" onClick={() => api.borrar(`/agenda/calendarios/${id}/dias/${d.id}`).then(setR).catch((x) => setError(x.message))}>Quitar</button>}
+            {diaLargo(d.fecha)} — {d.motivo}{d.origen === "pjedomex" && <span className="ml-2 rounded bg-turquesa-50 px-1.5 py-0.5 text-[10px] font-semibold text-turquesa-700">OFICIAL PJEDOMEX</span>}</span>
+          {puede && d.id && d.origen !== "pjedomex" && <button className="text-xs font-semibold text-red-700 hover:underline" onClick={() => api.borrar(`/agenda/calendarios/${id}/dias/${d.id}`).then(setR).catch((x) => setError(x.message))}>Quitar</button>}
         </li>))}
         {!r.dias.length && <li className="py-2 text-slate-500">Sin días inhábiles capturados para {anio}.</li>}</ul>
     </section>
