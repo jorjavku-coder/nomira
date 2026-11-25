@@ -20,7 +20,7 @@ await page.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.waitForURL(/\/(app|inicio)/);
 
-await page.getByRole("link", { name: "Liquidaciones LFT" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Liquidaciones LFT" }).click();
 await page.getByText("Pedro Ruiz Ficticio").waitFor();
 ok(await page.getByText("Laura Ruiz Ficticia").count() === 1, "lista con los cálculos de ejemplo");
 

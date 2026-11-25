@@ -271,7 +271,7 @@ export const MANUALES: Manual[] = [
     paraQue: ["Encontrar criterios para fundamentar un escrito.", "Confirmar el rubro y el registro digital de una tesis antes de citarla.",
       "Que la IA cite solo tesis reales: el Asistente únicamente puede usar las que están en esta biblioteca."],
     pasos: [
-      { titulo: "Busque", texto: "Escriba palabras del rubro o del texto (no importan los acentos) o un registro digital. Filtre por jurisprudencia o aisladas y por época." },
+      { titulo: "Busque", texto: "Escriba palabras del rubro o del texto (no importan los acentos) o un registro digital. Afine con los filtros: tipo (jurisprudencia o aislada), materia, órgano (Pleno, Salas, Plenos Regionales, Plenos de Circuito, Colegiados), años y época. También puede usar solo filtros, por ejemplo: jurisprudencia de la Segunda Sala desde 2024." },
       { titulo: "Lea y verifique", texto: "«Leer completa» muestra el texto, los datos de publicación y de dónde se copió. «Ver en el Semanario» abre la versión oficial en el sitio de la SCJN." },
       { titulo: "Cite", texto: "«Copiar cita» copia el rubro, la instancia, la época, la clave y el registro digital. «Ficha PDF» descarga una ficha con la liga oficial." },
       { titulo: "Pídale a la IA", texto: "En Asistente IA → «Investigar con tesis», plantee el problema: la IA responde citando solo tesis de esta biblioteca y Nomira elimina cualquier cita que no pueda verificar." },

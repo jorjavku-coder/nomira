@@ -44,6 +44,21 @@ def _limpio(v, n: int | None = None) -> str | None:
     return (v[:n] if n else v) or None
 
 
+MATERIAS = ["Constitucional", "Común", "Administrativa", "Civil", "Penal", "Laboral", "Familiar"]
+INSTANCIAS = {"pleno": ("Pleno de la Suprema Corte", "Pleno"), "primera": ("Primera Sala", "Primera Sala"), "segunda": ("Segunda Sala", "Segunda Sala"),
+              "regionales": ("Plenos Regionales", "Plenos Regionales"), "circuito": ("Plenos de Circuito", "Plenos de Circuito"),
+              "colegiados": ("Tribunales Colegiados", "Colegiados")}
+
+
+def anio_de(publicada: str | None, clave: str | None) -> int | None:
+    """Año de publicación: de la nota («Esta tesis se publicó el … de 2026») o, si no, del número de la tesis («1a./J. 10/2024»)."""
+    for texto, rx in ((publicada, r"\b(19[0-9]{2}|20[0-9]{2})\b"), (clave, r"/\s*(19[0-9]{2}|20[0-9]{2})\b")):
+        x = re.search(rx, texto or "")
+        if x:
+            return int(x.group(1))
+    return None
+
+
 def tipo_normal(v: str | None) -> str | None:
     t = plano(v or "")
     if "juris" in t:
@@ -165,7 +180,7 @@ def guardar(db: Session, datos: list[dict], origen: str, ref: str | None) -> int
     n = 0
     ahora = datetime.now(timezone.utc)
     for d in datos:
-        fila = {**d, "origen": origen, "origen_ref": (ref or "")[:300] or None, "actualizado_en": ahora}
+        fila = {**d, "anio": anio_de(d.get("publicada"), d.get("clave")), "origen": origen, "origen_ref": (ref or "")[:300] or None, "actualizado_en": ahora}
         q = insert(m.JTesis).values(**fila)
         db.execute(q.on_conflict_do_update(index_elements=[m.JTesis.registro], set_={k: q.excluded[k] for k in fila if k != "registro"}))
         n += 1
@@ -224,11 +239,20 @@ def total(db: Session) -> int:
 
 
 def buscar(db: Session, consulta: str, tipo: str | None = None, epoca: str | None = None, instancia: str | None = None,
-           limite: int = 20, desde: int = 0, cualquiera: bool = False) -> tuple[list[m.JTesis], int]:
+           limite: int = 20, desde: int = 0, cualquiera: bool = False, materia: str | None = None, anio_desde: int | None = None,
+           anio_hasta: int | None = None) -> tuple[list[m.JTesis], int]:
     """Búsqueda de texto completo. Con ``cualquiera`` basta que aparezca alguna palabra (para la IA); si no, todas.
-    Un número de 6 o 7 dígitos se toma como registro digital."""
+    Un número de 6 o 7 dígitos se toma como registro digital. Sin palabras pero con filtros, lista lo más reciente."""
     q = (consulta or "").strip()[:300]
     filtros = []
+    if instancia in INSTANCIAS:
+        instancia = INSTANCIAS[instancia][1]
+    if materia:
+        filtros.append(func.translate(func.lower(m.JTesis.materias), "áéíóú", "aeiou").contains(plano(materia[:40])))
+    if anio_desde:
+        filtros.append(m.JTesis.anio >= anio_desde)
+    if anio_hasta:
+        filtros.append(m.JTesis.anio <= anio_hasta)
     if tipo in ("jurisprudencia", "aislada"):
         filtros.append(m.JTesis.tipo == tipo)
     if epoca:
@@ -240,7 +264,11 @@ def buscar(db: Session, consulta: str, tipo: str | None = None, epoca: str | Non
         return ([t] if t else []), (1 if t else 0)
     palabras = [w for w in re.findall(r"[a-zñ0-9]+", plano(q)) if len(w) > 2]
     if not palabras:
-        return [], 0
+        if not filtros:
+            return [], 0
+        base = select(m.JTesis).where(*filtros)
+        n = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+        return list(db.scalars(base.order_by(m.JTesis.registro.desc()).offset(desde).limit(limite)).all()), n
     tsq = func.to_tsquery("spanish", (" | " if cualquiera else " & ").join(palabras))
     base = select(m.JTesis).where(m.JTesis.buscable.op("@@")(tsq), *filtros)
     n = db.scalar(select(func.count()).select_from(base.subquery())) or 0
@@ -252,7 +280,7 @@ def buscar(db: Session, consulta: str, tipo: str | None = None, epoca: str | Non
 
 def a_dict(t: m.JTesis, completo: bool = True) -> dict:
     d = {"registro": t.registro, "rubro": t.rubro, "clave": t.clave, "tipo": t.tipo, "epoca": t.epoca, "instancia": t.instancia, "organo": t.organo,
-         "materias": t.materias, "enlace": enlace(t.registro)}
+         "materias": t.materias, "anio": t.anio, "enlace": enlace(t.registro)}
     if completo:
         d.update({"texto": t.texto, "precedentes": t.precedentes, "fuente": t.fuente, "publicada": t.publicada, "huella_oficial": t.huella_oficial,
                   "origen": t.origen, "actualizado_en": t.actualizado_en.isoformat()})

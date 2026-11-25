@@ -2275,6 +2275,7 @@ class JTesis(Base):
     materias: Mapped[str | None] = mapped_column(String(200))
     fuente: Mapped[str | None] = mapped_column(String(300))
     publicada: Mapped[str | None] = mapped_column(String(200))  # nota de publicación tal como viene
+    anio: Mapped[int | None] = mapped_column(Integer, index=True)  # año de publicación (de la nota o de la clave)
     huella_oficial: Mapped[str | None] = mapped_column(String(128))  # SHA-256 que entrega el Repositorio de la SCJN, si existe
     origen: Mapped[str] = mapped_column(String(20))  # repositorio | pdf_semanal | json
     origen_ref: Mapped[str | None] = mapped_column(String(300))  # nombre del archivo o URL de donde se cargó

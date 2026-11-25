@@ -18,16 +18,18 @@ await page.goto(base + "/login");
 await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
-await page.getByRole("link", { name: "Evidencia" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Evidencia" }).click();
 await page.getByRole("heading", { name: "Nomira Evidencia" }).waitFor();
 await page.getByText("Juan Demo Ficticio vs. Empresa Ficticia Demo").waitFor();
 await foto("ev-01-asuntos");
 await page.getByText("Juan Demo Ficticio vs. Empresa Ficticia Demo").click();
 
-// Pestaña Hechos (abre sola porque hay propuestas por revisar)
-await page.getByRole("tab", { name: /Hechos/ }).waitFor();
-ok(await page.getByRole("tab", { name: /Hechos/ }).getAttribute("aria-selected") === "true", "abre en Hechos cuando hay propuestas por revisar");
-ok(await page.getByText("Por revisar", { exact: true }).count() >= 1, "las propuestas aparecen «Por revisar»");
+// Abre en «Requiere tu atención» porque hay propuestas por revisar
+await page.getByRole("tab", { name: /Requiere tu atención/ }).waitFor();
+ok(await page.getByRole("tab", { name: /Requiere tu atención/ }).getAttribute("aria-selected") === "true", "abre en «Requiere tu atención» cuando hay propuestas por revisar");
+await page.getByRole("tab", { name: /Hechos/ }).click();
+await page.getByText("Por revisar", { exact: true }).first().waitFor();
+ok(true, "las propuestas aparecen «Por revisar»");
 await foto("ev-02-hechos");
 // Ver la fuente: página del documento con la frase resaltada
 await page.locator("article").first().getByRole("button", { name: /D\d+ ·/ }).click();
@@ -99,7 +101,7 @@ await foto("ev-08-modulos");
 page.once("dialog", (d) => d.accept());
 await page.getByRole("switch", { name: /Desactivar Nómina y prestaciones/ }).click();
 await page.getByText("Módulo desactivado. Sus datos se conservan.").waitFor();
-await page.getByRole("link", { name: "Revisión de nómina" }).waitFor({ state: "detached" });
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Revisión de nómina" }).waitFor({ state: "detached" });
 await page.goto(base + "/app");
 await page.waitForURL("**/evidencia");
 ok(true, "sin Nómina: el menú lo oculta y /app redirige a Evidencia");
@@ -109,7 +111,7 @@ ok(true, "ruta de un módulo inactivo bloqueada en la interfaz");
 await page.goto(base + "/organizacion");
 await page.getByRole("switch", { name: /Activar Nómina y prestaciones/ }).click();
 await page.getByText("Módulo activado.").waitFor();
-await page.getByRole("link", { name: "Revisión de nómina" }).waitFor();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Revisión de nómina" }).waitFor();
 ok(true, "Nómina reactivada");
 ok(errores.length === 0, "sin errores de consola: " + errores.join(" | "));
 await browser.close();

@@ -127,3 +127,18 @@ def test_bloqueo_se_detiene(db, sincronizar):
 def test_apagada(db, monkeypatch):
     monkeypatch.setattr(ajustes(), "tesis_sincronizar", False)
     assert rp.correr(db, pausa=0).estado == "apagada"
+
+
+def test_filtros_materia_organo_anio(db, org):
+    t2 = {**T2, "materias": "Común, Administrativa", "notaPublicacion": "Esta tesis se publicó el viernes 10 de enero de 2025"}
+    tb.guardar(db, [tb.desde_json(T1), tb.desde_json(t2)], "json", "x.json")
+    db.commit()
+    assert db.get(m.JTesis, 2031967).anio == 2026 and db.get(m.JTesis, 2030000).anio == 2025  # de la clave y de la nota
+    assert [t.registro for t in tb.buscar(db, "", materia="civil")[0]] == [2031967]
+    assert [t.registro for t in tb.buscar(db, "", materia="Administrativa")[0]] == [2030000]
+    assert [t.registro for t in tb.buscar(db, "", instancia="colegiados")[0]] == [2030000]
+    assert [t.registro for t in tb.buscar(db, "", instancia="pleno")[0]] == [2031967]
+    assert [t.registro for t in tb.buscar(db, "", anio_desde=2026)[0]] == [2031967]
+    assert tb.buscar(db, "")[1] == 0  # sin palabras ni filtros no lista todo
+    r = org.c.get("/api/tesis", headers=org.h, params={"tipo": "jurisprudencia", "materia": "Civil", "instancia": "pleno", "anio_desde": 2026}).json()
+    assert r["total"] == 1 and r["resultados"][0]["anio"] == 2026 and r["anios"] == [2025, 2026] and "Laboral" in r["materias"]

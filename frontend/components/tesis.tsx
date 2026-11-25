@@ -23,7 +23,7 @@ export function TarjetaTesis({ t, onLeer, verificada = false }: { t: any; onLeer
         {verificada && <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">✓ Verificada en la biblioteca</span>}
       </div>
       <button className="mt-1 text-left font-semibold text-marino hover:underline" onClick={onLeer}>{t.rubro}</button>
-      <p className="text-xs text-slate-500">{[t.instancia, t.epoca, t.materias].filter(Boolean).join(" · ")}</p>
+      <p className="text-xs text-slate-500">{[t.instancia, t.epoca, t.materias, t.anio && `Publicada en ${t.anio}`].filter(Boolean).join(" · ")}</p>
       {t.extracto && <p className="mt-1 line-clamp-2 text-sm text-slate-600">{t.extracto}</p>}
       <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
         <button className="text-turquesa-700 underline" onClick={onLeer}>Leer completa</button>

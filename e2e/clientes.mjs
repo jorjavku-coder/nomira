@@ -21,7 +21,7 @@ await page.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.waitForURL(/\/(app|inicio)/);
 
-await page.getByRole("link", { name: "Clientes y cobranza" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Clientes y cobranza" }).click();
 await page.getByRole("heading", { name: "Clientes y cobranza" }).waitFor();
 await page.getByText("Comercializadora Demo SA de CV").waitFor();
 ok(await page.getByText("Por cobrar").count() === 1, "directorio con totales de cobranza");

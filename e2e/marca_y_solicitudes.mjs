@@ -43,7 +43,7 @@ await page.getByAltText(/^Logotipo de /).waitFor();
 ok(true, "logotipo del cliente visible en la barra lateral");
 ok(await page.getByText("Desarrollado por IMA").count() === 1, "pie de página con el crédito dentro del sistema");
 await page.screenshot({ path: `${dir}/16-mi-empresa-logo.png` });
-await page.getByRole("link", { name: "Revisión de nómina" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Revisión de nómina" }).click();
 await page.getByRole("link", { name: "#1" }).waitFor();
 await page.screenshot({ path: `${dir}/17-expedientes-con-marca.png` });
 

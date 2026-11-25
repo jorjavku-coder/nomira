@@ -20,7 +20,7 @@ await page.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.waitForURL(/\/(app|inicio)/);
 
-await page.getByRole("link", { name: "Escrituración" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Escrituración" }).click();
 await page.getByText("Casa en Calle Ficticia 123").waitFor();
 ok(await page.getByText("No está listo para firmar").count() >= 1, "expediente de ejemplo en rojo (faltan documentos)");
 await page.screenshot({ path: `${dir}/escrituracion-01-lista.png` });
@@ -65,7 +65,7 @@ await page.reload();
 await page.getByText("lo subió el cliente").waitFor();
 const fila = page.getByRole("listitem").filter({ hasText: /^Avalúo/ });
 await fila.getByRole("button", { name: "Validar" }).click();
-await page.getByLabel("Fecha de expedición").fill(new Date().toISOString().slice(0, 10));
+await page.getByLabel("Fecha de expedición").fill(new Date().toLocaleDateString("en-CA"));  // fecha local, no UTC
 await page.getByRole("button", { name: "Guardar", exact: true }).click();
 await page.getByText("Documento actualizado.").waitFor();
 await page.getByRole("listitem").filter({ hasText: "Documentos recibidos" }).getByRole("button", { name: "✓ Hecho" }).click();

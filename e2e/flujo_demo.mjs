@@ -26,7 +26,7 @@ await page.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await page.getByLabel(/Contraseña/).fill("Demo-Quincena-2025");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.waitForURL(/\/inicio/);
-await page.getByRole("link", { name: "Revisión de nómina" }).click();
+await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Revisión de nómina" }).click();
 await page.getByRole("heading", { name: "Revisión de nómina" }).waitFor();
 await page.getByText("EJEMPLO SINTETICO").first().waitFor();
 await foto("01-expedientes");

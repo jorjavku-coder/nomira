@@ -18,7 +18,7 @@ await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await p.getByRole("button", { name: "Entrar", exact: true }).click();
 await p.waitForURL(/\/(app|inicio)/);
-await p.getByRole("link", { name: "Asistente IA" }).click();
+await p.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Asistente IA" }).click();
 await p.getByRole("heading", { name: "Asistente IA" }).waitFor();
 await p.getByText(/aún no está activado/).waitFor();
 ok(await p.getByText(/Te quedan 30 de 30 usos este mes/).count() === 1, "muestra los usos incluidos del mes");
