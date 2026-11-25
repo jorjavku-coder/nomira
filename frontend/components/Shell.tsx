@@ -11,6 +11,7 @@ const ROLES: Record<string, string> = { administrador: "Administrador", analista
 
 const ICONOS: Record<string, React.ReactNode> = {
   tesis: <><path d="M12 4v16M5 8h14M7 8l-3 6a3 3 0 0 0 6 0L7 8Zm10 0-3 6a3 3 0 0 0 6 0l-3-6ZM8 20h8" /></>,
+  rh: <><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 11h5M18.5 8.5v5" /></>,
   inicio: <><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.5Z" /></>,
   bolsa: <><rect x="3.5" y="7" width="17" height="12.5" rx="2" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>,
   clientes: <><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M15.5 5.3a3 3 0 0 1 0 5.4M17 14a5 5 0 0 1 3.5 5" /></>,
@@ -108,6 +109,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [sesion]);
   const [sinLeer, setSinLeer] = useState(0);
   const [agendaN, setAgendaN] = useState(0);
+  const [rhN, setRhN] = useState(0);  // solicitudes de empleados por autorizar
+  const conRh = (modulos ?? sesion?.modulos ?? []).includes("rh");
+  useEffect(() => {
+    if (!sesion || !conRh || sesion.usuario.rol === "consulta") return;
+    const cargar = () => api.get("/rh/resumen").then((r) => setRhN(r.solicitudes)).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 300000);
+    return () => clearInterval(t);
+  }, [sesion, conRh]);
   const conAgenda = (modulos ?? sesion?.modulos ?? []).includes("agenda");
   useEffect(() => {
     if (!sesion || !conAgenda) return;
@@ -150,6 +160,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Casos y trámites", href: "/afore", texto: "AFORE", icono: "afore", activo: deAfore }] : []),
     ...(activos.includes("leads") ? [
       { grupo: "Crecer el despacho", href: "/leads", texto: "Prospectos", icono: "leads", activo: deLeads }] : []),
+    ...(activos.includes("rh") ? [
+      { grupo: "Crecer el despacho", href: "/rh", texto: "Recursos humanos", icono: "rh", activo: ruta.startsWith("/rh"), n: rhN }] : []),
     { grupo: "Crecer el despacho", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
     ...(activos.includes("academia") ? [
       { grupo: "Crecer el despacho", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),

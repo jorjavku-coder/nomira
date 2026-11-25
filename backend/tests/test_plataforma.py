@@ -41,6 +41,8 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             ("GET", "/api/empleos"), ("GET", "/api/empleos/despacho/{codigo}"), ("GET", "/api/empleos/vacante/{codigo}"),
             ("POST", "/api/empleos/vacante/{codigo}/postular"), ("GET", "/api/prueba/{token}"), ("POST", "/api/prueba/{token}/iniciar"),
             ("POST", "/api/prueba/{token}/responder"),
+            # Portal del empleado (RH): enlace secreto + NIP con freno de intentos; lo demás exige la sesión del portal
+            ("GET", "/api/portal-rh/acceso/{token}"), ("POST", "/api/portal-rh/acceso/{token}/entrar"),
             # Escrituración: seguimiento del trámite por enlace (X-Enlace; sin él, 404)
             ("POST", "/api/seguimiento/estado"), ("POST", "/api/seguimiento/documentos")}
 

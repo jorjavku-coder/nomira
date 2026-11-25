@@ -30,6 +30,8 @@ MODULOS = {
                       "por_defecto": False},
     "psicometria": {"nombre": "Pruebas psicométricas", "descripcion": "Para la bolsa de trabajo: personalidad, razonamiento, atención, conocimientos jurídicos y exámenes propios, con calificación automática.",
                     "por_defecto": False},
+    "rh": {"nombre": "Recursos humanos", "descripcion": "Personal del despacho y de sus empresas cliente: expedientes, vacaciones, faltas, avisos con acuse, nómina de control y portal del empleado.",
+           "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
 }
