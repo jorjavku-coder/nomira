@@ -108,6 +108,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("nomira:prueba-terminada", terminada);
   }, [sesion]);
   const [sinLeer, setSinLeer] = useState(0);
+  const [masAbierto, setMasAbierto] = useState(false);
   const [agendaN, setAgendaN] = useState(0);
   const [rhN, setRhN] = useState(0);  // solicitudes de empleados por autorizar
   const conRh = (modulos ?? sesion?.modulos ?? []).includes("rh");
@@ -148,7 +149,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Día a día", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     { grupo: "Día a día", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
     { grupo: "Día a día", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },
-    { grupo: "Día a día", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
     ...(activos.includes("evidencia") ? [
       { grupo: "Casos y trámites", href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
     ...(activos.includes("nomina") ? [
@@ -162,16 +162,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Crecer el despacho", href: "/leads", texto: "Prospectos", icono: "leads", activo: deLeads }] : []),
     ...(activos.includes("rh") ? [
       { grupo: "Crecer el despacho", href: "/rh", texto: "Recursos humanos", icono: "rh", activo: ruta.startsWith("/rh"), n: rhN }] : []),
-    { grupo: "Crecer el despacho", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
-    ...(activos.includes("academia") ? [
-      { grupo: "Crecer el despacho", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
-    ...(sesion.usuario.rol === "administrador" ? [
-      { grupo: "Mi despacho", href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
-      { grupo: "Mi despacho", href: "/organizacion", texto: "Datos y módulos", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
     { grupo: "Mi despacho", href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
-    { grupo: "Mi despacho", href: "/ayuda", texto: "Ayuda y manuales", icono: "ayuda", activo: ruta.startsWith("/ayuda") },
-    { grupo: "Mi despacho", href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
+    // Lo que se usa menos va dentro de «Más» (se abre solo si la pantalla actual está ahí)
+    { grupo: "Más", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
+    { grupo: "Más", href: "/bolsa", texto: "Bolsa de trabajo", icono: "bolsa", activo: ruta.startsWith("/bolsa") },  // gratis para todos
+    ...(activos.includes("academia") ? [
+      { grupo: "Más", href: "/academia", texto: "Academia", icono: "academia", activo: deAcademia }] : []),
+    ...(sesion.usuario.rol === "administrador" ? [
+      { grupo: "Más", href: "/usuarios", texto: "Usuarios", icono: "usuarios", activo: ruta.startsWith("/usuarios") },
+      { grupo: "Más", href: "/organizacion", texto: "Datos y módulos", icono: "empresa", activo: ruta.startsWith("/organizacion") }] : []),
+    { grupo: "Más", href: "/ayuda", texto: "Ayuda y manuales", icono: "ayuda", activo: ruta.startsWith("/ayuda") },
+    { grupo: "Más", href: "/perfil", texto: "Mi perfil", icono: "perfil", activo: ruta.startsWith("/perfil") },
   ];
+  const masActivo = enlaces.some((e) => e.grupo === "Más" && e.activo);
+  const verMas = masAbierto || masActivo;
   const salir = () => { guardarSesion(null); router.replace("/login"); };
   return (
     <div className="min-h-screen lg:pl-64">
@@ -191,14 +195,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         )}
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:gap-0.5 lg:overflow-y-auto lg:pb-0" aria-label="Principal">
           {enlaces.map((e, i) => (<Fragment key={e.href}>
-            {e.grupo && (i === 0 || enlaces[i - 1].grupo !== e.grupo) && <p className={`hidden px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 lg:block ${i ? "pt-4" : "pt-1"}`}>{e.grupo}</p>}
+            {e.grupo === "Más" && enlaces[i - 1]?.grupo !== "Más" && <button type="button" aria-expanded={verMas} onClick={() => setMasAbierto((x) => !x)}
+              className="flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white lg:mt-1 lg:py-2">
+              <span aria-hidden className="w-[18px] text-center">⋯</span><span className="flex-1 text-left">Más</span><span aria-hidden className={`transition ${verMas ? "rotate-180" : ""}`}>▾</span></button>}
+            {e.grupo === "Más" && !verMas ? null : <>
+            {e.grupo && e.grupo !== "Más" && (i === 0 || enlaces[i - 1].grupo !== e.grupo) && <p className={`hidden px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/40 lg:block ${i ? "pt-4" : "pt-1"}`}>{e.grupo}</p>}
             <Link href={e.href} aria-current={e.activo ? "page" : undefined}
               className={`relative flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition lg:py-2 ${e.activo ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
               {e.activo && <span className="absolute -left-3 top-2 hidden h-6 w-1 rounded-r bg-turquesa-brillante lg:block" aria-hidden />}
               <span className={e.activo ? "text-turquesa-brillante" : ""}><Icono nombre={e.icono} /></span>
               <span className="flex-1">{e.texto}</span>
               {!!(e as any).n && <span className="rounded-full bg-turquesa-brillante px-1.5 text-[11px] font-bold text-marino-900" aria-label={`${(e as any).n} ${e.href === "/agenda" ? "pendientes vencidos o de hoy" : "respuestas nuevas"}`}>{(e as any).n}</span>}
-            </Link>
+            </Link></>}
           </Fragment>))}
         </nav>
         <div className="mt-auto hidden border-t border-white/10 p-4 lg:block">
