@@ -125,3 +125,30 @@ html.s-tema-oscuro .s-sitio .hover\:border-marino-300:hover { border-color: rgba
   .nm-girando, .nm-aro { animation-duration: 3s; }
   .nm-aparecer { animation: none; }
 }
+
+/* ---------- Sitio público: estilo «startup» (portada 3D, bento, foco que sigue al mouse) ---------- */
+@keyframes s-levantar { from { opacity: 0; transform: perspective(1600px) rotateX(22deg) translateY(60px) scale(.96); } to { opacity: 1; transform: perspective(1600px) rotateX(0) translateY(0) scale(1); } }
+.s-levantar { animation: s-levantar 1.3s cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d, 0ms); transform-origin: 50% 0; }
+.s-malla { background:
+  radial-gradient(40rem 26rem at 15% 10%, rgba(1, 233, 205, .16), transparent 60%),
+  radial-gradient(36rem 30rem at 90% 0%, rgba(1, 178, 166, .18), transparent 60%),
+  radial-gradient(50rem 30rem at 50% 100%, rgba(18, 48, 72, .10), transparent 65%); }
+.s-cuadricula-fade { -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); }
+.s-foco { position: relative; isolation: isolate; }
+.s-foco::before { content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .35s ease;
+  background: radial-gradient(22rem circle at var(--mx, 50%) var(--my, 50%), rgba(1, 178, 166, .14), transparent 60%); }
+.s-foco:hover::before { opacity: 1; }
+.s-foco > * { position: relative; z-index: 1; }
+.s-borde-luz { position: relative; }
+.s-borde-luz::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, rgba(1, 233, 205, .6), transparent 40%, transparent 60%, rgba(1, 178, 166, .5));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.s-ventana img { transition: transform .9s cubic-bezier(.2, .7, .2, 1); }
+.s-foco:hover .s-ventana img { transform: scale(1.03) translateY(-4px); }
+@media (prefers-reduced-motion: reduce) { .s-levantar { animation: none !important; } .s-foco:hover .s-ventana img { transform: none !important; } }
+html.s-tema-oscuro .s-sitio .s-malla { background:
+  radial-gradient(40rem 26rem at 15% 10%, rgba(1, 233, 205, .10), transparent 60%),
+  radial-gradient(36rem 30rem at 90% 0%, rgba(1, 178, 166, .14), transparent 60%); }
+html.s-tema-oscuro .s-sitio .bg-slate-100 { background-color: #0A1A29; }
+html.s-tema-oscuro .s-sitio .from-white { --tw-gradient-from: #0D2133 var(--tw-gradient-from-position); --tw-gradient-to: rgb(13 33 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.s-tema-oscuro .s-sitio .to-white { --tw-gradient-to: #0D2133 var(--tw-gradient-to-position); }
