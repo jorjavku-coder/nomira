@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import json
 import re
+import unicodedata
 import zipfile
 from datetime import datetime, timezone
 
@@ -72,7 +73,7 @@ def tipo_normal(v: str | None) -> str | None:
 
 _CLAVES = {
     "registro": ("registrodigital", "registro", "ius", "numregistro", "idtesis", "id"),
-    "rubro": ("rubro", "titulo", "title"),
+    "rubro": ("rubro", "rubrotitulosubtitulo", "titulo", "title"),
     "texto": ("texto", "contenido", "text", "cuerpo"),
     "precedentes": ("precedentes", "precedente"),
     "clave": ("tesis", "clavetesis", "numeroidentificacion", "numerodeidentificacion", "identificacion"),
@@ -81,18 +82,31 @@ _CLAVES = {
     "instancia": ("instancia",),
     "organo": ("organojuris", "organo", "órgano", "organojurisdiccional"),
     "materias": ("materias", "materia"),
-    "fuente": ("fuente",),
+    "fuente": ("fuente", "localizacion"),
     "publicada": ("notapublicacion", "notadepublicacion", "fechapublicacion", "publicacion"),
     "huella_oficial": ("sha256", "hash", "huella", "certificado", "certificadodigital"),
 }
 
 
+def _sin_acentos(t: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
+
+
 def _buscar(obj: dict, nombres: tuple[str, ...]):
-    idx = {re.sub(r"[^a-záéíóú0-9]", "", k.lower()): v for k, v in obj.items()}
+    idx = {re.sub(r"[^a-z0-9]", "", _sin_acentos(str(k).lower())): v for k, v in obj.items()}
     for n in nombres:
         if n in idx and idx[n] not in (None, "", []):
             return idx[n]
     return None
+
+
+def _materias(v):
+    """«[Penal, Común]» (CSV del Repositorio) o ["Penal","Común"] (JSON) → «Penal, Común»."""
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v)
+    if isinstance(v, str):
+        return v.strip().strip("[]").replace('"', "")
+    return v
 
 
 def desde_json(obj: dict) -> dict | None:
@@ -112,7 +126,7 @@ def desde_json(obj: dict) -> dict | None:
         return None
     return {"registro": reg, "rubro": _limpio(d["rubro"]), "texto": _limpio(d["texto"]), "precedentes": _limpio(d["precedentes"]),
             "clave": _limpio(d["clave"], 120), "tipo": tipo_normal(_limpio(d["tipo"])), "epoca": _limpio(d["epoca"], 30),
-            "instancia": _limpio(d["instancia"], 200), "organo": _limpio(d["organo"], 300), "materias": _limpio(d["materias"], 200),
+            "instancia": _limpio(d["instancia"], 200), "organo": _limpio(d["organo"], 300), "materias": _limpio(_materias(d["materias"]), 200),
             "fuente": _limpio(d["fuente"], 300), "publicada": _limpio(d["publicada"], 200), "huella_oficial": _limpio(d["huella_oficial"], 128)}
 
 
@@ -199,17 +213,34 @@ def leer_archivo(nombre: str, contenido: bytes) -> tuple[list[dict], str]:
         return desde_pdf(contenido), "pdf_semanal"
     if contenido.startswith(b"PK"):
         todas: list[dict] = []
+        hubo_csv = False
         with zipfile.ZipFile(io.BytesIO(contenido)) as z:
             for info in z.infolist()[:5000]:
                 if info.is_dir() or info.file_size > MAX_IMPORTACION:
                     continue
                 datos = z.read(info)
-                if info.filename.lower().endswith((".json", ".jsonl", ".txt")) or datos[:1] in (b"{", b"["):
+                nombre_arch = info.filename.replace("\\", "/").rsplit("/", 1)[-1].lower()
+                if nombre_arch.endswith(".csv"):
+                    todas += _csv(datos)
+                    hubo_csv = True
+                elif nombre_arch.endswith((".json", ".jsonl", ".txt")) or datos[:1] in (b"{", b"["):
                     todas += _json(datos)
-                elif datos.startswith(b"%PDF"):
+                elif datos.startswith(b"%PDF") and "acuse" not in nombre_arch:  # el acuse firmado de la descarga no trae tesis
                     todas += desde_pdf(datos)
-        return todas, "json"
+        return todas, "csv" if hubo_csv else "json"
+    if nombre.lower().endswith(".csv") or contenido.lstrip(b"\xef\xbb\xbf")[:16].lower().startswith(b"registro digital"):
+        return _csv(contenido), "csv"
     return _json(contenido), "json"
+
+
+def _csv(datos: bytes) -> list[dict]:
+    """CSV que exporta el Repositorio de la SCJN («Descargar» en bicentenario.scjn.gob.mx/repositorio-scjn/sjf)."""
+    import csv
+
+    csv.field_size_limit(10_000_000)
+    t = datos.decode("utf-8-sig", errors="replace")
+    filas = csv.DictReader(io.StringIO(t))
+    return [x for x in (desde_json(dict(f)) for f in filas) if x]
 
 
 def _json(datos: bytes) -> list[dict]:

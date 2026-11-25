@@ -10,7 +10,7 @@ const ESTADO: Record<string, [string, string]> = {
   al_dia: ["Al día", "bg-emerald-100 text-emerald-800"], bloqueada: ["Bloqueada por la SCJN", "bg-red-100 text-red-800"],
   error: ["Con error", "bg-red-100 text-red-800"], apagada: ["Apagada", "bg-slate-100 text-slate-600"],
 };
-const ORIGEN: Record<string, string> = { repositorio: "Repositorio de datos abiertos", pdf_semanal: "PDF semanal", json: "Archivos JSON" };
+const ORIGEN: Record<string, string> = { repositorio: "Repositorio de datos abiertos", pdf_semanal: "PDF semanal", json: "Archivos JSON", csv: "CSV del Repositorio" };
 
 /** Biblioteca de tesis del SJF: la usan el buscador de tesis y el Asistente IA de todos los despachos. */
 export default function TesisPanel() {
@@ -56,11 +56,11 @@ export default function TesisPanel() {
           <p className="mt-1 text-sm text-slate-600">Úselo si la sincronización está bloqueada o para tener al día lo de esta semana:</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-700">
             <li>Cada viernes la SCJN publica el PDF <b>«Tesis publicación semanal»</b> en scjn.gob.mx (lo anuncia en sus redes como #SJFSemanal). Descárguelo con su navegador.</li>
-            <li>O descargue tesis en JSON desde el Repositorio de datos abiertos de la SCJN (puede juntar varios en un ZIP).</li>
+            <li>O, en el <a className="font-semibold text-turquesa-700 underline" href="https://bicentenario.scjn.gob.mx/repositorio-scjn/sjf" target="_blank" rel="noopener noreferrer">Repositorio de la SCJN</a>, filtre por fecha de publicación y presione «Descargar» (hasta 100 tesis por archivo): suba el ZIP tal cual.</li>
             <li>Súbalo aquí. Nomira separa cada tesis por su «Registro digital» y actualiza las que ya existían.</li>
           </ol>
           <form className="mt-3 space-y-2" onSubmit={subir}>
-            <input ref={archivo} className="campo" type="file" accept=".pdf,.json,.jsonl,.zip,application/pdf,application/json,application/zip" aria-label="Archivo de tesis" required />
+            <input ref={archivo} className="campo" type="file" accept=".pdf,.json,.jsonl,.csv,.zip,application/pdf,application/json,text/csv,application/zip" aria-label="Archivo de tesis" required />
             <button className="btn-turquesa" disabled={subiendo}>{subiendo ? "Leyendo…" : "Cargar tesis"}</button>
           </form>
           {e.ejemplos && <ul className="mt-3 space-y-1 text-xs text-slate-600">{e.ejemplos.map((x: any) => <li key={x.registro}><b>{x.registro}</b> · {x.rubro}</li>)}</ul>}
