@@ -69,6 +69,52 @@ def crear_checkout(*, nombre: str, total: Decimal, email: str | None, url_exito:
     return {"id": j["id"], "url": j["url"]}
 
 
+def crear_suscripcion(*, nombre: str, total_mensual: Decimal, email: str | None, url_exito: str, url_cancelar: str, idempotencia: str,
+                      referencia: str, metadata: dict[str, str]) -> dict:
+    """Stripe Checkout en modo suscripción: cargo mensual automático en MXN por el total calculado aquí (IVA incluido)."""
+    from .base import stripe_estado
+
+    estado = stripe_estado()
+    if not estado["conectado"]:
+        raise StripeError(estado["motivo"] or "Pago en línea pendiente de configuración.")
+    datos = {
+        "mode": "subscription", "client_reference_id": referencia[:200], "success_url": url_exito, "cancel_url": url_cancelar,
+        "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "mxn",
+        "line_items[0][price_data][unit_amount]": str(centavos(total_mensual)),
+        "line_items[0][price_data][recurring][interval]": "month",
+        "line_items[0][price_data][product_data][name]": nombre[:250],
+        **{f"metadata[{k}]": v for k, v in metadata.items()},
+        **{f"subscription_data[metadata][{k}]": v for k, v in metadata.items()},
+    }
+    if email:
+        datos["customer_email"] = email
+    j = _post("/checkout/sessions", datos, idempotencia)
+    if not j.get("id") or not j.get("url"):
+        raise StripeError("Stripe no devolvió la sesión de pago.")
+    return {"id": j["id"], "url": j["url"]}
+
+
+def cancelar_al_final(suscripcion_id: str) -> dict:
+    """La suscripción sigue hasta el fin del mes pagado y después Stripe la cancela (y avisa por webhook)."""
+    return _post(f"/subscriptions/{suscripcion_id}", {"cancel_at_period_end": "true"}, None)
+
+
+def _post(ruta: str, datos: dict, idempotencia: str | None) -> dict:
+    llave = ajustes().stripe_secret_key.strip()
+    try:
+        r = httpx.post(f"{API}{ruta}", data=datos, auth=(llave, ""), timeout=20,
+                       headers={"Idempotency-Key": idempotencia} if idempotencia else None)
+    except httpx.HTTPError as e:
+        raise StripeError(f"No se pudo conectar con Stripe ({type(e).__name__}).") from e
+    if r.status_code >= 300:
+        try:
+            detalle = r.json().get("error", {}).get("message") or r.text
+        except ValueError:
+            detalle = r.text
+        raise StripeError(f"Stripe rechazó la solicitud ({r.status_code}): {detalle[:200]}")
+    return r.json()
+
+
 def firma_valida(cuerpo: bytes, encabezado: str | None, ahora: float | None = None) -> bool:
     secreto = ajustes().stripe_webhook_secret.strip()
     if not secreto or not encabezado:

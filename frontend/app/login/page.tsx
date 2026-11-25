@@ -9,7 +9,7 @@ import { api, guardarSesion } from "@/lib/api";
 import { Aviso } from "@/components/ui";
 
 const PUNTOS = [
-  ["7 días gratis, sin tarjeta", "Elija hasta 3 módulos y empiece hoy mismo."],
+  ["2 días gratis, sin tarjeta", "Elija hasta 3 módulos y empiece hoy mismo."],
   ["Sus datos, solo suyos", "Cada despacho ve únicamente su información; ni Nomira la ve."],
   ["Todo en un lugar", "Liquidaciones, agenda, clientes, cobranza, evidencia y más."],
 ];
@@ -149,7 +149,7 @@ export default function Login() {
 
   const pestañas = registro && (modo === "entrar" || modo === "registro") && (
     <div className="flex rounded-xl bg-crema p-1" role="tablist">
-      {([["entrar", "Iniciar sesión"], ["registro", "Crear cuenta · 7 días gratis"]] as [Modo, string][]).map(([m, t]) => (
+      {([["entrar", "Iniciar sesión"], ["registro", "Crear cuenta · 2 días gratis"]] as [Modo, string][]).map(([m, t]) => (
         <button key={m} type="button" role="tab" aria-selected={modo === m} onClick={() => ir(m)}
           className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${modo === m ? "bg-white text-marino shadow-sm" : "text-slate-500 hover:text-marino"}`}>{t}</button>))}
     </div>);
@@ -205,7 +205,7 @@ export default function Login() {
           </form>}
 
           {modo === "registro" && <form onSubmit={registrar} className="space-y-4">
-            <div><h2 className="text-2xl font-bold text-marino">Pruebe Nomira 7 días gratis</h2>
+            <div><h2 className="text-2xl font-bold text-marino">Pruebe Nomira 2 días gratis</h2>
               <p className="mt-1 text-sm text-slate-500">Sin tarjeta. Usted será el administrador de su despacho.</p></div>
             {pub?.google && <><BotonGoogle modo="registro" texto="Registrarse con Google" /><Separador /></>}
             <div className="grid gap-3 sm:grid-cols-2">
@@ -236,7 +236,7 @@ export default function Login() {
 
           {modo === "google" && tokenGoogle && <form onSubmit={registrarGoogle} className="space-y-4">
             <div><h2 className="text-2xl font-bold text-marino">Un paso más</h2>
-              <p className="mt-1 text-sm text-slate-500">Entrará con su cuenta de Google <b>{tokenGoogle.email}</b>. Díganos de su despacho para crear su prueba gratuita de 7 días.</p></div>
+              <p className="mt-1 text-sm text-slate-500">Entrará con su cuenta de Google <b>{tokenGoogle.email}</b>. Díganos de su despacho para crear su prueba gratuita de 2 días.</p></div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block sm:col-span-2"><span className="etiqueta">Despacho o notaría</span><input className="campo" required minLength={2} autoFocus value={f.organizacion} onChange={cambiar("organizacion")} /></label>
               <label className="block"><span className="etiqueta">Su nombre</span><input className="campo" required minLength={2} value={f.nombre} onChange={cambiar("nombre")} /></label>

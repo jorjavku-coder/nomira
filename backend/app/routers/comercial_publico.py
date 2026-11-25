@@ -285,10 +285,17 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
                           detalle={"metodo": "tarjeta", "monto": cm.txt(p.monto), "modo": "real" if real else "prueba"})
                 _aplicar_pagos(db, c, v, actor="stripe")
         if p is None and obj.get("payment_status") == "paid":
-            if (obj.get("metadata") or {}).get("tipo") == "ia_paquete":
+            tipo = (obj.get("metadata") or {}).get("tipo")
+            if tipo == "ia_paquete":
                 _confirmar_paquete_ia(db, obj, real)
+            elif tipo == "modulo":
+                from ..services import modulos_compra
+                modulos_compra.confirmar_pago(db, obj, real)
             else:
                 _confirmar_compra_curso(db, obj, real)
+    elif ev.get("type") in ("invoice.payment_failed", "invoice.paid", "customer.subscription.deleted"):
+        from ..services import modulos_compra
+        modulos_compra.evento_suscripcion(db, ev["type"], (ev.get("data") or {}).get("object") or {})
     db.commit()
     return {"ok": True}
 

@@ -63,6 +63,9 @@ export default function Perfil() {
     <Shell>
       <h1 className="text-3xl font-extrabold text-marino">Mi perfil</h1>
       <p className="mt-1 text-sm text-slate-500">Su foto, su nombre y su contraseña.</p>
+      <a href="/organizacion#modulos" className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-turquesa/40 bg-turquesa-50 px-5 py-3 text-sm text-marino hover:bg-turquesa-50/70">
+        <span><b>Módulos de su despacho</b> · vea cuáles tiene encendidos y {u.rol === "administrador" ? "encienda los que necesite" : "cuáles puede pedir a su administrador"}.</span>
+        <span className="font-semibold text-turquesa-700">Ver módulos →</span></a>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[20rem_1fr]">
         <section className="tarjeta flex flex-col items-center p-6 text-center">

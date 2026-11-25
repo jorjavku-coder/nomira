@@ -1,0 +1,33 @@
+// Inicio simplificado: cabe en una pantalla, muestra lo de hoy y solo los módulos activos; el menú agrupa lo menos usado en «Más».
+// Uso: node e2e/inicio.mjs [base] [capturas]
+import { createRequire } from "node:module";
+import { mkdirSync } from "node:fs";
+const { chromium } = createRequire(import.meta.url)("playwright");
+const base = process.argv[2] || "http://127.0.0.1:3313", dir = process.argv[3] || "/tmp/cap_inicio";
+mkdirSync(dir, { recursive: true });
+let fallas = 0;
+const ok = (c, t) => { console.log(`${c ? "ok " : "FALLA"} ${t}`); if (!c) fallas++; };
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1366, height: 900 } });
+const errores = []; p.on("pageerror", (e) => errores.push(e.message));
+await p.goto(base + "/login");
+await p.getByLabel(/correo/i).fill("admin@demo.local"); await p.getByLabel(/contraseña/i).fill("Demo-Quincena-2025");
+await p.getByRole("button", { name: /^entrar$/i }).click(); await p.waitForURL(/\/inicio/);
+await p.getByText("Hoy en agenda").waitFor({ timeout: 20000 });
+await p.waitForTimeout(800);
+const alto = await p.evaluate(() => document.querySelector("main").scrollHeight);
+ok(alto < 1150, `el inicio cabe en una pantalla (alto ${alto}px)`);
+ok(await p.getByText("Hoy en agenda").count() === 1, "número de la agenda");
+ok(await p.getByText(/pendientes? vencidos? o de hoy/).count() >= 1, "aviso de pendientes");
+ok(await p.locator("section[aria-label='Lo de hoy'] li").count() >= 1, "lista de lo de hoy");
+ok(await p.getByRole("link", { name: "Preguntar a la IA" }).count() === 1, "accesos rápidos");
+const nav = p.getByRole("navigation", { name: "Principal" });
+ok(await nav.getByRole("link", { name: "Bolsa de trabajo" }).count() === 0, "lo menos usado está guardado en «Más»");
+await p.screenshot({ path: dir + "/inicio.png" });
+await nav.getByRole("button", { name: "Más" }).click();
+await nav.getByRole("link", { name: "Bolsa de trabajo" }).click();
+await p.getByRole("heading", { name: "Bolsa de trabajo" }).waitFor();
+ok(await nav.getByRole("link", { name: "Bolsa de trabajo" }).count() === 1, "«Más» queda abierto en una pantalla de ese grupo");
+ok(!errores.length, "sin errores de JavaScript" + (errores.length ? ": " + errores.join(" | ") : ""));
+await b.close();
+process.exit(fallas ? 1 : 0);

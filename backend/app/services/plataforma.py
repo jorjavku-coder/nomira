@@ -54,6 +54,7 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
     db.execute(delete(m.RhAcuse).where(m.RhAcuse.id.in_(acuses)))
     for modelo in (m.RhRecibo, m.RhPeriodo, m.RhDocumento, m.RhIncidencia, m.RhAviso, m.RhEmpleado, m.RhEmpresa):  # Recursos humanos
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))
+    db.execute(delete(m.MdSuscripcion).where(m.MdSuscripcion.organizacion_id == oid))  # módulos contratados en línea
     for modelo in (m.BtAplicacion, m.BtCandidato, m.BtPruebaPropia, m.BtVacante, m.BtPerfil):  # Bolsa de trabajo
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     db.execute(delete(m.EsExpediente).where(m.EsExpediente.organizacion_id == oid))  # partes, etapas, requisitos y enlaces: CASCADE

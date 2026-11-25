@@ -33,6 +33,7 @@ await p.getByLabel("Correo electrónico").first().fill("admin@demo.local");
 await p.getByLabel(/Contraseña/).first().fill("Demo-Quincena-2025");
 await p.getByRole("button", { name: "Entrar", exact: true }).click();
 await p.waitForURL(/\/(app|inicio)/);
+await p.getByRole("navigation", { name: "Principal" }).getByRole("button", { name: "Más" }).click();  // menú «Más»
 await p.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Tesis (SJF)" }).click();
 await p.getByLabel("Buscar tesis").fill("suspension clausura");
 await p.getByText(/^1 resultado/).waitFor();

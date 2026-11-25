@@ -1,4 +1,4 @@
-"""Registro en línea con prueba gratuita de 7 días, inicio de sesión con Google y recuperación de contraseña.
+"""Registro en línea con prueba gratuita de 2 días, inicio de sesión con Google y recuperación de contraseña.
 
 - Registro con correo: se confirma con un código de 6 dígitos que llega al correo. Nada se guarda en la base
   hasta confirmar: los datos viajan en un «reto» firmado (con «aud», así nunca sirve como sesión) y el código
@@ -99,7 +99,7 @@ def enviar_codigo(db: Session, email: str, nombre: str, codigo: str, para: str) 
 def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, hash_contrasena: str, elegidos: list[str],
                  telefono: str | None, via: str, google_sub: str | None = None, ip: str | None = None,
                  acepta_whatsapp: bool = False) -> m.Usuario:
-    """Organización + primer administrador + módulos elegidos + prueba de 7 días + lead en Ventas. No hace commit."""
+    """Organización + primer administrador + módulos elegidos + prueba de 2 días + lead en Ventas. No hace commit."""
     if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
         raise HTTPException(409, "Ese correo ya tiene cuenta. Inicie sesión o recupere su contraseña.")
     org = m.Organizacion(nombre=organizacion, origen="registro", modulos_prueba=elegidos)
@@ -120,7 +120,7 @@ def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, has
                                 nota=f"Prueba en línea ({'Google' if via == 'google' else 'correo'})"))
     nombres = [modulos.MODULOS[x]["nombre"] for x in elegidos]
     sol = m.Solicitud(tipo="prueba", nombre=nombre, empresa=organizacion, email=email, telefono=telefono, acepta_whatsapp=bool(telefono and acepta_whatsapp), ip=(ip or "")[:60] or None,
-                      mensaje=f"Se registró en línea con prueba gratuita de 7 días ({'con Google' if via == 'google' else 'con su correo'}). "
+                      mensaje=f"Se registró en línea con prueba gratuita de 2 días ({'con Google' if via == 'google' else 'con su correo'}). "
                               f"Módulos elegidos: {', '.join(nombres)}. La prueba termina el {fin.isoformat()}.")
     db.add(sol)
     db.flush()

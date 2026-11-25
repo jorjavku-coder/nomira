@@ -34,9 +34,9 @@ export default function Suscripciones() {
   return (
     <ShellPlataforma>
       <h1 className="text-3xl font-extrabold text-marino">Suscripciones</h1>
-      <p className="mb-5 mt-1 text-sm text-slate-500">Periodos de venta de cada cliente: prueba gratuita de 7 días, mensual, semestral o anual.</p>
+      <p className="mb-5 mt-1 text-sm text-slate-500">Periodos de venta de cada cliente: prueba gratuita de 2 días, mensual, semestral o anual.</p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Tarjeta etiqueta="En prueba" valor={r ? r.en_prueba : "—"} nota="7 días gratis" />
+        <Tarjeta etiqueta="En prueba" valor={r ? r.en_prueba : "—"} nota="2 días gratis" />
         <Tarjeta etiqueta="Por vencer" valor={r ? r.por_vencer : "—"} nota="7 días o menos, sin renovar" alerta={!!r?.por_vencer} />
         <Tarjeta etiqueta="Vencidas" valor={r ? r.vencidas : "—"} alerta={!!r?.vencidas} />
         <Tarjeta etiqueta="Sin plan" valor={r ? r.sin_plan : "—"} />

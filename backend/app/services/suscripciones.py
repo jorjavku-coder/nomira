@@ -1,4 +1,4 @@
-"""Periodos de venta de cada cliente: prueba gratuita de 7 días, mensual, semestral y anual.
+"""Periodos de venta de cada cliente: prueba gratuita de 2 días, mensual, semestral y anual.
 
 Fechas inclusivas: un plan mensual que inicia el 17 de noviembre cubre hasta el 16 de diciembre.
 El estado se calcula siempre a partir del historial; no se guarda (no puede desincronizarse).
@@ -13,12 +13,12 @@ from .. import models as m
 from ..config import ajustes
 
 PLANES = {  # clave: (nombre, meses; None = días fijos)
-    "prueba": ("Prueba gratuita (7 días)", None),
+    "prueba": ("Prueba gratuita (2 días)", None),
     "mensual": ("Mensual", 1),
     "semestral": ("Semestral", 6),
     "anual": ("Anual", 12),
 }
-DIAS_PRUEBA = 7
+DIAS_PRUEBA = 2
 AVISO_DIAS = 7  # «por vencer» cuando faltan 7 días o menos
 
 

@@ -2438,3 +2438,24 @@ class RhRecibo(Base):
     deducciones: Mapped[list] = mapped_column(JSON)
     neto: Mapped[Decimal] = mapped_column(DINERO)
     visto_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MdSuscripcion(Base):
+    """Módulo que el despacho contrató solo desde «Datos y módulos»: suscripción mensual con cargo automático en Stripe.
+    Nomira nunca ve la tarjeta. El módulo se enciende solo con el pago confirmado por webhook y se apaga si Stripe
+    cancela la suscripción (cancelación del cliente o pagos fallidos). Los datos del módulo nunca se borran."""
+    __tablename__ = "md_suscripciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    modulo: Mapped[str] = mapped_column(String(30))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    precio: Mapped[Decimal] = mapped_column(DINERO)  # mensual antes de IVA
+    iva: Mapped[Decimal] = mapped_column(DINERO)
+    total: Mapped[Decimal] = mapped_column(DINERO)  # lo que cobra Stripe cada mes
+    estado: Mapped[str] = mapped_column(String(15), default="iniciada")  # iniciada | activa | pago_fallido | cancelando | cancelada
+    stripe_sesion: Mapped[str | None] = mapped_column(String(120), unique=True)
+    stripe_suscripcion: Mapped[str | None] = mapped_column(String(120), index=True)
+    modo: Mapped[str | None] = mapped_column(String(10))  # prueba | real
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    activada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

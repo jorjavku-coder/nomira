@@ -1,4 +1,4 @@
-"""Registro en línea con prueba gratuita de 7 días (hasta 3 módulos), confirmación por código, entrar con Google,
+"""Registro en línea con prueba gratuita de 2 días (hasta 3 módulos), confirmación por código, entrar con Google,
 recuperar contraseña y bloqueo al terminar la prueba (solo cuentas de registro; los datos se conservan)."""
 import re
 from datetime import timedelta
@@ -55,7 +55,7 @@ def test_registro_con_correo_y_prueba(cliente, buzon, db):
     assert s.status_code == 201, s.text
     s = s.json()
     assert sorted(s["modulos"]) == ["agenda", "leads", "nomina"]
-    assert s["prueba"]["estado"] == "prueba" and s["prueba"]["dias_restantes"] == 7 and not s["prueba"]["bloqueada"]
+    assert s["prueba"]["estado"] == "prueba" and s["prueba"]["dias_restantes"] == 2 and not s["prueba"]["bloqueada"]
     assert "Bienvenido a Nomira" in buzon[-1]["asunto"]
     h = {"Authorization": f"Bearer {s['token']}"}
     assert cliente.get("/api/agenda/asuntos", headers=h).status_code == 200

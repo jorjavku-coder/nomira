@@ -38,7 +38,7 @@ def test_bienvenida_al_dar_de_alta(plataforma, buzon, db):
     for parte in (c["html"], c["texto"]):
         assert temporal in parte and "laura@mendez.test" in parte and "Despacho Méndez" in parte
         assert "https://nomirasoft.com/login" in parte
-    fin = (sus.hoy() + timedelta(days=6))
+    fin = (sus.hoy() + timedelta(days=1))
     assert "prueba gratuita" in c["html"] and f"{fin.day} de" in c["html"]
     assert 'src="https://nomirasoft.com/correo/logo.png"' in c["html"]
     # La bitácora no guarda el cuerpo (ni la contraseña)

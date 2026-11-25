@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnexoTratamiento } from "@/components/legal";
+import { TiendaModulos } from "@/components/modulos";
 import Shell, { useSesion } from "@/components/Shell";
 import { Aviso } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -36,7 +37,7 @@ export default function MiEmpresa() {
     const fd = new FormData(); fd.append("archivo", a);
     accion(() => api.subirPut("/organizacion/logo", fd), "Logotipo actualizado.");
   };
-  if (sesion && sesion.usuario.rol !== "administrador") return <Shell><Aviso>Solo los administradores pueden cambiar la marca de la empresa.</Aviso></Shell>;
+  if (sesion && sesion.usuario.rol !== "administrador") return <Shell><h1 className="text-3xl font-extrabold text-marino">Módulos</h1><TiendaModulos /></Shell>;
   return (
     <Shell>
       <h1 className="text-3xl font-extrabold text-marino">Datos y módulos del despacho</h1>
@@ -70,37 +71,7 @@ export default function MiEmpresa() {
           </section>
         </div>
       )}
-      {org?.modulos && (
-        <section className="tarjeta mt-5 p-6">
-          <h2 className="text-lg font-bold text-marino">Módulos</h2>
-          <p className="mt-1 text-sm text-slate-500">Active los módulos contratados que su equipo usará. Desactivar un módulo solo oculta su sección: los datos se conservan.</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {Object.values(org.modulos as Record<string, any>).map((md) => (
-              <div key={md.clave} className={`rounded-xl border p-4 ${md.activo ? "border-turquesa bg-turquesa-50/60" : "border-crema-300 bg-white"}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-marca font-bold text-marino">{md.nombre}</div>
-                    <p className="mt-0.5 text-xs text-slate-600">{md.descripcion}</p>
-                  </div>
-                  {md.contratado ? (
-                    <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold text-marino">
-                      <input type="checkbox" role="switch" className="h-5 w-5 accent-turquesa" checked={md.activo} disabled={ocupado}
-                        aria-label={`${md.activo ? "Desactivar" : "Activar"} ${md.nombre}`}
-                        onChange={(e) => {
-                          const activo = e.target.checked;
-                          if (!activo && !confirm(`¿Desactivar «${md.nombre}»? Su equipo dejará de verlo; los datos se conservan.`)) return;
-                          accion(() => api.patch(`/organizacion/modulos/${md.clave}`, { activo }), activo ? "Módulo activado." : "Módulo desactivado. Sus datos se conservan.");
-                        }} />
-                      {md.activo ? "Activo" : "Inactivo"}
-                    </label>
-                  ) : <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No contratado</span>}
-                </div>
-                {!md.contratado && <p className="mt-2 text-xs text-slate-500">Para contratarlo, escriba a <a href="/soporte" className="font-semibold text-turquesa-700 hover:underline">Soporte</a>.</p>}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <TiendaModulos />
       <AnexoTratamiento />
     </Shell>
   );
