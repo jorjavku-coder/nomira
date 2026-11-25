@@ -15,11 +15,12 @@ p.on("pageerror", (e) => errores.push(String(e)));
 p.on("console", (m) => m.type() === "error" && !/favicon/.test(m.text()) && errores.push(m.text()));
 await p.goto(base + "/");
 await p.getByRole("heading", { name: "Un módulo para cada parte de su trabajo" }).waitFor();
-for (const t of ["Nómina y liquidaciones", "Agenda Jurídica", "Escrituración para notarías", "Recursos humanos", "Pruebas psicométricas"])
+for (const t of ["Nómina y liquidaciones", "Agenda Jurídica", "Escrituración", "Recursos humanos", "Clientes y cobranza"])
   ok(await p.getByRole("heading", { name: t }).count() === 1, `módulo en el sitio: ${t}`);
 ok(await p.getByRole("heading", { name: "Más que un control de expedientes" }).count() === 1, "sección «Por qué Nomira»");
 ok(await p.getByRole("heading", { name: "En tres pasos, sin compromiso" }).count() === 1, "sección «Cómo empezar»");
-ok(await p.getByText("Incluido en todos los planes").count() === 1, "lo incluido en todos los planes");
+ok(await p.getByText("Incluido en todos los planes").count() >= 1, "lo incluido en todos los planes");
+ok(await p.locator("#modulos img").count() >= 10, "cada módulo con su captura");
 ok(await p.locator("#preguntas details").count() <= 10, "preguntas frecuentes cortas");
 ok((await p.title()).includes("notarías"), "título para buscadores actualizado");
 // que se vean las secciones animadas al desplazarse

@@ -8,44 +8,55 @@ import { api, leerSesion, mxn } from "@/lib/api";
 
 const NAV = [["#modulos", "Módulos"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["#preguntas", "Preguntas"]];
 
-const MODULOS = [
-  { clave: "nomina", nombre: "Nómina y liquidaciones", lema: "Del PDF al desglose",
-    texto: "Lee comprobantes de nómina, suma solo las prestaciones de su catálogo y calcula finiquitos y liquidaciones de la LFT.",
-    puntos: ["Cada cifra ligada a su página", "Liquidación con operación y artículo", "Excel y PDF con su logotipo"],
-    imagen: "/sitio/liquidaciones.webp", alt: "Calculadora de liquidación de Nomira con el desglose por concepto (datos ficticios)." },
-  { clave: "agenda", nombre: "Agenda Jurídica", lema: "Ningún plazo se le pasa",
+/** Cuadrícula «bento»: cada módulo con su captura real (datos ficticios). `ancho` = columnas de 6 en escritorio. */
+const BENTO = [
+  { clave: "agenda", nombre: "Agenda Jurídica", lema: "Ningún plazo se le pasa", ancho: 4,
     texto: "Plazos y audiencias con días hábiles del tribunal, responsables y avisos. Revisa los estrados por usted.",
-    puntos: ["Cálculo asistido de días hábiles", "Avisos al responsable", "Estrados TRIJAEM y expedientes del PJF"],
-    imagen: "/sitio/agenda.webp", alt: "Asunto en la Agenda Jurídica de Nomira con pendientes y exposición económica (datos ficticios)." },
-  { clave: "evidencia", nombre: "Nomira Evidencia", lema: "El expediente probatorio, ordenado",
-    texto: "Ordena los documentos de un asunto y propone hechos con su cita y página. Usted valida y decide.",
-    puntos: ["Hechos con documento y página", "Diferencias entre fuentes", "Cronología y matriz de evidencia"],
-    imagen: "/sitio/evidencia.webp", alt: "Bandeja «Requiere tu atención» de Nomira Evidencia (datos ficticios)." },
-  { clave: "afore", nombre: "Nomira AFORE", lema: "Casos AFORE y SAR al día",
-    texto: "Checklist por tipo de problema, folios y seguimientos, y un portal donde el cliente ve su avance.",
-    puntos: ["Checklist por problema", "CURP y NSS cifrados", "Mensajes con su aprobación"],
-    imagen: "/sitio/afore.webp", alt: "Resumen «¿Qué requiere atención ahora?» de Nomira AFORE (datos ficticios)." },
-  { clave: "leads", nombre: "Nomira Leads", lema: "Ningún prospecto sin respuesta",
-    texto: "Le dice a quién atender hoy y qué campañas le traen clientes.",
-    puntos: ["Alta en menos de un minuto", "Tablero de seguimiento", "Costo por cliente por campaña"],
-    imagen: "/sitio/leads.webp", alt: "Bandeja «¿A quién hay que atender?» de Nomira Leads (datos ficticios)." },
-  { clave: "academia", nombre: "Nomira Academia", lema: "Capacite a su equipo",
-    texto: "Cursos breves por materia: asígnelos, vea quién avanza y entregue constancias de participación.",
-    puntos: ["Cursos propios y de Nomira", "Avance por persona", "Constancia en PDF"],
-    imagen: "/sitio/academia.webp", alt: "Pantalla «Mi aprendizaje» de Nomira Academia (datos ficticios)." },
-  { clave: "escrituracion", nombre: "Escrituración para notarías", lema: "«¿Ya está lista mi escritura?», resuelto",
-    texto: "Etapas, documentos con vigencia y un semáforo de «listo para firmar». El cliente, la inmobiliaria y el banco ven el avance.",
-    puntos: ["Semáforo «listo para firmar»", "Vigencias de certificados", "Documentos desde el celular"],
-    imagen: "/sitio/escrituracion.webp", alt: "Lista de expedientes de escrituración con semáforo (datos ficticios)." },
+    puntos: ["Días hábiles", "Estrados TRIJAEM", "Expedientes PJF"], imagen: "/sitio/app-agenda.webp", ruta: "agenda",
+    alt: "Agenda de hoy en Nomira: vencidos, audiencias y plazos por validar (datos ficticios)." },
+  { clave: "celular", nombre: "En su celular", lema: "Donde esté", ancho: 2, celular: true,
+    texto: "Lo de hoy, sus pendientes y sus cobros, también desde el teléfono.",
+    puntos: ["Sin instalar nada"], imagen: "/sitio/app-cel.webp", ruta: "",
+    alt: "Inicio de Nomira en un celular con los pendientes del día (datos ficticios)." },
+  { clave: "clientes", nombre: "Clientes y cobranza", lema: "Incluido en todos los planes", ancho: 3,
+    texto: "Cada cliente capturado una vez, con su saldo, sus pagos y sus recibos.",
+    puntos: ["Saldos y vencidos", "Recibos", "Ligas de pago"], imagen: "/sitio/clientes.webp", ruta: "clientes",
+    alt: "Directorio de clientes con saldo, vencido y próximo pago (datos ficticios)." },
+  { clave: "rh", nombre: "Recursos humanos", lema: "Su equipo, en orden", ancho: 3,
+    texto: "Expedientes del personal, vacaciones según la LFT, avisos con acuse y portal del empleado.",
+    puntos: ["Vacaciones LFT", "Avisos con acuse", "Portal del empleado"], imagen: "/sitio/rh.webp", ruta: "rh",
+    alt: "Lista de empleados con antigüedad y expediente en Nomira (datos ficticios)." },
+  { clave: "nomina", nombre: "Nómina y liquidaciones", lema: "Del PDF al desglose", ancho: 2,
+    texto: "Lee comprobantes y calcula finiquitos y liquidaciones de la LFT.",
+    puntos: ["Cifra ligada a su página", "Operación y artículo"], imagen: "/sitio/liquidaciones.webp", ruta: "liquidaciones",
+    alt: "Calculadora de liquidación de Nomira con el desglose por concepto (datos ficticios)." },
+  { clave: "evidencia", nombre: "Nomira Evidencia", lema: "El expediente probatorio", ancho: 2,
+    texto: "Propone hechos con su cita y página. Usted valida y decide.",
+    puntos: ["Hechos con fuente", "Cronología"], imagen: "/sitio/evidencia.webp", ruta: "evidencia",
+    alt: "Bandeja «Requiere tu atención» de Nomira Evidencia (datos ficticios)." },
+  { clave: "escrituracion", nombre: "Escrituración", lema: "Para notarías", ancho: 2,
+    texto: "Semáforo de «listo para firmar» y avance visible para cliente, inmobiliaria y banco.",
+    puntos: ["Vigencias", "Semáforo"], imagen: "/sitio/escrituracion.webp", ruta: "escrituracion",
+    alt: "Lista de expedientes de escrituración con semáforo (datos ficticios)." },
+  { clave: "afore", nombre: "Nomira AFORE", lema: "Casos AFORE y SAR", ancho: 2,
+    texto: "Checklist por problema, folios, seguimientos y portal para el cliente.",
+    puntos: ["Checklist", "CURP y NSS cifrados"], imagen: "/sitio/afore.webp", ruta: "afore",
+    alt: "Resumen «¿Qué requiere atención ahora?» de Nomira AFORE (datos ficticios)." },
+  { clave: "leads", nombre: "Nomira Leads", lema: "Ningún prospecto sin respuesta", ancho: 2,
+    texto: "A quién atender hoy y qué campañas le traen clientes.",
+    puntos: ["Tablero", "Costo por cliente"], imagen: "/sitio/leads.webp", ruta: "leads",
+    alt: "Bandeja «¿A quién hay que atender?» de Nomira Leads (datos ficticios)." },
+  { clave: "academia", nombre: "Nomira Academia", lema: "Capacite a su equipo", ancho: 2,
+    texto: "Cursos breves, avance por persona y constancias de participación.",
+    puntos: ["Cursos", "Constancias"], imagen: "/sitio/academia.webp", ruta: "academia",
+    alt: "Pantalla «Mi aprendizaje» de Nomira Academia (datos ficticios)." },
 ];
+const ANCHO: Record<number, string> = { 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-4" };
 
-/** Módulos sin captura en el sitio y lo que viene en todos los planes. */
-const OTROS_MODULOS = [
-  ["Recursos humanos", "Expedientes del personal, vacaciones LFT, avisos con acuse y portal del empleado."],
-  ["Pruebas psicométricas", "Personalidad, razonamiento y conocimientos jurídicos para sus vacantes."],
-];
+const CIFRAS = [["9", "módulos para elegir"], ["2 días", "de prueba, sin tarjeta"], ["0", "programas que instalar"], ["Diaria", "revisión de estrados"]];
+
 const INCLUIDO = [
-  ["Clientes y cobranza", "Directorio único, honorarios, pagos y recibos."],
+  ["Clientes y cobranza", "Directorio, saldos, pagos y recibos."],
   ["Asistente IA", "Borradores y resúmenes; 30 usos al mes."],
   ["Buscador de tesis", "Jurisprudencia del SJF con filtros."],
   ["Bolsa de trabajo", "Publique vacantes y reciba CVs gratis."],
@@ -158,6 +169,37 @@ function Palomita({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return <svg viewBox="0 0 20 20" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10.5l4 4 8-9" /></svg>;
 }
 
+/** Marco de navegador para las capturas. */
+function Ventana({ src, alt, ruta, prioridad = false, className = "" }: { src: string; alt: string; ruta: string; prioridad?: boolean; className?: string }) {
+  return (
+    <div className={`s-ventana overflow-hidden rounded-2xl border border-crema-300 bg-white shadow-flotante ${className}`}>
+      <div className="flex items-center gap-1.5 border-b border-crema-300 bg-slate-100 px-3 py-2" aria-hidden>
+        <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
+        <span className="ml-3 hidden truncate rounded-md bg-white px-3 py-0.5 text-[11px] text-slate-500 sm:block">nomirasoft.com/{ruta}</span>
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} loading={prioridad ? "eager" : "lazy"} className="block w-full object-cover object-left-top" />
+    </div>
+  );
+}
+
+/** Marco de celular. */
+function Celular({ src, alt, className = "" }: { src: string; alt: string; className?: string }) {
+  return (
+    <div className={`overflow-hidden rounded-[2rem] border-[7px] border-marino-900 bg-marino-900 shadow-flotante ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} loading="lazy" className="block w-full rounded-[1.5rem]" />
+    </div>
+  );
+}
+
+/** Luz que sigue al mouse dentro de una tarjeta. */
+const foco = (e: React.MouseEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+};
+
 function BotonWhatsApp({ numero }: { numero: string }) {
   const texto = encodeURIComponent("Hola, me interesa conocer Nomira.");
   return (
@@ -220,49 +262,69 @@ export default function SitioPublico() {
       <main>
         {/* Portada */}
         <section className="relative overflow-hidden">
-          <div className="s-cuadricula pointer-events-none absolute inset-0" aria-hidden />
+          <div className="s-malla pointer-events-none absolute inset-0" aria-hidden />
+          <div className="s-cuadricula s-cuadricula-fade pointer-events-none absolute inset-0" aria-hidden />
           <div className="s-aurora pointer-events-none absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-turquesa/20 blur-3xl" aria-hidden />
           <div className="s-aurora pointer-events-none absolute -left-32 top-40 h-[26rem] w-[26rem] rounded-full bg-turquesa-brillante/10 blur-3xl" style={d(-6000)} aria-hidden />
-          <div className="s-aurora pointer-events-none absolute bottom-0 right-1/3 h-72 w-72 rounded-full bg-marino/10 blur-3xl" style={d(-11000)} aria-hidden />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
-            <div className="relative">
-              <span className="s-entrada inline-flex items-center gap-2 rounded-full border border-turquesa/20 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-700 backdrop-blur">
-                <span className="s-pulso h-1.5 w-1.5 rounded-full bg-turquesa" aria-hidden />Software para despachos y áreas jurídicas</span>
-              <h1 style={d(100)} className="s-entrada mt-5 font-marca text-4xl font-extrabold leading-[1.08] text-marino sm:text-5xl lg:text-[3.4rem]">
-                Todo su despacho,<br /><span className="s-degradado">en claro.</span></h1>
-              <p style={d(200)} className="s-entrada mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-                Plazos, liquidaciones, jurisprudencia, clientes y cobranza en un solo lugar. Nomira hace el trabajo repetitivo;
-                <b className="text-marino"> usted decide</b>.</p>
-              <div style={d(650)} className="s-entrada mt-8 flex flex-wrap gap-3">
-                {prueba ? <>
-                  <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Pruebe 2 días gratis →</Link>
-                  <a href="#informes" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Solicitar informes</a></>
-                  : <><a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Solicitar informes →</a>
-                  <a href="#empezar" className="btn-sec px-5 py-3 text-base hover:-translate-y-0.5">Ver cómo empezar</a></>}
-              </div>
-              <ul style={d(800)} className="s-entrada mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-                {[prueba ? "2 días gratis, sin tarjeta" : "Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
-                  <li key={t} className="flex items-center gap-2"><span className="text-turquesa-700"><Palomita /></span>{t}</li>))}
-              </ul>
+          <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-14 text-center lg:pt-20">
+            <span className="s-entrada inline-flex items-center gap-2 rounded-full border border-turquesa/25 bg-white/70 py-1 pl-1 pr-3 text-xs font-semibold text-marino shadow-sm backdrop-blur">
+              <span className="rounded-full bg-marino px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Nuevo</span>
+              Active módulos desde su perfil y pague mes a mes</span>
+            <h1 style={d(100)} className="s-entrada mx-auto mt-6 max-w-4xl font-marca text-[2.6rem] font-extrabold leading-[1.02] tracking-tight text-marino sm:text-6xl lg:text-7xl">
+              Todo su despacho,<br className="hidden sm:block" /> <span className="s-degradado">en claro.</span></h1>
+            <p style={d(200)} className="s-entrada mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl">
+              Plazos, liquidaciones, jurisprudencia, clientes y cobranza en un solo lugar. Nomira hace el trabajo repetitivo;
+              <b className="text-marino"> usted decide</b>.</p>
+            <div style={d(320)} className="s-entrada mt-8 flex flex-wrap justify-center gap-3">
+              {prueba ? <>
+                <Link href="/login?registro=1" className="btn-turquesa s-brillo px-6 py-3.5 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Pruebe 2 días gratis →</Link>
+                <a href="#modulos" className="btn-sec px-6 py-3.5 text-base hover:-translate-y-0.5">Ver los módulos</a></>
+                : <><a href="#informes" className="btn-turquesa s-brillo px-6 py-3.5 text-base shadow-[0_12px_30px_-12px_rgba(1,178,166,.8)] hover:-translate-y-0.5">Solicitar informes →</a>
+                <a href="#modulos" className="btn-sec px-6 py-3.5 text-base hover:-translate-y-0.5">Ver los módulos</a></>}
             </div>
-            <div style={d(350)} className="s-entrada relative">
-              <div className="absolute -inset-3 rotate-1 rounded-[2rem] bg-gradient-to-br from-turquesa/15 via-transparent to-marino/10" aria-hidden />
-              <Inclinable>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/sitio/visor.webp" width={1600} height={1034} alt="Nomira muestra el comprobante original junto a lo que leyó: cada percepción con su clave, importe y si se incluye o queda pendiente."
-                  className="relative w-full rounded-3xl border border-crema-300 bg-white shadow-flotante" />
-              </Inclinable>
-              <div aria-hidden className="pointer-events-none absolute -left-6 top-8 hidden sm:block">
-                <div className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Palomita /></span>Cifra ligada a su página</div>
-              </div>
-              <div aria-hidden className="pointer-events-none absolute -right-4 top-1/2 hidden sm:block">
-                <div style={d(-2000)} className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
-                  <span className="s-pulso h-2 w-2 rounded-full bg-turquesa" />Nuevo prospecto · WhatsApp</div>
-              </div>
-              <p className="relative mt-8 text-center text-xs text-slate-500">Datos ficticios de demostración.</p>
-            </div>
+            <ul style={d(420)} className="s-entrada mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-600">
+              {[prueba ? "2 días gratis, sin tarjeta" : "Sin instalar nada", "Portal seguro para sus clientes", "Sus expedientes, privados"].map((t) => (
+                <li key={t} className="flex items-center gap-2"><span className="text-turquesa-700"><Palomita /></span>{t}</li>))}
+            </ul>
 
+            {/* Producto: navegador + celular + avisos flotantes */}
+            <div className="relative mx-auto mt-14 max-w-5xl">
+              <div className="pointer-events-none absolute inset-x-10 -bottom-6 top-10 rounded-[3rem] bg-gradient-to-r from-turquesa/30 via-turquesa-brillante/20 to-marino/20 blur-3xl" aria-hidden />
+              <div style={d(450)} className="s-levantar relative">
+                <Inclinable>
+                  <Ventana src="/sitio/app-inicio.webp" ruta="inicio" prioridad className="s-borde-luz text-left"
+                    alt="Inicio de Nomira: pendientes de hoy, por cobrar, prospectos y accesos rápidos (datos ficticios)." />
+                </Inclinable>
+              </div>
+              <div style={d(900)} className="s-entrada absolute -bottom-10 -right-2 hidden w-40 sm:block lg:-right-10 lg:w-48">
+                <div className="s-flotar" style={d(-1500)}><Celular src="/sitio/app-cel.webp" alt="Nomira en el celular (datos ficticios)." /></div>
+              </div>
+              <div aria-hidden className="pointer-events-none absolute -left-4 top-44 hidden md:block lg:-left-12">
+                <div className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Palomita /></span>Plazo validado</div>
+              </div>
+              <div aria-hidden className="pointer-events-none absolute -left-8 bottom-24 hidden md:block lg:-left-16">
+                <div style={d(-2500)} className="s-flotar flex items-center gap-2 rounded-2xl bg-marino px-3 py-2 text-xs font-semibold text-white shadow-flotante">
+                  <span className="s-pulso h-2 w-2 rounded-full bg-turquesa-brillante" />Nueva publicación en estrados</div>
+              </div>
+              <div aria-hidden className="pointer-events-none absolute -top-5 right-24 hidden md:block">
+                <div style={d(-4000)} className="s-flotar flex items-center gap-2 rounded-2xl border border-crema-300 bg-white/90 px-3 py-2 text-xs font-semibold text-marino shadow-flotante backdrop-blur">
+                  <span className="text-base" aria-hidden>💳</span>Pago recibido · $3,500</div>
+              </div>
+            </div>
+            <p className="relative mt-16 text-xs text-slate-500">Capturas reales de Nomira con datos ficticios de demostración.</p>
+          </div>
+
+          {/* Cifras */}
+          <div className="relative mx-auto max-w-5xl px-5 pb-16">
+            <dl className="grid grid-cols-2 divide-crema-300 overflow-hidden rounded-3xl border border-crema-300 bg-white/70 backdrop-blur md:grid-cols-4 md:divide-x">
+              {CIFRAS.map(([n, t], i) => (
+                <div key={t} style={d(i * 100)} className="s-revelar px-6 py-5 text-center">
+                  <dt className="sr-only">{t}</dt>
+                  <dd className="font-marca text-3xl font-extrabold text-marino">{n}</dd>
+                  <dd className="mt-1 text-sm text-slate-600">{t}</dd>
+                </div>))}
+            </dl>
           </div>
         </section>
 
@@ -284,7 +346,7 @@ export default function SitioPublico() {
               <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Así busca jurisprudencia hoy. <span className="text-turquesa-700">Así la busca un despacho con Nomira.</span></h2>
               <p className="mt-3 text-slate-600">Encuentre la tesis exacta con filtros y pida a la IA que le explique cuál aplica, citando solo tesis reales del Semanario Judicial de la Federación.</p>
             </div>
-            <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.25fr] lg:items-stretch">
+            <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.25fr] lg:items-start">
               <div className="s-revelar-lado rounded-3xl border border-crema-300 bg-white/70 p-6">
                 <p className="text-sm font-bold uppercase tracking-wide text-slate-500">Búsqueda tradicional</p>
                 <ul className="mt-4 space-y-3 text-slate-600">
@@ -324,28 +386,29 @@ export default function SitioPublico() {
           <div className="mx-auto max-w-6xl px-5 pt-20">
             <div className="s-revelar max-w-2xl">
               <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Módulos</span>
-              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Un módulo para cada parte de su trabajo</h2>
+              <h2 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-5xl">Un módulo para cada parte de su trabajo</h2>
               <p className="mt-3 text-slate-600">Contrate solo los que necesita. Todos comparten usuarios, clientes y seguridad.</p>
             </div>
-            <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
-              {MODULOS.map((m, i) => (
-                <article key={m.clave} style={d((i % 3) * 120)} className={`s-revelar s-tarjeta tarjeta group flex flex-col overflow-hidden lg:col-span-2 ${MODULOS.length % 3 === 1 && i === MODULOS.length - 1 ? "lg:col-start-3" : ""}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <div className="overflow-hidden border-b border-crema-300"><img src={m.imagen} alt={m.alt} loading="lazy" className="aspect-[16/10] w-full bg-crema object-cover object-left-top" /></div>
-                  <div className="flex flex-1 flex-col p-6">
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-6">
+              {BENTO.map((m, i) => (
+                <article key={m.clave} onMouseMove={foco} style={d((i % 3) * 110)}
+                  className={`s-revelar s-tarjeta s-foco tarjeta group flex flex-col overflow-hidden ${ANCHO[m.ancho]} ${m.celular ? "bg-gradient-to-b from-turquesa/15 to-transparent" : ""}`}>
+                  <div className={`relative overflow-hidden ${m.celular ? "flex justify-center px-10 pt-6" : "px-5 pt-5"} ${m.ancho >= 3 ? "h-64 sm:h-72" : "h-52"}`}>
+                    {m.celular
+                      ? <Celular src={m.imagen} alt={m.alt} className="w-52 translate-y-2" />
+                      : <Ventana src={m.imagen} alt={m.alt} ruta={m.ruta} />}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" aria-hidden />
+                  </div>
+                  <div className="flex flex-1 flex-col p-6 pt-3">
                     <span className="text-xs font-bold uppercase tracking-wider text-turquesa-700">{m.lema}</span>
                     <h3 className="mt-1 font-marca text-xl font-extrabold text-marino transition group-hover:text-turquesa-700">{m.nombre}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{m.texto}</p>
-                    <ul className="mt-4 space-y-1.5 text-sm">
-                      {m.puntos.map((p) => <li key={p} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>{p}</li>)}
-                    </ul>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{m.texto}</p>
+                    <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
+                      {m.puntos.map((p) => <span key={p} className="rounded-full border border-turquesa/25 bg-turquesa-50 px-2.5 py-0.5 text-xs font-semibold text-turquesa-700">{p}</span>)}
+                    </div>
                   </div>
                 </article>
               ))}
-            </div>
-            <div className="s-revelar mt-6 grid gap-4 sm:grid-cols-2">
-              {OTROS_MODULOS.map(([t, dd]) => (
-                <div key={t} className="tarjeta p-5"><h3 className="font-marca text-lg font-extrabold text-marino">{t}</h3><p className="mt-1 text-sm text-slate-600">{dd}</p></div>))}
             </div>
             <div className="s-revelar mt-6 rounded-3xl border border-turquesa/30 bg-gradient-to-br from-turquesa-50 to-white p-6 md:p-8">
               <span className="rounded-full bg-turquesa px-3 py-1 text-xs font-bold uppercase tracking-wider text-marino-900">Incluido en todos los planes</span>
@@ -354,6 +417,7 @@ export default function SitioPublico() {
                   <li key={t} className="flex gap-2"><span className="mt-0.5 text-turquesa-700"><Palomita /></span>
                     <span><span className="block font-bold text-marino">{t}</span><span className="block text-sm text-slate-600">{dd}</span></span></li>))}
               </ul>
+              <p className="mt-5 text-sm text-slate-600">Además, módulo opcional de <b className="text-marino">Pruebas psicométricas</b> para sus vacantes.</p>
             </div>
           </div>
         </section>
