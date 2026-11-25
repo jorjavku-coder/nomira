@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, rh, rh_portal, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -155,6 +155,8 @@ app.include_router(bolsa.router)  # Bolsa de trabajo (gratis); las pruebas exige
 app.include_router(bolsa_publico.router)
 app.include_router(tesis.router)  # Biblioteca de tesis del SJF (todos los despachos)
 app.include_router(plataforma_tesis.router)
+app.include_router(rh.router, dependencies=[Depends(requiere_modulo("rh"))])  # Recursos humanos (módulo de pago)
+app.include_router(rh_portal.router)  # portal del empleado: enlace + NIP
 app.include_router(cobro.router)  # Cobro en línea y CFDI con las cuentas del propio despacho
 app.include_router(clientes.router)  # Clientes del despacho: incluido en todos los planes
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])

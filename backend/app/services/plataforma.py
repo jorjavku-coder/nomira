@@ -50,6 +50,10 @@ def eliminar_organizacion(db: Session, org: m.Organizacion) -> int:
     db.execute(delete(m.AsPaquete).where(m.AsPaquete.organizacion_id == oid))
     for rel in db.scalars(select(m.BtCandidato.cv_archivo).where(m.BtCandidato.organizacion_id == oid, m.BtCandidato.cv_archivo.is_not(None))):
         bolsa_base.borrar_cv(rel)
+    acuses = select(m.RhAcuse.id).join(m.RhAviso, m.RhAviso.id == m.RhAcuse.aviso_id).where(m.RhAviso.organizacion_id == oid)
+    db.execute(delete(m.RhAcuse).where(m.RhAcuse.id.in_(acuses)))
+    for modelo in (m.RhRecibo, m.RhPeriodo, m.RhDocumento, m.RhIncidencia, m.RhAviso, m.RhEmpleado, m.RhEmpresa):  # Recursos humanos
+        db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     for modelo in (m.BtAplicacion, m.BtCandidato, m.BtPruebaPropia, m.BtVacante, m.BtPerfil):  # Bolsa de trabajo
         db.execute(delete(modelo).where(modelo.organizacion_id == oid))
     db.execute(delete(m.EsExpediente).where(m.EsExpediente.organizacion_id == oid))  # partes, etapas, requisitos y enlaces: CASCADE

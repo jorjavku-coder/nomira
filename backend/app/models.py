@@ -2298,3 +2298,136 @@ class JSincronizacion(Base):
     mensaje: Mapped[str | None] = mapped_column(String(500))
     ultima_corrida: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     proximo_intento: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ------------------------------------------------------------------ Recursos humanos (módulo «rh»)
+
+class RhEmpresa(Base):
+    """Patrón cuyos empleados se administran: el propio despacho o una empresa cliente a la que le lleva RH."""
+    __tablename__ = "rh_empresas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    propia: Mapped[bool] = mapped_column(Boolean, default=False)  # el despacho mismo
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("cr_clientes.id", ondelete="SET NULL"))
+    rfc: Mapped[str | None] = mapped_column(String(13))
+    registro_patronal: Mapped[str | None] = mapped_column(String(20))
+    periodicidad: Mapped[str] = mapped_column(String(10), default="quincenal")  # semanal | catorcenal | quincenal | mensual
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhEmpleado(Base):
+    __tablename__ = "rh_empleados"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("rh_empresas.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    puesto: Mapped[str | None] = mapped_column(String(120))
+    area: Mapped[str | None] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(30))
+    rfc: Mapped[str | None] = mapped_column(String(13))
+    curp: Mapped[str | None] = mapped_column(String(18))
+    nss: Mapped[str | None] = mapped_column(String(11))
+    fecha_ingreso: Mapped[date] = mapped_column(Date)
+    tipo_contrato: Mapped[str] = mapped_column(String(20), default="indeterminado")
+    salario_diario: Mapped[Decimal] = mapped_column(DINERO)
+    estado: Mapped[str] = mapped_column(String(10), default="activo")  # activo | baja
+    fecha_baja: Mapped[date | None] = mapped_column(Date)
+    motivo_baja: Mapped[str | None] = mapped_column(String(200))
+    portal_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    portal_nip_hash: Mapped[str | None] = mapped_column(String(200))
+    portal_version: Mapped[int] = mapped_column(Integer, default=0)
+    portal_ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notas: Mapped[str | None] = mapped_column(Text)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhIncidencia(Base):
+    """Vacaciones, permisos, incapacidades, faltas y retardos. Las pide el empleado (portal) o las registra RH."""
+    __tablename__ = "rh_incidencias"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    empleado_id: Mapped[int] = mapped_column(ForeignKey("rh_empleados.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(20))
+    desde: Mapped[date] = mapped_column(Date)
+    hasta: Mapped[date] = mapped_column(Date)
+    dias: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    motivo: Mapped[str | None] = mapped_column(String(500))
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | aprobada | rechazada | cancelada
+    origen: Mapped[str] = mapped_column(String(10), default="rh")  # rh | portal
+    comentario: Mapped[str | None] = mapped_column(String(500))
+    archivo: Mapped[str | None] = mapped_column(String(300))  # p. ej. la incapacidad del IMSS
+    archivo_nombre: Mapped[str | None] = mapped_column(String(200))
+    resuelta_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    resuelta_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhAviso(Base):
+    """Aviso al personal («avisos parroquiales»), opcionalmente con acuse de lectura."""
+    __tablename__ = "rh_avisos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("rh_empresas.id", ondelete="CASCADE"))  # None: todas
+    titulo: Mapped[str] = mapped_column(String(200))
+    cuerpo: Mapped[str] = mapped_column(Text)
+    fijado: Mapped[bool] = mapped_column(Boolean, default=False)
+    requiere_acuse: Mapped[bool] = mapped_column(Boolean, default=False)
+    vigente_hasta: Mapped[date | None] = mapped_column(Date)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhAcuse(Base):
+    __tablename__ = "rh_acuses"
+    __table_args__ = (UniqueConstraint("aviso_id", "empleado_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    aviso_id: Mapped[int] = mapped_column(ForeignKey("rh_avisos.id", ondelete="CASCADE"), index=True)
+    empleado_id: Mapped[int] = mapped_column(ForeignKey("rh_empleados.id", ondelete="CASCADE"), index=True)
+    leido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhDocumento(Base):
+    __tablename__ = "rh_documentos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    empleado_id: Mapped[int] = mapped_column(ForeignKey("rh_empleados.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(30))
+    archivo: Mapped[str] = mapped_column(String(300))
+    nombre: Mapped[str] = mapped_column(String(200))
+    tamano: Mapped[int] = mapped_column(Integer)
+    origen: Mapped[str] = mapped_column(String(10), default="rh")  # rh | portal
+    estado: Mapped[str] = mapped_column(String(12), default="aceptado")  # por_revisar | aceptado | rechazado
+    nota: Mapped[str | None] = mapped_column(String(300))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhPeriodo(Base):
+    """Periodo de nómina de una empresa. Control interno: no calcula impuestos ni timbra CFDI."""
+    __tablename__ = "rh_periodos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("rh_empresas.id", ondelete="CASCADE"), index=True)
+    inicio: Mapped[date] = mapped_column(Date)
+    fin: Mapped[date] = mapped_column(Date)
+    fecha_pago: Mapped[date] = mapped_column(Date)
+    estado: Mapped[str] = mapped_column(String(10), default="borrador")  # borrador | cerrado
+    cerrado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class RhRecibo(Base):
+    __tablename__ = "rh_recibos"
+    __table_args__ = (UniqueConstraint("periodo_id", "empleado_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    periodo_id: Mapped[int] = mapped_column(ForeignKey("rh_periodos.id", ondelete="CASCADE"), index=True)
+    empleado_id: Mapped[int] = mapped_column(ForeignKey("rh_empleados.id", ondelete="CASCADE"), index=True)
+    dias_pagados: Mapped[Decimal] = mapped_column(Numeric(5, 1))
+    faltas: Mapped[Decimal] = mapped_column(Numeric(5, 1), default=0)
+    percepciones: Mapped[list] = mapped_column(JSON)  # [{concepto, importe}]
+    deducciones: Mapped[list] = mapped_column(JSON)
+    neto: Mapped[Decimal] = mapped_column(DINERO)
+    visto_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
