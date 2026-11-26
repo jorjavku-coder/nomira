@@ -93,9 +93,22 @@ await c.getByRole("button", { name: "Enviar mensaje" }).click();
 await c.getByText(/Su mensaje llegó al despacho/).waitFor();
 await c.screenshot({ path: `${dir}/connect-08-portal-mensajes.png`, fullPage: true });
 
+// avisos: el cliente elige cómo recibirlos
+await c.getByRole("button", { name: "Inicio" }).click();
+await c.getByText("Avisos de su asunto").waitFor();
+await c.getByRole("switch").first().click();
+await c.waitForTimeout(600);
+ok(await c.getByRole("switch").first().getAttribute("aria-checked") === "false", "el cliente puede apagar los avisos por correo");
+await c.getByRole("switch").first().click();
+
 // el despacho lo recibe
 await page.goto(base + "/connect?tab=mensajes");
 await page.getByText("Pide una llamada").first().waitFor();
 ok(true, "el despacho recibe la solicitud de llamada");
+await page.getByRole("button", { name: "Avisos automáticos" }).click();
+await page.getByText("Historial de avisos").waitFor();
+ok(await page.getByText("WhatsApp: pendiente de conexión").count() === 1, "WhatsApp aparece como pendiente de conexión (no se simula)");
+ok(await page.getByText("Cambio de etapa").count() >= 1, "el cambio de etapa generó su aviso");
+await page.screenshot({ path: `${dir}/connect-09-avisos.png`, fullPage: true });
 ok(!errores.length, "sin errores en consola" + (errores.length ? ": " + errores.join(" | ") : ""));
 await browser.close();

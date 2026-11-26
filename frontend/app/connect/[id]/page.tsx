@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { EditorEtapas, ESTADO_ETAPA, fechaCorta, fechaHora, LineaTiempo } from "@/components/connect";
+import { EditorEtapas, ESTADO_ETAPA, fechaCorta, fechaHora, LineaTiempo, ListaAvisos } from "@/components/connect";
 import { Aviso, ConfirmarEliminar, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -99,6 +99,7 @@ export default function Seguimiento() {
               onClick={async () => { try { hecho(await api.post(`/connect/seguimientos/${id}/movimiento`, mov), "Movimiento registrado."); setMov({ ...mov, texto: "" }); } catch (e: any) { setError(e.message); } }}>Registrar movimiento</button>
           </section>
           {s.cliente && <Enlaces cliente={s.cliente} />}
+          <AvisosAsunto s={s} ajustar={ajustar} />
           <section className="tarjeta p-5"><h2 className="mb-2 font-bold text-marino">Qué ve el cliente</h2>
             {[["mostrar_audiencias", "Próximas audiencias de este asunto (de la Agenda)"], ["mostrar_pagos", "Sus pagos pendientes (de Clientes y cobranza)"]].map(([k, t]) => (
               <label key={k} className="flex items-center gap-2 py-1 text-sm text-slate-700"><input type="checkbox" checked={!!s[k]} onChange={(e) => ajustar({ [k]: e.target.checked })} /> {t}</label>))}
@@ -122,6 +123,24 @@ export default function Seguimiento() {
         Se borran sus etapas e historial y el cliente deja de verlo. El asunto de la Agenda no se borra.</ConfirmarEliminar>}
     </Shell>
   );
+}
+
+function AvisosAsunto({ s, ajustar }: { s: any; ajustar: (c: any, t?: string) => void }) {
+  const [h, setH] = useState<any[]>([]);
+  useEffect(() => { api.get(`/connect/avisos?seguimiento_id=${s.id}`).then((x) => setH(x.avisos.slice(0, 6))).catch(() => {}); }, [s]);
+  const valor = s.preventiva_dias === null || s.preventiva_dias === undefined ? -1 : s.preventiva_dias;
+  return (
+    <section className="tarjeta p-5"><div className="flex items-center justify-between"><h2 className="font-bold text-marino">Avisos automáticos</h2>
+      <Link href="/connect?tab=avisos" className="text-xs font-semibold text-turquesa-700">Configurar canales</Link></div>
+      <label className="mt-2 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!s.avisos} onChange={(e) => ajustar({ avisos: e.target.checked }, e.target.checked ? "Avisos encendidos." : "Avisos apagados para este asunto.")} />
+        Avisar al cliente de los cambios de este asunto</label>
+      <label className="mt-2 block"><span className="etiqueta">Actualización preventiva sin movimientos</span>
+        <select className="campo" value={valor} disabled={!s.avisos} onChange={(e) => ajustar({ preventiva_dias: Number(e.target.value) })}>
+          {[[-1, "Como el despacho"], [0, "No enviar"], [7, "Cada 7 días"], [15, "Cada 15 días"], [30, "Cada 30 días"]].map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
+      {s.ultima_preventiva_en && <p className="mt-1 text-xs text-slate-500">Última preventiva: {fechaHora(s.ultima_preventiva_en)}</p>}
+      {!s.visible_cliente && <p className="mt-2 text-xs text-amber-700">Mientras sea borrador no se envía ningún aviso.</p>}
+      {h.length > 0 && <div className="-mx-2 mt-3 border-t border-crema-300"><ListaAvisos avisos={h} /></div>}
+    </section>);
 }
 
 function VincularCliente({ onElegir }: { onElegir: (id: number) => void }) {
@@ -157,6 +176,15 @@ function Enlaces({ cliente }: { cliente: any }) {
           <a className="btn-sec text-xs" target="_blank" rel="noreferrer" href={`https://wa.me/?text=${encodeURIComponent(texto)}`}>Enviar por mi WhatsApp</a></div>
         <p className="mt-2 text-[11px] text-slate-500">Por seguridad este enlace solo se muestra ahora. Vence en 30 días.</p></div>
         : <button className="btn-turquesa mt-3 w-full text-sm" onClick={crear}>{vigentes.length ? "Crear un enlace nuevo" : "Crear enlace para el cliente"}</button>}
+      {e?.preferencias && <div className="mt-3 rounded-xl bg-crema/60 p-3 text-xs">
+        <p className="font-semibold text-marino">Avisos que acepta recibir</p>
+        <label className="mt-1 flex items-center gap-2"><input type="checkbox" checked={e.preferencias.correo} disabled={!e.preferencias.tiene_correo}
+          onChange={(x) => api.put(`/connect/clientes/${cliente.id}/preferencias`, { correo: x.target.checked }).then(cargar)} /> Por correo{!e.preferencias.tiene_correo && " (sin correo en su ficha)"}</label>
+        <label className="mt-1 flex items-center gap-2"><input type="checkbox" checked={e.preferencias.whatsapp} disabled={!e.preferencias.tiene_telefono}
+          onChange={(x) => api.put(`/connect/clientes/${cliente.id}/preferencias`, { whatsapp: x.target.checked }).then(cargar)} />
+          Por WhatsApp: el cliente me autorizó{!e.preferencias.tiene_telefono && " (sin teléfono en su ficha)"}</label>
+        {e.preferencias.whatsapp_consentido_en && <p className="mt-1 text-slate-500">Aceptó el {fechaCorta(e.preferencias.whatsapp_consentido_en)} {e.preferencias.whatsapp_medio === "portal" ? "desde su portal" : "(registrado por el despacho)"}.</p>}
+        <p className="mt-1 text-slate-500">El cliente también puede cambiarlo desde su portal.</p></div>}
       {e?.enlaces.length > 0 && <ul className="mt-3 space-y-1 text-xs">{e.enlaces.slice(0, 5).map((x: any) => (
         <li key={x.id} className="flex items-center justify-between gap-2"><span className="text-slate-600">…{x.pista} · {x.estado === "activo" ? `vence ${fechaCorta(x.expira_en)}` : x.estado} · {x.visitas} visita(s)</span>
           {x.estado === "activo" && <button className="font-semibold text-red-600" onClick={() => api.post(`/connect/enlaces/${x.id}/revocar`, {}).then(cargar)}>Desactivar</button>}</li>))}</ul>}

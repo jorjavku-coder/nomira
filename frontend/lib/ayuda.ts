@@ -345,13 +345,16 @@ export const MANUALES: Manual[] = [
       { titulo: "Publique y comparta el enlace", texto: "Pulse «Publicar al cliente» y cree su enlace. Cópielo o envíelo desde su WhatsApp. Si el cliente tiene correo, al abrirlo le pedimos un código." },
       { titulo: "Mueva las etapas", texto: "Toque una etapa: «Es la etapa actual», «Completada», «Requiere al cliente» (amarillo), «Incidencia» (rojo) o «Suspendida» (morado). Agregue una nota para el cliente y, si quiere, una nota interna que solo ve su despacho." },
       { titulo: "Responda mensajes", texto: "En la pestaña «Mensajes» ve lo que le escriben sus clientes, con el motivo (llamada, cita, documentos…). Al responder, el mensaje queda atendido." },
+      { titulo: "Deje que Nomira avise", texto: "En «Avisos automáticos» elija los canales (correo y, si conecta su número de Meta, WhatsApp) y cada cuántos días mandar una actualización preventiva cuando no hay movimientos. Nomira avisa al cliente cuando cambia una etapa, hay un movimiento, le pide algo, le responde o concluye el asunto, y le recuerda sus audiencias 2 días antes. Todo queda en el historial de avisos." },
     ],
     consejos: ["«Revisé el expediente hoy» le muestra al cliente que siguen al pendiente, sin inventar movimientos: el último movimiento judicial se muestra aparte.",
       "Nomira no calcula porcentajes ni fechas estimadas de resolución: los juicios pueden retrasarse.",
       "Las notas internas y las notas del asunto en la Agenda nunca se muestran al cliente."],
     preguntas: [
       { p: "¿El cliente necesita cuenta o descargar una app?", r: "No. Abre su enlace desde cualquier navegador. Tiene botones para letra grande y alto contraste." },
-      { p: "¿Le llegan avisos por WhatsApp?", r: "Todavía no: es la siguiente fase y requiere conectar el número de WhatsApp Business de su despacho con Meta. Por ahora el cliente ve todo al entrar a su portal y a usted le llega un correo cuando le escriben." },
+      { p: "¿Le llegan avisos por WhatsApp?", r: "Sí, cuando su despacho conecta su número de WhatsApp Business (API oficial de Meta), crea en Meta la plantilla que le sugerimos y Meta la aprueba. Solo se envía a clientes que lo aceptaron (desde su portal o registrado por usted). Mientras falte algo, los avisos salen por correo y el historial le dice qué falta." },
+      { p: "¿Los avisos incluyen el detalle del asunto?", r: "No. Dicen qué cambió (por ejemplo, la nueva etapa) y llevan al portal seguro. Nunca incluyen sus notas internas ni el texto de sus notas para el cliente." },
+      { p: "¿Se envían de noche?", r: "No. Se envían de 8:00 a 20:00 (hora del centro). Si mueve varias etapas seguidas, sale un solo aviso con la última." },
     ],
   },
   {

@@ -2497,6 +2497,10 @@ class CnSeguimiento(Base):
     ultima_revision_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # revisión registrada por el despacho
     ultima_revision_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     publico_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Avisos al cliente (fase 2)
+    avisos: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    preventiva_dias: Mapped[int | None] = mapped_column(Integer)  # None = la del despacho; 0 = apagada
+    ultima_preventiva_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
@@ -2552,6 +2556,7 @@ class CnAcceso(Base):
     codigos_enviados: Mapped[int] = mapped_column(Integer, default=0)
     ultimo_uso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     visitas: Mapped[int] = mapped_column(Integer, default=0)
+    origen: Mapped[str] = mapped_column(String(10), default="manual", server_default="manual")  # manual | aviso
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
 
@@ -2570,3 +2575,56 @@ class CnMensaje(Base):
     estado: Mapped[str] = mapped_column(String(12), default="nuevo")  # (cliente) nuevo | atendido ; (despacho) enviado
     leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # lo leyó la otra parte
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+
+
+class CnConfig(Base):
+    """Avisos automáticos de Nomira Connect por despacho. Las credenciales de WhatsApp son las del despacho
+    (AfConfig, cifradas): un solo número para todo el despacho."""
+    __tablename__ = "cn_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    avisos_activos: Mapped[bool] = mapped_column(Boolean, default=True)
+    canal_correo: Mapped[bool] = mapped_column(Boolean, default=True)
+    canal_whatsapp: Mapped[bool] = mapped_column(Boolean, default=False)
+    preventiva_dias: Mapped[int] = mapped_column(Integer, default=15)  # 0 = sin actualizaciones preventivas
+    recordar_audiencias: Mapped[bool] = mapped_column(Boolean, default=True)
+    wa_plantilla: Mapped[str | None] = mapped_column(String(120))  # nombre de la plantilla aprobada en Meta
+    wa_idioma: Mapped[str] = mapped_column(String(10), default="es_MX")
+    wa_aprobada: Mapped[bool] = mapped_column(Boolean, default=False)  # el despacho confirma que Meta la aprobó
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CnPreferencia(Base):
+    """Cómo quiere el cliente recibir avisos. Correo: sí, salvo que lo apague. WhatsApp: solo con consentimiento."""
+    __tablename__ = "cn_preferencias"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), unique=True)
+    correo: Mapped[bool] = mapped_column(Boolean, default=True)
+    whatsapp: Mapped[bool] = mapped_column(Boolean, default=False)
+    whatsapp_consentido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    whatsapp_medio: Mapped[str | None] = mapped_column(String(20))  # portal | despacho
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CnAviso(Base):
+    """Aviso al cliente por un canal externo. La llave única evita duplicados; los fallidos se reintentan."""
+    __tablename__ = "cn_avisos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    seguimiento_id: Mapped[int | None] = mapped_column(ForeignKey("cn_seguimientos.id", ondelete="SET NULL"), index=True)
+    tipo: Mapped[str] = mapped_column(String(15))  # etapa | movimiento | accion | mensaje | audiencia | preventiva | cierre
+    canal: Mapped[str] = mapped_column(String(10))  # correo | whatsapp
+    llave: Mapped[str] = mapped_column(String(120), unique=True)
+    datos: Mapped[dict] = mapped_column(JSON)  # lo necesario para redactar (sin notas internas)
+    resumen: Mapped[str] = mapped_column(String(300))
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente | enviado | error | omitido
+    motivo: Mapped[str | None] = mapped_column(String(300))  # por qué se omitió o el último error
+    intentos: Mapped[int] = mapped_column(Integer, default=0)
+    programado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    referencia: Mapped[str | None] = mapped_column(String(120))  # id del correo o wamid
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

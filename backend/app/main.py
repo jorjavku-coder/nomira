@@ -53,8 +53,9 @@ async def ciclo(app: FastAPI):
     tarea = asyncio.create_task(_revisar_recordatorios())
     tarea_agenda = asyncio.create_task(_revisar_agenda())
     tarea_tesis = asyncio.create_task(_sincronizar_tesis())
+    tarea_connect = asyncio.create_task(_avisos_connect())
     yield
-    for t in (tarea, tarea_agenda, tarea_tesis):
+    for t in (tarea, tarea_agenda, tarea_tesis, tarea_connect):
         t.cancel()
         with suppress(asyncio.CancelledError):
             await t
@@ -83,6 +84,27 @@ async def _sincronizar_tesis(espera_inicial: float = 300, cada: float = 3600) ->
                 await asyncio.to_thread(_una_tanda_tesis)
             except Exception:
                 logging.getLogger("nomira.tesis").exception("Falló la sincronización de tesis.")
+        await asyncio.sleep(cada)
+
+
+def _una_vuelta_connect() -> None:
+    from .services.connect import avisos as connect_avisos
+
+    with SessionLocal() as db:
+        r = connect_avisos.ciclo(db)
+        if any(r.values()):
+            logging.getLogger("nomira.connect").info("Avisos Connect: %s", r)
+
+
+async def _avisos_connect(espera_inicial: float = 60, cada: float = 120) -> None:
+    """Cada 2 minutos: genera actualizaciones preventivas y recordatorios, y envía los avisos pendientes
+    (en horario de 8 a 20 h). Llaves únicas y un candado de la base evitan duplicados."""
+    await asyncio.sleep(espera_inicial)
+    while True:
+        try:
+            await asyncio.to_thread(_una_vuelta_connect)
+        except Exception:
+            logging.getLogger("nomira.connect").exception("Falló la vuelta de avisos de Connect.")
         await asyncio.sleep(cada)
 
 

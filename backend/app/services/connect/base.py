@@ -109,7 +109,9 @@ def panel(db: Session, s: m.CnSeguimiento, a: m.AgAsunto) -> dict:
               "cliente": {"id": cli.id, "nombre": cli.nombre, "email": bool(cli.email), "telefono": bool(cli.telefono)} if cli else None,
               "plantilla": s.plantilla_nombre, "ultimo_movimiento_fecha": s.ultimo_movimiento_fecha.isoformat() if s.ultimo_movimiento_fecha else None,
               "ultimo_movimiento_texto": s.ultimo_movimiento_texto,
-              "ultima_revision_por": nombres.get(s.ultima_revision_por_id)})
+              "ultima_revision_por": nombres.get(s.ultima_revision_por_id),
+              "avisos": s.avisos, "preventiva_dias": s.preventiva_dias,
+              "ultima_preventiva_en": s.ultima_preventiva_en.isoformat() if s.ultima_preventiva_en else None})
     return d
 
 

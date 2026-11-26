@@ -239,3 +239,22 @@ def mensaje_de_cliente(nombre: str, cliente: str, motivo: str, url: str) -> tupl
 {_boton("Leer y responder", url)}"""
     texto = f"{cliente} le envió un mensaje desde su portal ({motivo}).\n\nLeer y responder: {url}\n"
     return asunto, _base(f"Mensaje nuevo de {cliente}", contenido), texto
+
+
+def connect_aviso(despacho: str, nombre: str, asunto_nombre: str | None, titulo: str, parrafos: list[str], url: str,
+                  accion: bool) -> tuple[str, str, str]:
+    """Aviso al cliente de Nomira Connect. Solo dice QUÉ cambió; el detalle está en el portal seguro."""
+    sobre = f" «{asunto_nombre}»" if asunto_nombre else ""
+    asunto = f"{titulo}{sobre} — {despacho}"[:250]
+    cuerpo = "".join(f'<p style="margin:0 0 10px">{escape(x)}</p>' for x in parrafos)
+    alerta = (f'<p style="margin:0 0 14px;padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600">'
+              f'Necesitamos algo de usted para continuar.</p>') if accion else ""
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Hola, {escape(nombre)}</h1>
+<p style="margin:0 0 14px"><b>{escape(titulo)}</b>{escape(sobre)}.</p>
+{alerta}{cuerpo}
+{_boton("Ver el seguimiento completo", url)}
+<p style="margin:12px 0 0;font-size:13px;color:#64748b">Es un enlace seguro y personal; al abrirlo le pediremos un código que llega a este correo. Vence en 14 días.</p>"""
+    texto = (f"Hola, {nombre}.\n\n{titulo}{sobre}.\n" + ("Necesitamos algo de usted para continuar.\n" if accion else "")
+             + "\n".join(parrafos) + f"\n\nConsulte el seguimiento completo en su portal seguro: {url}\n")
+    return asunto, _base(titulo, contenido, pie=f"Aviso automático de {despacho} enviado con Nomira. Puede dejar de recibirlos desde su portal."), texto

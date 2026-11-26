@@ -15,11 +15,11 @@ AUDIENCIA = "nomira-connect-portal"
 DESFASE_CODIGO = 20_000_000  # separa las huellas de código de las de otros portales
 
 
-def nuevo_acceso(db, c: m.CrCliente, u: m.Usuario | None, dias: int = 30):
+def nuevo_acceso(db, c: m.CrCliente, u: m.Usuario | None, dias: int = 30, origen: str = "manual"):
     token = sol.nuevo_token()
     a = m.CnAcceso(organizacion_id=c.organizacion_id, cliente_id=c.id, token_hash=sol.huella(token), token_pista=token[:4],
                    requiere_codigo=bool(c.email), expira_en=m.ahora() + timedelta(days=dias), codigo_intentos=0, codigos_enviados=0,
-                   visitas=0, creado_por_id=u.id if u else None)
+                   visitas=0, origen=origen, creado_por_id=u.id if u else None)
     db.add(a)
     db.flush()
     return a, token, ajustes().url_publica.rstrip("/") + "/mi-asunto#" + token

@@ -13,8 +13,12 @@ from sqlalchemy.orm import Session
 
 from .. import models as m
 from ..db import get_db
-from ..deps import auditar, obtener, puede_editar, usuario_actual
+from ..deps import auditar, obtener, puede_editar, solo_admin, usuario_actual
 from ..services.agenda.base import MATERIAS
+from ..services.afore import mensajes as af_msj
+from ..services.afore.cifrado import cifrar
+from ..services import correo
+from ..services.connect import avisos as av
 from ..services.connect import base as cb
 from ..services.connect import plantillas as pl
 from ..services.connect import portal
@@ -178,6 +182,8 @@ class Ajustes(BaseModel):
     accion_cliente: str | None = Field(None, max_length=500)
     estado: str | None = None  # activo | suspendido | cerrado
     cliente_id: int | None = None  # vincula el asunto con un cliente del directorio
+    avisos: bool | None = None  # avisos automáticos de este asunto
+    preventiva_dias: int | None = Field(None, ge=-1, le=180)  # -1 = la del despacho; 0 = apagada
 
 
 @router.put("/seguimientos/{sid}")
@@ -193,6 +199,9 @@ def ajustar(sid: int, d: Ajustes, request: Request, u: m.Usuario = Depends(puede
         if a.cr_cliente_id != cid:
             a.cr_cliente_id = cid
             auditar(db, u, "cn_cliente_vinculado", "ag_asunto", a.id, {"cliente_id": cid}, request)
+    if "preventiva_dias" in cambios:
+        v = cambios["preventiva_dias"]
+        cambios["preventiva_dias"] = None if v is None or v < 0 else v
     if "estado" in cambios and cambios["estado"] not in ("activo", "suspendido", "cerrado"):
         raise HTTPException(422, "Estado no válido.")
     if "visible_cliente" in cambios and cambios["visible_cliente"] and not a.cr_cliente_id:
@@ -204,12 +213,20 @@ def ajustar(sid: int, d: Ajustes, request: Request, u: m.Usuario = Depends(puede
     for k, v in cambios.items():
         setattr(s, k, v)
     if "mensaje_publico" in cambios and cambios["mensaje_publico"] and cambios["mensaje_publico"] != previo["mensaje_publico"]:
-        cb.evento(db, s, "aviso", "Mensaje de su abogado", cambios["mensaje_publico"], True, u)
+        ev = cb.evento(db, s, "aviso", "Mensaje de su abogado", cambios["mensaje_publico"], True, u)
+        db.flush()
+        av.encolar(db, s.organizacion_id, a.cr_cliente_id, s, "mensaje", "tiene un mensaje nuevo de su abogado", {"asunto": a.titulo},
+                   f"evento:{ev.id}", u)
     if "accion_cliente" in cambios and cambios["accion_cliente"] and cambios["accion_cliente"] != previo["accion_cliente"]:
-        cb.evento(db, s, "aviso", "Necesitamos algo de usted", cambios["accion_cliente"], True, u)
+        ev = cb.evento(db, s, "aviso", "Necesitamos algo de usted", cambios["accion_cliente"], True, u)
+        db.flush()
+        av.por_accion(db, s, a, ev.id, u)
     if "estado" in cambios and cambios["estado"] != previo["estado"]:
         txt = {"suspendido": "El asunto está suspendido temporalmente", "cerrado": "El asunto concluyó", "activo": "El asunto se reactivó"}[s.estado]
-        cb.evento(db, s, "estado", txt, None, True, u)
+        ev = cb.evento(db, s, "estado", txt, None, True, u)
+        db.flush()
+        if s.estado == "cerrado":
+            av.por_cierre(db, s, a, ev.id, u)
     auditar(db, u, "cn_seguimiento_ajustado", "cn_seguimiento", s.id, {k: (v if isinstance(v, bool) or k == "estado" else "editado")
                                                                          for k, v in cambios.items()}, request)
     db.commit()
@@ -252,7 +269,10 @@ def mover(sid: int, d: Mover, request: Request, u: m.Usuario = Depends(puede_edi
         detalle = e.nota_publica or (e.explicacion if d.estado == "actual" else None)
         if anterior and d.estado == "actual":
             detalle = f"Etapa anterior: {anterior}." + (f" {detalle}" if detalle else "")
-        cb.evento(db, s, "etapa", titulos[d.estado], detalle, True, u)
+        ev = cb.evento(db, s, "etapa", titulos[d.estado], detalle, True, u)
+        db.flush()
+        if previo != d.estado and s.estado == "activo":
+            av.por_etapa(db, s, a, e, anterior, ev.id, u)
     auditar(db, u, "cn_etapa_cambiada", "cn_etapa", e.id, {"seguimiento_id": s.id, "de": previo, "a": d.estado}, request)
     db.commit()
     return cb.panel(db, s, a)
@@ -304,7 +324,9 @@ def movimiento(sid: int, d: Movimiento, request: Request, u: m.Usuario = Depends
     if d.fecha > date.today():
         raise HTTPException(422, "La fecha del movimiento no puede ser futura.")
     s.ultimo_movimiento_fecha, s.ultimo_movimiento_texto = d.fecha, d.texto.strip()
-    cb.evento(db, s, "movimiento", "Nuevo movimiento en su expediente", d.texto.strip(), True, u)
+    ev = cb.evento(db, s, "movimiento", "Nuevo movimiento en su expediente", d.texto.strip(), True, u)
+    db.flush()
+    av.por_movimiento(db, s, a, ev.id, u)
     auditar(db, u, "cn_movimiento", "cn_seguimiento", s.id, {"fecha": d.fecha.isoformat()}, request)
     db.commit()
     return cb.panel(db, s, a)
@@ -339,7 +361,9 @@ def enlaces(cid: int, u: m.Usuario = Depends(usuario_actual), db: Session = Depe
             "enlaces": [{"id": x.id, "pista": x.token_pista, "estado": portal.estado(x), "requiere_codigo": x.requiere_codigo,
                          "expira_en": x.expira_en.isoformat(), "visitas": x.visitas,
                          "ultimo_uso_en": x.ultimo_uso_en.isoformat() if x.ultimo_uso_en else None}
-                        for x in db.scalars(select(m.CnAcceso).where(m.CnAcceso.cliente_id == c.id).order_by(m.CnAcceso.id.desc()))]}
+                        for x in db.scalars(select(m.CnAcceso).where(m.CnAcceso.cliente_id == c.id, m.CnAcceso.origen == "manual")
+                                            .order_by(m.CnAcceso.id.desc()))],
+            "preferencias": _pref_dict(db, c)}
 
 
 class NuevoEnlace(BaseModel):
@@ -419,6 +443,7 @@ def responder(cid: int, d: Respuesta, request: Request, u: m.Usuario = Depends(p
     for p in db.scalars(select(m.CnMensaje).where(m.CnMensaje.cliente_id == c.id, m.CnMensaje.autor == "cliente", m.CnMensaje.estado == "nuevo")):
         p.estado = "atendido"
     db.flush()
+    av.por_mensaje(db, u.organizacion_id, c.id, x.id, u)
     auditar(db, u, "cn_mensaje_enviado", "cr_cliente", c.id, {"mensaje_id": x.id}, request)
     db.commit()
     return {"id": x.id}
@@ -433,3 +458,134 @@ def atendido(cid: int, request: Request, u: m.Usuario = Depends(puede_editar), d
     auditar(db, u, "cn_mensajes_atendidos", "cr_cliente", c.id, {"n": n}, request)
     db.commit()
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ avisos automáticos (fase 2)
+
+def _pref_dict(db: Session, c: m.CrCliente) -> dict:
+    p = av.preferencia(db, c)
+    return {"correo": p.correo if p else True, "whatsapp": bool(p and p.whatsapp), "tiene_correo": bool(c.email), "tiene_telefono": bool(c.telefono),
+            "whatsapp_consentido_en": p.whatsapp_consentido_en.isoformat() if p and p.whatsapp_consentido_en else None,
+            "whatsapp_medio": p.whatsapp_medio if p else None}
+
+
+def _aviso_dict(x: m.CnAviso, clientes: dict | None = None) -> dict:
+    return {"id": x.id, "tipo": x.tipo, "tipo_texto": av.TIPOS.get(x.tipo, x.tipo), "canal": x.canal, "resumen": x.resumen, "estado": x.estado,
+            "motivo": x.motivo, "intentos": x.intentos, "programado_en": x.programado_en.isoformat(),
+            "enviado_en": x.enviado_en.isoformat() if x.enviado_en else None, "creado_en": x.creado_en.isoformat(),
+            "cliente": (clientes or {}).get(x.cliente_id), "seguimiento_id": x.seguimiento_id}
+
+
+def _config_dict(db: Session, org: int) -> dict:
+    cfg = av.config(db, org)
+    return {"avisos_activos": cfg.avisos_activos, "canal_correo": cfg.canal_correo, "canal_whatsapp": cfg.canal_whatsapp,
+            "preventiva_dias": cfg.preventiva_dias, "recordar_audiencias": cfg.recordar_audiencias,
+            "wa_plantilla": cfg.wa_plantilla, "wa_idioma": cfg.wa_idioma, "wa_aprobada": cfg.wa_aprobada,
+            "correo_configurado": correo.configurado(), "whatsapp": av.estado_whatsapp(db, org),
+            "horario": f"{av.HORA_INICIO}:00 a {av.HORA_FIN}:00 (hora del centro de México)", "tipos": av.TIPOS}
+
+
+@router.get("/avisos/config")
+def ver_config_avisos(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    d = _config_dict(db, u.organizacion_id)
+    db.commit()
+    return d
+
+
+class ConfigAvisos(BaseModel):
+    avisos_activos: bool | None = None
+    canal_correo: bool | None = None
+    canal_whatsapp: bool | None = None
+    preventiva_dias: int | None = Field(None, ge=0, le=180)
+    recordar_audiencias: bool | None = None
+    wa_plantilla: str | None = Field(None, max_length=120, pattern=r"^[a-z0-9_]*$")
+    wa_idioma: str | None = Field(None, max_length=10)
+    wa_aprobada: bool | None = None
+
+
+@router.put("/avisos/config")
+def guardar_config_avisos(d: ConfigAvisos, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    cfg = av.config(db, u.organizacion_id)
+    cambios = d.model_dump(exclude_unset=True)
+    if "wa_plantilla" in cambios:
+        cambios["wa_plantilla"] = (cambios["wa_plantilla"] or "").strip() or None
+        if cambios["wa_plantilla"] != cfg.wa_plantilla:
+            cfg.wa_aprobada = False  # otra plantilla: hay que volver a confirmar que Meta la aprobó
+    for k, v in cambios.items():
+        if v is not None or k == "wa_plantilla":
+            setattr(cfg, k, v)
+    auditar(db, u, "cn_avisos_config", "cn_config", cfg.id, {k: v for k, v in cambios.items()}, request)
+    db.commit()
+    return _config_dict(db, u.organizacion_id)
+
+
+class WhatsAppIn(BaseModel):
+    phone_number_id: str = Field(min_length=5, max_length=40, pattern=r"^\d+$")
+    waba_id: str | None = Field(None, max_length=40)
+    numero: str | None = Field(None, max_length=30)
+    token: str = Field(min_length=20, max_length=1000)
+
+
+@router.put("/avisos/whatsapp")
+def conectar_whatsapp(d: WhatsAppIn, request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    """Número de WhatsApp Business Platform del despacho (el mismo que usa AFORE). El token se guarda cifrado."""
+    c = af_msj.config(db, u.organizacion_id)
+    c.wa_phone_number_id, c.wa_waba_id, c.wa_numero = d.phone_number_id, (d.waba_id or "").strip() or None, (d.numero or "").strip() or None
+    c.wa_token_cifrado, c.wa_conectado_por_id, c.wa_conectado_en = cifrar(d.token.strip()), u.id, m.ahora()
+    auditar(db, u, "cn_whatsapp_conectado", "af_config", c.id, {"phone_number_id": d.phone_number_id}, request)
+    db.commit()
+    return _config_dict(db, u.organizacion_id)
+
+
+@router.delete("/avisos/whatsapp")
+def desconectar_whatsapp(request: Request, u: m.Usuario = Depends(solo_admin), db: Session = Depends(get_db)):
+    c = af_msj.config(db, u.organizacion_id)
+    c.wa_phone_number_id = c.wa_waba_id = c.wa_numero = c.wa_token_cifrado = None
+    auditar(db, u, "cn_whatsapp_desconectado", "af_config", c.id, None, request)
+    db.commit()
+    return _config_dict(db, u.organizacion_id)
+
+
+@router.get("/avisos")
+def historial_avisos(seguimiento_id: int | None = None, estado: str | None = None, u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)):
+    q = select(m.CnAviso).where(m.CnAviso.organizacion_id == u.organizacion_id)
+    if seguimiento_id:
+        q = q.where(m.CnAviso.seguimiento_id == seguimiento_id)
+    if estado:
+        q = q.where(m.CnAviso.estado == estado)
+    filas = db.scalars(q.order_by(m.CnAviso.creado_en.desc(), m.CnAviso.id.desc()).limit(300)).all()
+    clientes = {c.id: c.nombre for c in db.scalars(select(m.CrCliente).where(m.CrCliente.id.in_({x.cliente_id for x in filas} or {0})))}
+    return {"avisos": [_aviso_dict(x, clientes) for x in filas]}
+
+
+@router.post("/avisos/{aid}/reintentar")
+def reintentar(aid: int, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
+    x = obtener(db, m.CnAviso, aid, u)
+    if x.estado not in ("error", "omitido"):
+        raise HTTPException(409, "Este aviso no está detenido.")
+    x.estado, x.programado_en, x.motivo = "pendiente", av.en_horario(m.ahora()), None
+    auditar(db, u, "cn_aviso_reintentado", "cn_aviso", x.id, {}, request)
+    db.commit()
+    return _aviso_dict(x)
+
+
+class Preferencias(BaseModel):
+    correo: bool | None = None
+    whatsapp: bool | None = None  # True solo si el cliente lo aceptó (queda registrado quién y cuándo)
+
+
+@router.put("/clientes/{cid}/preferencias")
+def preferencias(cid: int, d: Preferencias, request: Request, u: m.Usuario = Depends(puede_editar), db: Session = Depends(get_db)):
+    c = obtener(db, m.CrCliente, cid, u)
+    p = av.preferencia(db, c, crear=True)
+    if d.correo is not None:
+        p.correo = d.correo
+    if d.whatsapp is not None and d.whatsapp != p.whatsapp:
+        if d.whatsapp and not c.telefono:
+            raise HTTPException(409, "El cliente no tiene teléfono en su ficha.")
+        p.whatsapp = d.whatsapp
+        p.whatsapp_consentido_en, p.whatsapp_medio = (m.ahora(), "despacho") if d.whatsapp else (None, None)
+    p.actualizado_por_id = u.id
+    auditar(db, u, "cn_preferencias_cliente", "cr_cliente", c.id, d.model_dump(exclude_unset=True), request)
+    db.commit()
+    return _pref_dict(db, c)

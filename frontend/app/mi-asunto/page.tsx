@@ -102,6 +102,8 @@ export default function MiAsunto() {
           {!info.asuntos.length && <div className="mt-6 rounded-2xl bg-white p-6 text-center"><p className="font-bold text-marino">Su despacho aún no ha publicado el seguimiento de su asunto.</p>
             <p className="mt-1 text-sm text-slate-600">Mientras tanto, puede escribirles desde «Mensajes».</p></div>}
           <div className="mt-4 space-y-4">{info.asuntos.map((a: any) => <TarjetaAsunto key={a.id} a={a} g={g} onAbrir={() => { setAbierto(a); setVista("asunto"); window.scrollTo(0, 0); }} />)}</div>
+          {info.preferencias?.avisos_activos && (info.preferencias.correo_disponible || info.preferencias.whatsapp_disponible) &&
+            <PreferenciasAvisos p={info.preferencias} token={token!} g={g} onCambio={cargar} setError={setError} />}
           {audiencias.length > 0 && <section className="mt-5 rounded-2xl bg-white p-4"><h2 className={`font-bold text-marino ${g ? "text-xl" : ""}`}>📅 Próximas audiencias</h2>
             <ul className="mt-2 divide-y divide-crema-300">{audiencias.map((x: any, i: number) => (
               <li key={i} className="py-2"><p className="font-semibold text-marino">{fechaLarga(x.fecha).replace(/^./, (l: string) => l.toUpperCase())}{x.hora && ` · ${x.hora} h`}</p>
@@ -131,6 +133,24 @@ export default function MiAsunto() {
       </nav>
     </div>
   );
+}
+
+function PreferenciasAvisos({ p, token, g, onCambio, setError }: { p: any; token: string; g: boolean; onCambio: () => void; setError: (e: string) => void }) {
+  const cambiar = async (k: "correo" | "whatsapp", v: boolean) => {
+    try { await llamar("/preferencias", token, { body: JSON.stringify({ [k]: v }) }); onCambio(); } catch (e: any) { setError(e.message); }
+  };
+  const Fila = ({ k, t, d }: { k: "correo" | "whatsapp"; t: string; d: string }) => (
+    <label className="flex items-center justify-between gap-3 py-2">
+      <span><span className={`block font-semibold text-marino ${g ? "text-lg" : ""}`}>{t}</span><span className="text-xs text-slate-500">{d}</span></span>
+      <button role="switch" aria-checked={p[k]} onClick={() => cambiar(k, !p[k])} className={`relative h-8 w-14 shrink-0 rounded-full transition ${p[k] ? "bg-turquesa" : "bg-slate-300"}`}>
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${p[k] ? "left-7" : "left-1"}`} /></button>
+    </label>);
+  return (
+    <section className="mt-5 rounded-2xl bg-white p-4"><h2 className={`font-bold text-marino ${g ? "text-xl" : ""}`}>🔔 Avisos de su asunto</h2>
+      <p className="text-sm text-slate-600">Le avisamos cuando haya una novedad. Usted elige cómo.</p>
+      {p.correo_disponible && <Fila k="correo" t="Por correo" d={p.email} />}
+      {p.whatsapp_disponible && <Fila k="whatsapp" t="Por WhatsApp" d={`Al número ${p.telefono}. Puede cancelarlo cuando quiera.`} />}
+    </section>);
 }
 
 function TarjetaAsunto({ a, g, onAbrir }: { a: any; g: boolean; onAbrir: () => void }) {
