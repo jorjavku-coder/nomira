@@ -65,6 +65,10 @@ def inicio(u: m.Usuario = Depends(usuario_actual), db: Session = Depends(get_db)
         n = _contar(db, m.RhIncidencia, m.RhIncidencia.organizacion_id == oid, m.RhIncidencia.estado == "pendiente")
         numeros.append({"clave": "rh", "etiqueta": "Solicitudes de RH", "valor": str(n), "href": "/rh?tab=solicitudes"})
 
+    if "connect" in activos:
+        n = _contar(db, m.CnMensaje, m.CnMensaje.organizacion_id == oid, m.CnMensaje.autor == "cliente", m.CnMensaje.estado == "nuevo")
+        numeros.append({"clave": "connect", "etiqueta": "Mensajes de clientes", "valor": str(n), "href": "/connect?tab=mensajes"})
+
     org = db.get(m.Organizacion, oid)
     pasos = {
         "despacho": bool(org and org.logo_actualizado),

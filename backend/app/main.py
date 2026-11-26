@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, inicio, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, rh, rh_portal, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, inicio, connect, connect_publico, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, rh, rh_portal, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -166,6 +166,8 @@ app.include_router(cobro.router)  # Cobro en línea y CFDI con las cuentas del p
 app.include_router(clientes.router)  # Clientes del despacho: incluido en todos los planes
 app.include_router(escrituracion.router, dependencies=[Depends(requiere_modulo("escrituracion"))])
 app.include_router(escrituracion_publico.router)  # seguimiento por enlace (X-Enlace)
+app.include_router(connect.router, dependencies=[Depends(requiere_modulo("connect"))])  # Nomira Connect (panel)
+app.include_router(connect_publico.router)  # portal del cliente de Nomira Connect (X-Enlace + código)
 app.include_router(liquidaciones.router, dependencies=[Depends(requiere_modulo("nomina"))])
 app.include_router(asistente.router)  # Asistente IA: incluido en todos los planes, con usos al mes
 app.include_router(liquidaciones_publico.router)  # calculadora gratuita del sitio (sin sesión, con límite por IP)

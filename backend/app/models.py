@@ -2459,3 +2459,114 @@ class MdSuscripcion(Base):
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
     activada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ======================================================================== Nomira Connect
+# Seguimiento del cliente: plantillas de etapas, seguimiento por asunto (Agenda), portal y mensajes.
+# Regla de oro: lo «interno» (nota_interna) nunca sale por ninguna ruta pública.
+
+class CnPlantilla(Base):
+    """Plantilla de etapas propia del despacho (las de fábrica viven en el código y se duplican aquí)."""
+    __tablename__ = "cn_plantillas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    nombre: Mapped[str] = mapped_column(String(120))
+    especialidad: Mapped[str] = mapped_column(String(40))
+    etapas: Mapped[list] = mapped_column(JSON)  # [{nombre, explicacion, opcional}]
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CnSeguimiento(Base):
+    """Seguimiento visible para el cliente de un asunto de la Agenda (uno por asunto)."""
+    __tablename__ = "cn_seguimientos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    asunto_id: Mapped[int] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="CASCADE"), unique=True)
+    plantilla_nombre: Mapped[str | None] = mapped_column(String(120))
+    especialidad: Mapped[str | None] = mapped_column(String(40))
+    estado: Mapped[str] = mapped_column(String(12), default="activo")  # activo | suspendido | cerrado
+    visible_cliente: Mapped[bool] = mapped_column(Boolean, default=False)  # se publica cuando el abogado lo decide
+    mostrar_audiencias: Mapped[bool] = mapped_column(Boolean, default=True)
+    mostrar_pagos: Mapped[bool] = mapped_column(Boolean, default=False)
+    mensaje_publico: Mapped[str | None] = mapped_column(String(1000))  # observación del abogado para el cliente
+    accion_cliente: Mapped[str | None] = mapped_column(String(500))  # «lo que necesitamos de usted»
+    ultimo_movimiento_fecha: Mapped[date | None] = mapped_column(Date)  # último movimiento judicial confirmado
+    ultimo_movimiento_texto: Mapped[str | None] = mapped_column(String(500))
+    ultima_revision_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # revisión registrada por el despacho
+    ultima_revision_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    publico_actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CnEtapa(Base):
+    """Etapa del seguimiento de UN asunto: editarla no cambia la plantilla ni otros asuntos."""
+    __tablename__ = "cn_etapas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    seguimiento_id: Mapped[int] = mapped_column(ForeignKey("cn_seguimientos.id", ondelete="CASCADE"), index=True)
+    orden: Mapped[int] = mapped_column(Integer)
+    nombre: Mapped[str] = mapped_column(String(120))
+    explicacion: Mapped[str | None] = mapped_column(String(500))  # en lenguaje sencillo, para el cliente
+    opcional: Mapped[bool] = mapped_column(Boolean, default=False)
+    # pendiente | actual | completada | atencion (del cliente) | incidencia | suspendida | omitida
+    estado: Mapped[str] = mapped_column(String(12), default="pendiente")
+    fecha: Mapped[date | None] = mapped_column(Date)
+    nota_publica: Mapped[str | None] = mapped_column(String(500))
+    nota_interna: Mapped[str | None] = mapped_column(String(1000))  # NUNCA sale al portal
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CnEvento(Base):
+    """Historial del seguimiento (cambios de etapa, avisos, revisiones). Solo los visibles salen al portal."""
+    __tablename__ = "cn_eventos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    seguimiento_id: Mapped[int] = mapped_column(ForeignKey("cn_seguimientos.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(15))  # inicio | etapa | aviso | revision | movimiento | estado
+    titulo: Mapped[str] = mapped_column(String(200))
+    detalle: Mapped[str | None] = mapped_column(String(1000))
+    visible_cliente: Mapped[bool] = mapped_column(Boolean, default=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CnAcceso(Base):
+    """Enlace del cliente (directorio de Clientes) a su portal. Solo se guarda la huella del token."""
+    __tablename__ = "cn_accesos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_pista: Mapped[str] = mapped_column(String(8))
+    requiere_codigo: Mapped[bool] = mapped_column(Boolean, default=True)
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigo_hash: Mapped[str | None] = mapped_column(String(64))
+    codigo_expira_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigo_intentos: Mapped[int] = mapped_column(Integer, default=0)
+    codigo_enviado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    codigos_enviados: Mapped[int] = mapped_column(Integer, default=0)
+    ultimo_uso_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    visitas: Mapped[int] = mapped_column(Integer, default=0)
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CnMensaje(Base):
+    """Mensajes entre el cliente (portal) y el despacho. Los del cliente con «motivo» son solicitudes de atención."""
+    __tablename__ = "cn_mensajes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("cr_clientes.id", ondelete="CASCADE"), index=True)
+    asunto_id: Mapped[int | None] = mapped_column(ForeignKey("ag_asuntos.id", ondelete="SET NULL"))
+    autor: Mapped[str] = mapped_column(String(10))  # cliente | despacho
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    motivo: Mapped[str | None] = mapped_column(String(20))  # seguimiento | llamada | cita | documentos | honorarios | otro
+    texto: Mapped[str] = mapped_column(String(2000))
+    estado: Mapped[str] = mapped_column(String(12), default="nuevo")  # (cliente) nuevo | atendido ; (despacho) enviado
+    leido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # lo leyó la otra parte
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)

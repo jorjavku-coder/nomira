@@ -32,6 +32,8 @@ MODULOS = {
                     "por_defecto": False},
     "rh": {"nombre": "Recursos humanos", "descripcion": "Personal del despacho y de sus empresas cliente: expedientes, vacaciones, faltas, avisos con acuse, nómina de control y portal del empleado.",
            "por_defecto": False},
+    "connect": {"nombre": "Nomira Connect", "descripcion": "Su cliente informado: seguimiento visual de cada asunto por etapas, portal del cliente desde el celular y mensajes con el despacho.",
+                "por_defecto": False},
     "academia": {"nombre": "Nomira Academia", "descripcion": "Cursos breves para el equipo: asignación, avance, cuestionarios y constancias de participación.",
                  "por_defecto": False},
 }

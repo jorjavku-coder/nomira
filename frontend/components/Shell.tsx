@@ -28,6 +28,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
   asistente: <><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" /><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8zM5 16l.6 1.4L7 18l-1.4.6L5 20l-.6-1.4L3 18l1.4-.6z" /></>,
   liquidaciones: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3M8 18h4" /></>,
+  connect: <><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4 3.5V16h-.5A2.5 2.5 0 0 1 4 13.5z" /><path d="M8 9.5h2.2l1.3 1.6 2-3.1 1.3 1.5H16" /></>,
   escrituracion: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h4" /><circle cx="17" cy="18" r="2.2" /></>,
   agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
 };
@@ -88,6 +89,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const deAgenda = ruta.startsWith("/agenda");
   const deEscrituracion = ruta.startsWith("/escrituracion");
   const deAsistente = ruta.startsWith("/asistente");
+  const deConnect = ruta.startsWith("/connect");
   useEffect(() => {
     if (modulos && ruta === "/app" && !modulos.includes("nomina")) {
       if (modulos.includes("evidencia")) router.replace("/evidencia");
@@ -96,6 +98,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       else if (modulos.includes("agenda")) router.replace("/agenda");
       else if (modulos.includes("escrituracion")) router.replace("/escrituracion");
       else if (modulos.includes("academia")) router.replace("/academia");
+      else if (modulos.includes("connect")) router.replace("/connect");
     }
   }, [modulos, ruta, router]);
   const [prueba, setPrueba] = useState<any>(null);
@@ -119,6 +122,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     const t = setInterval(cargar, 300000);
     return () => clearInterval(t);
   }, [sesion, conRh]);
+  const [connectN, setConnectN] = useState(0);  // mensajes de clientes sin atender
+  const conConnect = (modulos ?? sesion?.modulos ?? []).includes("connect");
+  useEffect(() => {
+    if (!sesion || !conConnect) return;
+    const cargar = () => api.get("/connect/contador").then((r) => setConnectN(r.mensajes)).catch(() => {});
+    cargar();
+    const t = setInterval(cargar, 120000);
+    return () => clearInterval(t);
+  }, [sesion, conConnect]);
   const conAgenda = (modulos ?? sesion?.modulos ?? []).includes("agenda");
   useEffect(() => {
     if (!sesion || !conAgenda) return;
@@ -141,7 +153,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const inicio = "/inicio";
   const bloqueado = (deNomina && !activos.includes("nomina")) || (deEvidencia && !activos.includes("evidencia")) || (deAfore && !activos.includes("afore"))
     || (deLeads && !activos.includes("leads")) || (deAcademia && !activos.includes("academia")) || (deAgenda && !activos.includes("agenda"))
-    || (deEscrituracion && !activos.includes("escrituracion"));
+    || (deEscrituracion && !activos.includes("escrituracion")) || (deConnect && !activos.includes("connect"));
   // Agrupado por cómo trabaja un despacho (mismos nombres que Inicio: lib/modulos.ts)
   const enlaces = [
     { grupo: "", href: "/inicio", texto: "Inicio", icono: "inicio", activo: ruta.startsWith("/inicio") },
@@ -149,6 +161,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Día a día", href: "/agenda", texto: "Agenda", icono: "agenda", activo: deAgenda, n: agendaN }] : []),
     { grupo: "Día a día", href: "/clientes", texto: "Clientes y cobranza", icono: "clientes", activo: ruta.startsWith("/clientes") },
     { grupo: "Día a día", href: "/asistente", texto: "Asistente IA", icono: "asistente", activo: deAsistente },
+    ...(activos.includes("connect") ? [
+      { grupo: "Día a día", href: "/connect", texto: "Connect: mis clientes", icono: "connect", activo: deConnect, n: connectN }] : []),
     ...(activos.includes("evidencia") ? [
       { grupo: "Casos y trámites", href: "/evidencia", texto: "Evidencia", icono: "evidencia", activo: deEvidencia }] : []),
     ...(activos.includes("nomina") ? [
