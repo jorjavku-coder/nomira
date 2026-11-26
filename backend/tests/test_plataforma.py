@@ -48,7 +48,9 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             # portal del cliente de Nomira Connect: lo valida su enlace (X-Enlace) y su código
             ("POST", "/api/mi-portal/estado"), ("POST", "/api/mi-portal/leido"), ("GET", "/api/mi-portal/logo"), ("POST", "/api/mi-portal/codigo"),
             ("POST", "/api/mi-portal/verificar"), ("POST", "/api/mi-portal/mensajes"),
-            ("POST", "/api/mi-portal/preferencias")}
+            ("POST", "/api/mi-portal/preferencias"),
+            # Club Nomira: verificar credencial (para comercios), logos de aliados y «Quiero ser aliado»
+            ("GET", "/api/club-publico/verificar/{codigo}"), ("GET", "/api/club-publico/logos/{aid}"), ("POST", "/api/club-publico/aliados")}
 
 
 def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):

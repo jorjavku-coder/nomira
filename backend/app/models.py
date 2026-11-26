@@ -2628,3 +2628,84 @@ class CnAviso(Base):
     referencia: Mapped[str | None] = mapped_column(String(120))  # id del correo o wamid
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ======================================================================== Club Nomira (beneficios y aliados)
+# Lo administra Nomira desde su panel; los despachos solo ven promociones publicadas y vigentes.
+# Las métricas que se comparten con los aliados son conteos: nunca datos personales.
+
+class AlAliado(Base):
+    """Empresa aliada que ofrece beneficios a los despachos de Nomira."""
+    __tablename__ = "al_aliados"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    giro: Mapped[str | None] = mapped_column(String(120))
+    sitio: Mapped[str | None] = mapped_column(String(300))
+    contacto_nombre: Mapped[str | None] = mapped_column(String(200))
+    contacto_email: Mapped[str | None] = mapped_column(String(254))
+    contacto_telefono: Mapped[str | None] = mapped_column(String(30))
+    estado: Mapped[str] = mapped_column(String(12), default="prospecto")  # prospecto | activo | pausado
+    notas: Mapped[str | None] = mapped_column(Text)  # internas de Nomira
+    logo: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
+    logo_actualizado: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AlBeneficio(Base):
+    """Promoción de un aliado. Solo se muestra si está publicada, vigente y su aliado está activo."""
+    __tablename__ = "al_beneficios"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    aliado_id: Mapped[int] = mapped_column(ForeignKey("al_aliados.id", ondelete="CASCADE"), index=True)
+    titulo: Mapped[str] = mapped_column(String(150))
+    resumen: Mapped[str] = mapped_column(String(80))  # «20% de descuento», «2x1», «Consulta gratis»
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    categoria: Mapped[str] = mapped_column(String(20))
+    canje: Mapped[str] = mapped_column(String(12))  # codigo | enlace | credencial
+    codigo: Mapped[str | None] = mapped_column(String(60))
+    enlace: Mapped[str | None] = mapped_column(String(500))
+    condiciones: Mapped[str | None] = mapped_column(Text)
+    cobertura: Mapped[list | None] = mapped_column(JSON)  # None = nacional; o lista de entidades
+    vigente_desde: Mapped[date | None] = mapped_column(Date)
+    vigente_hasta: Mapped[date | None] = mapped_column(Date)
+    destacado: Mapped[bool] = mapped_column(Boolean, default=False)
+    estado: Mapped[str] = mapped_column(String(12), default="borrador")  # borrador | publicado | pausado
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class AlUso(Base):
+    """Interés en un beneficio (vio el detalle, pidió el código o abrió el enlace). Para métricas agregadas."""
+    __tablename__ = "al_usos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    beneficio_id: Mapped[int] = mapped_column(ForeignKey("al_beneficios.id", ondelete="CASCADE"), index=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    tipo: Mapped[str] = mapped_column(String(10))  # vista | canje
+    dia: Mapped[date] = mapped_column(Date)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    __table_args__ = (Index("ux_al_usos_dia", "beneficio_id", "usuario_id", "tipo", "dia", unique=True),)
+
+
+class AlCredencial(Base):
+    """Credencial digital de miembro del Club Nomira (una por usuario)."""
+    __tablename__ = "al_credenciales"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), unique=True)
+    codigo: Mapped[str] = mapped_column(String(20), unique=True)  # NM-XXXX-XXXX
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class AlSolicitud(Base):
+    """Empresa que pidió ser aliada desde el sitio público."""
+    __tablename__ = "al_solicitudes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    empresa: Mapped[str] = mapped_column(String(200))
+    giro: Mapped[str | None] = mapped_column(String(120))
+    nombre: Mapped[str] = mapped_column(String(200))
+    email: Mapped[str] = mapped_column(String(254))
+    telefono: Mapped[str | None] = mapped_column(String(40))
+    propuesta: Mapped[str | None] = mapped_column(String(2000))
+    estado: Mapped[str] = mapped_column(String(12), default="nueva")  # nueva | en_contacto | aliado | descartada
+    nota: Mapped[str | None] = mapped_column(String(2000))
+    ip: Mapped[str | None] = mapped_column(String(60))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)

@@ -19,6 +19,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   catalogos: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" /><path d="M9 9h6M9 13h6" /></>,
   empresa: <><path d="M4 20V7l8-3v16M12 9l8 2v9M3 20h18M8 9v.01M8 13v.01M8 17v.01M16 14v.01M16 17v.01" /></>,
   ayuda: <><circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6M12 17h.01" /></>,
+  club: <><rect x="3" y="8" width="18" height="13" rx="2" /><path d="M12 8v13M3 12h18M7.5 8a2.5 2.5 0 1 1 4.5-1.5V8M16.5 8A2.5 2.5 0 1 0 12 6.5V8" /></>,
   soporte: <><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /><path d="M8.5 10.5h7M8.5 13.5h4.5" /></>,
   usuarios: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
   evidencia: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13l2 2 4-4" /></>,
@@ -176,6 +177,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Crecer el despacho", href: "/leads", texto: "Prospectos", icono: "leads", activo: deLeads }] : []),
     ...(activos.includes("rh") ? [
       { grupo: "Crecer el despacho", href: "/rh", texto: "Recursos humanos", icono: "rh", activo: ruta.startsWith("/rh"), n: rhN }] : []),
+    { grupo: "Mi despacho", href: "/club", texto: "Club Nomira: beneficios", icono: "club", activo: ruta.startsWith("/club") },
     { grupo: "Mi despacho", href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
     // Lo que se usa menos va dentro de «Más» (se abre solo si la pantalla actual está ahí)
     { grupo: "Más", href: "/tesis", texto: "Tesis (SJF)", icono: "tesis", activo: ruta.startsWith("/tesis") },  // biblioteca común
