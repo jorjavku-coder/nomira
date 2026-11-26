@@ -61,6 +61,7 @@ export const apiP = {
   borrar: async <T = any>(ruta: string): Promise<T> => (await pedir(ruta, { method: "DELETE" })).json(),
   /** Subida de archivos (multipart). */
   subir: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "POST", body: datos })).json(),
+  subirPut: async <T = any>(ruta: string, datos: FormData): Promise<T> => (await pedir(ruta, { method: "PUT", body: datos })).json(),
   texto: async (ruta: string): Promise<string> => (await pedir(ruta)).text(),
   /** Descarga binaria (PDF): devuelve un Blob. */
   blob: async (ruta: string): Promise<Blob> => (await pedir(ruta)).blob(),

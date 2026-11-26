@@ -626,6 +626,7 @@ export default function SitioPublico() {
             <a href="#seguridad" className="hover:text-white">Seguridad</a>
             <a href="#informes" className="hover:text-white">Informes</a>
             <Link href="/empleos" className="hover:text-white">Empleos</Link>
+            <Link href="/aliados" className="hover:text-white">Aliados</Link>
             <Link href="/calculadora-finiquito" className="hover:text-white">Calculadora de finiquito</Link>
             <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
           </nav>
