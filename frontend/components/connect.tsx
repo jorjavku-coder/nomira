@@ -103,3 +103,24 @@ export function EditorEtapas({ etapas, setEtapas }: { etapas: any[]; setEtapas: 
   );
 }
 
+
+const ESTADO_AVISO: Record<string, [string, string]> = {
+  pendiente: ["Programado", "bg-slate-100 text-slate-600"], enviado: ["Enviado", "bg-emerald-50 text-emerald-700"],
+  omitido: ["No se envió", "bg-amber-50 text-amber-800"], error: ["Falló", "bg-red-50 text-red-700"],
+};
+
+export function ListaAvisos({ avisos, onReintentar }: { avisos: any[]; onReintentar?: (id: number) => void }) {
+  if (!avisos.length) return <p className="p-4 text-sm text-slate-500">Todavía no se ha programado ningún aviso.</p>;
+  return (
+    <ul className="divide-y divide-crema-300">{avisos.map((x) => (
+      <li key={x.id} className="flex flex-wrap items-start gap-3 p-3 text-sm">
+        <span className="w-28 shrink-0 text-xs text-slate-500">{fechaHora(x.enviado_en || x.programado_en)}</span>
+        <span className="min-w-0 flex-1"><b className="text-marino">{x.tipo_texto}</b>{x.cliente && <span className="text-slate-500"> · {x.cliente}</span>}
+          <span className="block text-xs text-slate-600">{x.resumen}</span>
+          {x.motivo && <span className="block text-xs text-amber-800">{x.motivo}</span>}</span>
+        <span className="rounded-full bg-crema px-2 py-0.5 text-xs font-semibold text-slate-600">{x.canal === "whatsapp" ? "WhatsApp" : "Correo"}</span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ESTADO_AVISO[x.estado]?.[1]}`}>{ESTADO_AVISO[x.estado]?.[0]}</span>
+        {onReintentar && ["error", "omitido"].includes(x.estado) && <button className="text-xs font-semibold text-turquesa-700" onClick={() => onReintentar(x.id)}>Reintentar</button>}
+      </li>))}</ul>);
+}
+

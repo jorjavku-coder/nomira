@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import BotonAyuda from "@/components/BotonAyuda";
 import Shell from "@/components/Shell";
-import { EditorEtapas, ESTADO_ETAPA, fechaHora } from "@/components/connect";
+import { EditorEtapas, ESTADO_ETAPA, fechaHora, ListaAvisos } from "@/components/connect";
 import { Aviso, Modal } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -12,7 +12,8 @@ import { api } from "@/lib/api";
 function Connect() {
   const sp = useSearchParams();
   const router = useRouter();
-  const [tab, setTab] = useState<"asuntos" | "mensajes" | "plantillas">(sp.get("cliente") || sp.get("tab") === "mensajes" ? "mensajes" : sp.get("tab") === "plantillas" ? "plantillas" : "asuntos");
+  const [tab, setTab] = useState<"asuntos" | "mensajes" | "avisos" | "plantillas">(sp.get("cliente") || sp.get("tab") === "mensajes" ? "mensajes"
+    : sp.get("tab") === "plantillas" ? "plantillas" : sp.get("tab") === "avisos" ? "avisos" : "asuntos");
   const [r, setR] = useState<any>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState<any>(null);  // {asunto_id?} abre el modal
@@ -39,7 +40,7 @@ function Connect() {
             <span className="block text-2xl font-extrabold text-marino">{n as number}</span><span className="text-xs text-slate-500">{t}</span></button>))}
       </div>}
       <div className="mb-4 flex rounded-xl bg-crema p-1 text-sm">
-        {([["asuntos", "Asuntos"], ["mensajes", `Mensajes${r?.mensajes_nuevos ? ` (${r.mensajes_nuevos})` : ""}`], ["plantillas", "Plantillas de etapas"]] as const).map(([v, t]) =>
+        {([["asuntos", "Asuntos"], ["mensajes", `Mensajes${r?.mensajes_nuevos ? ` (${r.mensajes_nuevos})` : ""}`], ["avisos", "Avisos automáticos"], ["plantillas", "Plantillas de etapas"]] as const).map(([v, t]) =>
           <button key={v} onClick={() => setTab(v)} className={`flex-1 rounded-lg px-3 py-2 font-semibold sm:flex-none ${tab === v ? "bg-white text-marino shadow-sm" : "text-slate-500"}`}>{t}</button>)}
       </div>
 
@@ -74,6 +75,7 @@ function Connect() {
       </>}
       {tab === "mensajes" && <Mensajes inicial={sp.get("cliente")} onCambio={cargar} />}
       {tab === "plantillas" && <Plantillas />}
+      {tab === "avisos" && <Avisos />}
       {nuevo && r && <NuevoSeguimiento datos={nuevo} materias={r.materias} onCerrar={() => setNuevo(null)} onListo={(id) => router.push(`/connect/${id}`)} />}
     </Shell>
   );
@@ -227,6 +229,73 @@ function EditorPlantilla({ p, onCerrar, onListo }: { p: any; onCerrar: () => voi
       <div className="mt-4 flex justify-end gap-2"><button className="btn-sec" onClick={onCerrar}>Cancelar</button>
         <button className="btn-turquesa" disabled={!nombre.trim()} onClick={guardar}>Guardar plantilla</button></div>
     </Modal>
+  );
+}
+
+function Avisos() {
+  const [c, setC] = useState<any>(null);
+  const [h, setH] = useState<any[]>([]);
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const [wa, setWa] = useState({ phone_number_id: "", waba_id: "", numero: "", token: "" });
+  const [plantilla, setPlantilla] = useState("");
+  const cargar = useCallback(() => {
+    api.get("/connect/avisos/config").then((x) => { setC(x); setPlantilla(x.wa_plantilla || ""); }).catch((e) => setError(e.message));
+    api.get("/connect/avisos").then((x) => setH(x.avisos)).catch(() => {});
+  }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+  const guardar = async (cambios: any, t = "Guardado.") => {
+    try { setC(await api.put("/connect/avisos/config", cambios)); setOk(t); setError(""); setTimeout(() => setOk(""), 3000); } catch (e: any) { setError(e.message); }
+  };
+  if (!c) return <Aviso>{error}</Aviso>;
+  const Interruptor = ({ k, t, d }: { k: string; t: string; d?: string }) => (
+    <label className="flex items-start gap-3 py-2"><input type="checkbox" className="mt-1" checked={!!c[k]} onChange={(e) => guardar({ [k]: e.target.checked })} />
+      <span><span className="block font-semibold text-marino">{t}</span>{d && <span className="text-xs text-slate-500">{d}</span>}</span></label>);
+  return (
+    <div className="space-y-5">
+      <Aviso>{error}</Aviso><Aviso tipo="ok">{ok}</Aviso>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="tarjeta p-5"><h2 className="font-bold text-marino">Qué se avisa y cuándo</h2>
+          <p className="mt-1 text-xs text-slate-500">Se avisa al cliente cuando usted cambia una etapa, registra un movimiento, le pide algo, le responde un mensaje o concluye el asunto. Solo de asuntos publicados. Los avisos dicen <b>qué cambió</b> y llevan al portal seguro: nunca incluyen notas internas ni el texto de sus notas.</p>
+          <Interruptor k="avisos_activos" t="Avisos automáticos encendidos" d="Apáguelos para todo el despacho." />
+          <Interruptor k="recordar_audiencias" t="Recordar audiencias 2 días antes" d="Solo en asuntos donde muestra las audiencias al cliente." />
+          <label className="mt-2 block"><span className="etiqueta">Actualización preventiva cuando no hay movimientos</span>
+            <select className="campo" value={c.preventiva_dias} onChange={(e) => guardar({ preventiva_dias: Number(e.target.value) })}>
+              {[[0, "No enviar"], [7, "Cada 7 días"], [15, "Cada 15 días"], [30, "Cada 30 días"]].map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              {![0, 7, 15, 30].includes(c.preventiva_dias) && <option value={c.preventiva_dias}>Cada {c.preventiva_dias} días</option>}</select>
+            <span className="mt-1 block text-xs text-slate-500">«Su expediente sigue en la etapa X; no tenemos movimientos nuevos». Menciona la última revisión solo si usted la registró. Cada asunto puede tener su propia frecuencia.</span></label>
+          <p className="mt-3 rounded-xl bg-crema/70 p-3 text-xs text-slate-600">⏰ Horario de envío: {c.horario}. Si mueve varias etapas seguidas, sale un solo aviso con la última. Los envíos fallidos se reintentan 3 veces.</p>
+        </section>
+        <section className="tarjeta p-5"><h2 className="font-bold text-marino">Canales</h2>
+          <Interruptor k="canal_correo" t="Correo electrónico" d={c.correo_configurado ? "Al correo del cliente en su directorio." : "⚠ El envío de correos de Nomira no está configurado."} />
+          <Interruptor k="canal_whatsapp" t="WhatsApp (API oficial de Meta)" d="Con el número de WhatsApp Business de su despacho. Solo a clientes que lo aceptaron." />
+          <div className={`mt-2 rounded-xl border p-4 ${c.whatsapp.listo ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <p className="text-sm font-bold text-marino">{c.whatsapp.listo ? `✓ WhatsApp listo${c.whatsapp.numero ? ` (${c.whatsapp.numero})` : ""}` : "WhatsApp: pendiente de conexión"}</p>
+            {c.whatsapp.falta.length > 0 && <ul className="mt-1 list-disc pl-5 text-xs text-amber-900">{c.whatsapp.falta.map((f: string) => <li key={f}>{f}</li>)}</ul>}
+            {!c.whatsapp.conectado ? <div className="mt-3 grid gap-2">
+              <input className="campo" placeholder="Phone number ID (Meta)" value={wa.phone_number_id} onChange={(e) => setWa({ ...wa, phone_number_id: e.target.value.trim() })} />
+              <input className="campo" placeholder="WhatsApp Business Account ID (opcional)" value={wa.waba_id} onChange={(e) => setWa({ ...wa, waba_id: e.target.value.trim() })} />
+              <input className="campo" placeholder="Número visible, ej. +52 55 1234 5678" value={wa.numero} onChange={(e) => setWa({ ...wa, numero: e.target.value })} />
+              <input className="campo" type="password" autoComplete="off" placeholder="Token de acceso permanente" value={wa.token} onChange={(e) => setWa({ ...wa, token: e.target.value.trim() })} />
+              <button className="btn-sec text-sm" disabled={!wa.phone_number_id || wa.token.length < 20}
+                onClick={async () => { try { setC(await api.put("/connect/avisos/whatsapp", wa)); setWa({ phone_number_id: "", waba_id: "", numero: "", token: "" }); setOk("WhatsApp conectado. El token quedó cifrado."); } catch (e: any) { setError(e.message); } }}>Conectar número</button>
+              <p className="text-[11px] text-slate-500">El token se guarda cifrado y no vuelve a mostrarse. Es el mismo número que usa el módulo AFORE.</p></div>
+              : <button className="mt-2 text-xs font-semibold text-red-600" onClick={async () => setC(await api.borrar("/connect/avisos/whatsapp"))}>Desconectar número</button>}
+            <div className="mt-4 border-t border-amber-200/60 pt-3">
+              <p className="text-xs font-semibold text-marino">Plantilla de aviso (créela en Meta, categoría «Utilidad», idioma español MX):</p>
+              <p className="mt-1 rounded-lg bg-white p-2 font-mono text-[11px] text-slate-700">{c.whatsapp.plantilla_sugerida}</p>
+              <div className="mt-2 flex gap-2"><input className="campo flex-1" placeholder="nombre_de_la_plantilla" value={plantilla} onChange={(e) => setPlantilla(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} />
+                <button className="btn-sec text-sm" onClick={() => guardar({ wa_plantilla: plantilla }, "Plantilla guardada.")}>Guardar</button></div>
+              {c.wa_plantilla && <label className="mt-2 flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={c.wa_aprobada} onChange={(e) => guardar({ wa_aprobada: e.target.checked })} /> Meta ya aprobó la plantilla «{c.wa_plantilla}»</label>}
+            </div>
+          </div>
+        </section>
+      </div>
+      <section className="tarjeta overflow-hidden"><div className="flex items-center justify-between border-b border-crema-300 p-4"><h2 className="font-bold text-marino">Historial de avisos</h2>
+        <button className="text-xs font-semibold text-turquesa-700" onClick={cargar}>Actualizar</button></div>
+        <ListaAvisos avisos={h} onReintentar={async (id) => { try { await api.post(`/connect/avisos/${id}/reintentar`, {}); cargar(); } catch (e: any) { setError(e.message); } }} />
+      </section>
+    </div>
   );
 }
 

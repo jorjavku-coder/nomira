@@ -24,6 +24,7 @@ from ..freno import Ventana
 from ..services import envios, modulos, plantillas_correo
 from ..services.agenda.base import hoy
 from ..services.clientes import base as cl
+from ..services.connect import avisos as av
 from ..services.connect import base as cb
 from ..services.connect import portal
 from ..services.evidencia import solicitudes as sol
@@ -104,7 +105,13 @@ def estado(request: Request, x_enlace: str | None = Header(None), x_sesion: str 
         if x.autor == "despacho" and not x.leido_en:
             no_leidos += 1
     db.commit()
-    return {**base, "verificado": True, "asuntos": asuntos, "pagos": pagos,
+    cfg, pref = av.config(db, a.organizacion_id), av.preferencia(db, c)
+    preferencias = {"avisos_activos": cfg.avisos_activos, "correo_disponible": cfg.canal_correo and bool(c.email),
+                    "whatsapp_disponible": cfg.canal_whatsapp and bool(c.telefono), "correo": pref.correo if pref else True,
+                    "whatsapp": bool(pref and pref.whatsapp), "email": sol.enmascarar(c.email) if c.email else None,
+                    "telefono": f"•••• {c.telefono[-4:]}" if c.telefono else None}
+    db.commit()
+    return {**base, "verificado": True, "asuntos": asuntos, "pagos": pagos, "preferencias": preferencias,
             "mensajes": [{"autor": x.autor, "texto": x.texto, "fecha": x.creado_en.isoformat(), "motivo": MOTIVOS.get(x.motivo or ""),
                           "atendido": x.estado == "atendido", "por": (nombres.get(x.usuario_id) or org.nombre) if x.autor == "despacho" else None,
                           "asunto": titulos.get(x.asunto_id)} for x in msgs[-100:]],
@@ -238,3 +245,27 @@ def _avisar_despacho(db: Session, a: m.CnAcceso, motivo: str, mid: int) -> None:
                                       llave=f"cn_msg:{mid}:{u.id}")
         except Exception:  # el aviso por correo nunca impide que el mensaje quede guardado
             pass
+
+
+class Preferencias(BaseModel):
+    correo: bool | None = None
+    whatsapp: bool | None = None
+
+
+@router.post("/preferencias")
+def preferencias(d: Preferencias, request: Request, x_enlace: str | None = Header(None), x_sesion: str | None = Header(None), db: Session = Depends(get_db)):
+    """El cliente decide si recibe avisos por correo o por WhatsApp. El consentimiento de WhatsApp queda con fecha y medio «portal»."""
+    a = _acceso(db, request, x_enlace)
+    _exigir(a, x_sesion)
+    c = db.get(m.CrCliente, a.cliente_id)
+    p = av.preferencia(db, c, crear=True)
+    if d.correo is not None:
+        p.correo = d.correo
+    if d.whatsapp is not None and d.whatsapp != p.whatsapp:
+        if d.whatsapp and not c.telefono:
+            raise HTTPException(409, "Su despacho no tiene registrado su teléfono.")
+        p.whatsapp = d.whatsapp
+        p.whatsapp_consentido_en, p.whatsapp_medio = (m.ahora(), "portal") if d.whatsapp else (None, None)
+    auditar(db, None, "cn_preferencias_portal", "cr_cliente", c.id, d.model_dump(exclude_unset=True), request, organizacion_id=a.organizacion_id)
+    db.commit()
+    return {"correo": p.correo, "whatsapp": p.whatsapp}
