@@ -195,3 +195,19 @@ def test_vincular_cliente_desde_connect(cn, org2, plataforma):
     x = cn.c.put(f"{C}/seguimientos/{r['id']}", headers=cn.h, json={"cliente_id": cid}).json()
     assert x["cliente"]["id"] == cid
     assert cn.c.put(f"{C}/seguimientos/{r['id']}", headers=cn.h, json={"visible_cliente": True}).json()["visible_cliente"] is True
+
+
+def test_vitrina_de_la_cuenta_demo_una_sola_vez(org):
+    from app.services.connect import vitrina
+    with SessionLocal() as db:
+        o = db.get(m.Organizacion, org.org_id)
+        o.nombre = "Despacho Piloto Nomira (datos ficticios)"
+        db.commit()
+        email = db.scalar(select(m.Usuario.email).where(m.Usuario.organizacion_id == org.org_id).limit(1))
+        assert vitrina.sembrar(db, email) is True
+        assert vitrina.sembrar(db, email) is False  # no duplica
+        assert db.get(m.Organizacion, org.org_id).nombre == "Despacho Nomira"
+        segs = db.scalars(select(m.CnSeguimiento).where(m.CnSeguimiento.organizacion_id == org.org_id)).all()
+        assert len(segs) == 5 and all(s.visible_cliente for s in segs)
+        assert not db.scalar(select(m.CnAviso.id))  # no inventa avisos enviados
+        assert not db.scalar(select(m.CrCliente.id).where(m.CrCliente.organizacion_id == org.org_id, m.CrCliente.email.is_not(None)))

@@ -15,7 +15,7 @@ from .. import models as m
 from .plataforma import borrar_archivos, eliminar_organizacion
 
 PILOTO_EMAIL = "demo@nomirasoft.com"
-PILOTO_DESPACHO = "Despacho Piloto Nomira (datos ficticios)"
+PILOTO_DESPACHO = "Despacho Nomira"
 
 # Datos de la plataforma que no dependen de un despacho y se borran al reiniciar (personas, ventas, bitácoras).
 _GLOBALES = ("solicitudes", "vt_actividades", "vt_oportunidades", "vt_contactos", "vt_campanas", "cm_pagos", "cm_eventos", "cm_eventos_stripe",
@@ -63,11 +63,12 @@ def sembrar_piloto(db: Session, contrasena: str) -> dict:
     from ..services.liquidacion import demo as liquidacion_demo
     from ..services.rh import demo as rh_demo
     from ..services.connect import demo as connect_demo
+    from ..services.connect import vitrina as connect_vitrina
     from .semilla import sembrar_demo
 
     if len(contrasena) < 8:
         raise ValueError("La contraseña del piloto debe tener al menos 8 caracteres.")
-    r = sembrar_demo(db, email=PILOTO_EMAIL, contrasena=contrasena, nombre_org=PILOTO_DESPACHO, nombre_admin="Demo Nomira", equipo=False)
+    r = sembrar_demo(db, email=PILOTO_EMAIL, contrasena=contrasena, nombre_org=PILOTO_DESPACHO, nombre_admin="Lic. Mariana Robles", equipo=False)
     e = PILOTO_EMAIL
     evidencia_demo.sembrar(db, e)
     evidencia_demo.sembrar_divorcio(db, e)
@@ -82,4 +83,5 @@ def sembrar_piloto(db: Session, contrasena: str) -> dict:
     bolsa_demo.sembrar(db, e)
     rh_demo.sembrar(db, e)
     connect_demo.sembrar(db, e)  # después de Clientes: usa el asunto ligado a un cliente
+    connect_vitrina.sembrar(db, e)  # «Despacho Nomira»: 5 clientes y asuntos ficticios para presentar Connect
     return r

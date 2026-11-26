@@ -9,6 +9,7 @@ from app.services.agenda import demo as agenda_demo
 from app.services.bolsa import demo as bolsa_demo
 from app.services.rh import demo as rh_demo
 from app.services.connect import demo as connect_demo
+from app.services.connect import vitrina as connect_vitrina
 from app.services.escrituracion import demo as escrituracion_demo
 from app.services.liquidacion import demo as liquidacion_demo
 from app.services.clientes import demo as clientes_demo
@@ -45,6 +46,7 @@ if __name__ == "__main__":
         clientes_demo.sembrar(db)  # Clientes y cobranza: tres clientes ficticios con honorarios y pagos
         rh_demo.sembrar(db)  # Recursos humanos: equipo del despacho y una empresa cliente
         connect_demo.sembrar(db)  # Nomira Connect: el juicio laboral publicado en el portal del cliente
+        connect_vitrina.sembrar(db, "admin@demo.local")  # Connect: 5 clientes y asuntos ficticios para presentar
         bolsa_demo.sembrar(db)  # Bolsa de trabajo: una vacante (no va al portal público), dos candidatos y una prueba
         proteger_demo(db)  # en producción: nunca con la contraseña publicada en el README
         if "--restaurar" in sys.argv:
