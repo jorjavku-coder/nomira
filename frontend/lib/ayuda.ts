@@ -333,6 +333,28 @@ export const MANUALES: Manual[] = [
     ],
   },
   {
+    clave: "connect",
+    modulo: "connect",
+    titulo: "Nomira Connect",
+    resumen: "Su cliente ve desde su celular en qué etapa va su asunto, con explicaciones sencillas, y le escribe por aquí. Menos llamadas de «¿cómo va lo mío?».",
+    paraQue: ["Que el cliente sepa en qué etapa va su asunto sin llamar.", "Pedirle documentos o una acción y que lo vea resaltado en amarillo.",
+      "Recibir sus dudas, llamadas o citas como mensajes ordenados por cliente.", "Mostrar que el despacho sigue al pendiente aunque el tribunal no se mueva."],
+    pasos: [
+      { titulo: "Cree el seguimiento", texto: "En Connect → «+ Nuevo seguimiento». Elija el asunto (o créelo), el cliente de su directorio y una plantilla de etapas (laboral, pensiones, amparo, familiar, notarías…). Queda como borrador." },
+      { titulo: "Ajuste las etapas", texto: "«Personalizar etapas» cambia solo ese asunto: agregue, quite, reordene (arrastrando o con las flechas) y escriba la explicación para el cliente. En «Plantillas de etapas» puede guardar las suyas." },
+      { titulo: "Publique y comparta el enlace", texto: "Pulse «Publicar al cliente» y cree su enlace. Cópielo o envíelo desde su WhatsApp. Si el cliente tiene correo, al abrirlo le pedimos un código." },
+      { titulo: "Mueva las etapas", texto: "Toque una etapa: «Es la etapa actual», «Completada», «Requiere al cliente» (amarillo), «Incidencia» (rojo) o «Suspendida» (morado). Agregue una nota para el cliente y, si quiere, una nota interna que solo ve su despacho." },
+      { titulo: "Responda mensajes", texto: "En la pestaña «Mensajes» ve lo que le escriben sus clientes, con el motivo (llamada, cita, documentos…). Al responder, el mensaje queda atendido." },
+    ],
+    consejos: ["«Revisé el expediente hoy» le muestra al cliente que siguen al pendiente, sin inventar movimientos: el último movimiento judicial se muestra aparte.",
+      "Nomira no calcula porcentajes ni fechas estimadas de resolución: los juicios pueden retrasarse.",
+      "Las notas internas y las notas del asunto en la Agenda nunca se muestran al cliente."],
+    preguntas: [
+      { p: "¿El cliente necesita cuenta o descargar una app?", r: "No. Abre su enlace desde cualquier navegador. Tiene botones para letra grande y alto contraste." },
+      { p: "¿Le llegan avisos por WhatsApp?", r: "Todavía no: es la siguiente fase y requiere conectar el número de WhatsApp Business de su despacho con Meta. Por ahora el cliente ve todo al entrar a su portal y a usted le llega un correo cuando le escriben." },
+    ],
+  },
+  {
     clave: "escrituracion",
     modulo: "escrituracion",
     titulo: "Escrituración (notarías)",

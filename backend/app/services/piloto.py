@@ -62,6 +62,7 @@ def sembrar_piloto(db: Session, contrasena: str) -> dict:
     from ..services.leads import demo as leads_demo
     from ..services.liquidacion import demo as liquidacion_demo
     from ..services.rh import demo as rh_demo
+    from ..services.connect import demo as connect_demo
     from .semilla import sembrar_demo
 
     if len(contrasena) < 8:
@@ -80,4 +81,5 @@ def sembrar_piloto(db: Session, contrasena: str) -> dict:
     clientes_demo.sembrar(db, e)
     bolsa_demo.sembrar(db, e)
     rh_demo.sembrar(db, e)
+    connect_demo.sembrar(db, e)  # después de Clientes: usa el asunto ligado a un cliente
     return r

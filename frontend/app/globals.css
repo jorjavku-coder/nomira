@@ -163,3 +163,13 @@ html.s-tema-oscuro .s-sitio .text-emerald-800 { color: #6EE7B7; }
 html.s-tema-oscuro .s-sitio .bg-slate-100 .bg-white { background-color: #12283C; }
 html.s-tema-oscuro .s-sitio :is(.btn-turquesa, .bg-turquesa.text-marino-900) { color: #0A1B2B; }
 html.s-tema-oscuro .s-sitio .from-turquesa-50 { --tw-gradient-from: rgba(1, 178, 166, .14) var(--tw-gradient-from-position); --tw-gradient-to: rgb(13 33 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+
+/* Portal del cliente (Nomira Connect): modo de alto contraste para adultos mayores */
+.cn-contraste { color: #000; }
+.cn-contraste :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-white\/60, .text-white\/70) { color: #111 !important; }
+.cn-contraste .bg-gradient-to-r, .cn-contraste .bg-gradient-to-br { background: #000 !important; }
+.cn-contraste .bg-gradient-to-r *, .cn-contraste .bg-gradient-to-br * { color: #fff !important; }
+.cn-contraste :is(.ring-crema-300, .border-crema-300) { --tw-ring-color: #000; border-color: #000; }
+.cn-contraste .bg-crema, .cn-contraste .bg-crema\/60 { background: #fff; }
+.cn-contraste .text-turquesa-700 { color: #00524c !important; }
+.cn-contraste .btn-turquesa { background: #000; color: #fff; }

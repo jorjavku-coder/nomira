@@ -175,14 +175,15 @@ def solicitud_documentos(despacho: str, abogado: str, enlace: str, vence: date, 
                          pie=f"Recibe este correo porque {despacho} le solicitó documentos por medio de Nomira."), texto
 
 
-def codigo_verificacion(despacho: str, codigo: str, minutos: int) -> tuple[str, str, str]:
-    asunto = f"Su código para enviar documentos: {codigo}"
+def codigo_verificacion(despacho: str, codigo: str, minutos: int, portal: bool = False) -> tuple[str, str, str]:
+    asunto = f"Su código para {'entrar a su portal' if portal else 'enviar documentos'}: {codigo}"
+    accion = "entrar al portal de" if portal else "enviar sus documentos a"
     contenido = f"""
 <h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Su código de verificación</h1>
-<p style="margin:0 0 20px">Escríbalo en la página para enviar sus documentos a <b>{escape(despacho)}</b>.</p>
+<p style="margin:0 0 20px">Escríbalo en la página para {accion} <b>{escape(despacho)}</b>.</p>
 <p style="margin:0 0 20px;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:{MARINO}">{escape(codigo)}</p>
 <p style="margin:0;font-size:14px;color:#64748b">Vence en {minutos} minutos. Si usted no lo pidió, ignore este correo.</p>"""
-    texto = f"Su código para enviar documentos a {despacho}: {codigo}\nVence en {minutos} minutos. Si usted no lo pidió, ignore este correo.\n"
+    texto = f"Su código para {accion} {despacho}: {codigo}\nVence en {minutos} minutos. Si usted no lo pidió, ignore este correo.\n"
     return asunto, _base(f"Código {codigo}", contenido, pie=f"Correo automático de Nomira para {despacho}."), texto
 
 
@@ -227,3 +228,14 @@ def bienvenida_prueba(nombre: str, organizacion: str, fin: date, modulos: list[s
     texto = (f"¡Bienvenido a Nomira, {nombre}! La cuenta de {organizacion} está lista.\nMódulos de su prueba: {', '.join(modulos)}.\n"
              f"Su prueba gratuita termina el {fecha_larga(fin)}. Entre en {_url('/login')}\n")
     return asunto, _base("Su prueba gratuita de Nomira está lista", contenido), texto
+
+
+def mensaje_de_cliente(nombre: str, cliente: str, motivo: str, url: str) -> tuple[str, str, str]:
+    """Al abogado: un cliente escribió desde su portal. No incluye el texto del mensaje (se lee en Nomira)."""
+    asunto = f"Mensaje nuevo de {cliente} — {motivo}"[:250]
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Hola, {escape(nombre.split()[0])}: un cliente le escribió</h1>
+<p style="margin:0 0 16px"><b>{escape(cliente)}</b> le envió un mensaje desde su portal: <b>{escape(motivo)}</b>.</p>
+{_boton("Leer y responder", url)}"""
+    texto = f"{cliente} le envió un mensaje desde su portal ({motivo}).\n\nLeer y responder: {url}\n"
+    return asunto, _base(f"Mensaje nuevo de {cliente}", contenido), texto

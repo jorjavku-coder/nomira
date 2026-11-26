@@ -6,7 +6,7 @@ import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, leerSesion, mxn } from "@/lib/api";
 
-const NAV = [["#modulos", "Módulos"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["#preguntas", "Preguntas"]];
+const NAV = [["#modulos", "Módulos"], ["#connect", "Connect"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["#preguntas", "Preguntas"]];
 
 /** Cuadrícula «bento»: cada módulo con su captura real (datos ficticios). `ancho` = columnas de 6 en escritorio. */
 const BENTO = [
@@ -53,7 +53,7 @@ const BENTO = [
 ];
 const ANCHO: Record<number, string> = { 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-4" };
 
-const CIFRAS = [["9", "módulos para elegir"], ["2 días", "de prueba, sin tarjeta"], ["0", "programas que instalar"], ["Diaria", "revisión de estrados"]];
+const CIFRAS = [["10", "módulos para elegir"], ["2 días", "de prueba, sin tarjeta"], ["0", "programas que instalar"], ["Diaria", "revisión de estrados"]];
 
 const INCLUIDO = [
   ["Clientes y cobranza", "Directorio, saldos, pagos y recibos."],
@@ -69,6 +69,7 @@ const PASOS = [
 ];
 
 const PREGUNTAS = [
+  ["¿Mis clientes pueden ver cómo va su asunto?", "Sí, con Nomira Connect: usted publica las etapas de cada asunto y su cliente las consulta desde el celular, sin app ni cuenta. También le puede escribir por ahí. Usted decide qué se comparte; las notas internas nunca se muestran."],
   ["¿Tengo que instalar algo?", "No. Nomira funciona desde el navegador, en computadora o tableta."],
   ["¿Tengo que contratar todos los módulos?", "No. Cada módulo funciona por separado y usted elige la combinación. Clientes y cobranza, el Asistente IA y el buscador de tesis vienen incluidos. Apagar un módulo no borra su información."],
   ["¿La inteligencia artificial inventa tesis?", "No. Solo puede citar tesis de la biblioteca de Nomira, copiada de fuentes oficiales de la SCJN. Si escribe una que no puede verificar, Nomira la elimina y se lo avisa."],
@@ -418,6 +419,43 @@ export default function SitioPublico() {
                     <span><span className="block font-bold text-marino">{t}</span><span className="block text-sm text-slate-600">{dd}</span></span></li>))}
               </ul>
               <p className="mt-5 text-sm text-slate-600">Además, módulo opcional de <b className="text-marino">Pruebas psicométricas</b> para sus vacantes.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Nomira Connect */}
+        <section id="connect" className="relative scroll-mt-20 overflow-hidden bg-marino-900 text-white">
+          <div className="s-aurora pointer-events-none absolute -left-24 top-10 h-96 w-96 rounded-full bg-turquesa/20 blur-3xl" aria-hidden />
+          <div className="s-aurora pointer-events-none absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-turquesa-brillante/10 blur-3xl" style={d(-5000)} aria-hidden />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[1.05fr_1fr]">
+            <div>
+              <span className="s-revelar inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-turquesa-brillante">
+                <span className="rounded-full bg-turquesa px-2 py-0.5 text-[10px] text-marino-900">Nuevo</span>Nomira Connect</span>
+              <h2 style={d(80)} className="s-revelar mt-4 font-marca text-3xl font-extrabold leading-tight sm:text-5xl">Que tus clientes sigan su expediente, <span className="text-turquesa-brillante">no a su abogado.</span></h2>
+              <p style={d(160)} className="s-revelar mt-4 text-lg leading-relaxed text-white/75">
+                Comparta el avance de cada asunto por etapas, como el rastreo de un pedido. Su cliente lo consulta desde el celular las 24 horas y le escribe por un solo canal.</p>
+              <div style={d(240)} className="s-revelar mt-8 grid gap-4 sm:grid-cols-2">
+                {[["Para su despacho", ["Menos llamadas de «¿cómo va lo mío?»", "Mensajes ordenados por cliente y motivo", "Notas internas que el cliente nunca ve"]],
+                  ["Para su cliente", ["Ve en qué etapa va, en palabras sencillas", "Sabe qué documentos o acciones faltan", "Sin app ni cuenta: letra grande y alto contraste"]]].map(([t, l]) => (
+                  <div key={t as string} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                    <p className="text-sm font-bold text-turquesa-brillante">{t as string}</p>
+                    <ul className="mt-3 space-y-2">{(l as string[]).map((x) => <li key={x} className="flex gap-2 text-sm text-white/80"><span className="mt-0.5 text-turquesa-brillante"><Palomita /></span>{x}</li>)}</ul>
+                  </div>))}
+              </div>
+              <p className="mt-4 text-xs text-white/50">Sin porcentajes ni fechas inventadas: el abogado decide qué se comparte y cuándo.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base">Solicitar una demostración →</a>
+                <a href="#informes" className="rounded-xl border border-white/25 px-5 py-3 text-base font-semibold text-white transition hover:bg-white/10">Pedir información</a></div>
+            </div>
+            <div className="relative mx-auto flex w-full max-w-md justify-center">
+              <div className="pointer-events-none absolute inset-10 rounded-full bg-turquesa/25 blur-3xl" aria-hidden />
+              <div style={d(150)} className="s-revelar relative z-10 w-52 -rotate-3 sm:w-60"><div className="s-flotar"><Celular src="/sitio/connect-inicio.webp" alt="Portal del cliente: su asunto en la etapa «Desahogo de pruebas» y su próxima audiencia (datos ficticios)." /></div></div>
+              <div style={d(300)} className="s-revelar relative -ml-10 mt-16 w-52 rotate-3 sm:w-60"><div className="s-flotar" style={d(-2000)}><Celular src="/sitio/connect-etapas.webp" alt="Línea de tiempo de etapas: completadas en verde y la etapa actual en turquesa (datos ficticios)." /></div></div>
+              <div aria-hidden className="pointer-events-none absolute -left-2 top-6 z-20 hidden sm:block">
+                <div className="s-flotar flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-marino shadow-flotante">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Palomita /></span>Demanda admitida</div></div>
+              <div aria-hidden className="pointer-events-none absolute -right-2 bottom-16 z-20 hidden sm:block">
+                <div style={d(-3000)} className="s-flotar flex items-center gap-2 rounded-2xl bg-turquesa px-3 py-2 text-xs font-semibold text-marino-900 shadow-flotante">💬 Nuevo mensaje de su abogado</div></div>
             </div>
           </div>
         </section>
