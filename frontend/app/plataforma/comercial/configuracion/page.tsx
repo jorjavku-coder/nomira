@@ -81,7 +81,8 @@ export default function ConfiguracionComercial() {
           <div className="mt-3 space-y-2 text-sm">
             <label className="flex items-center gap-2"><input type="radio" name="pp" className="accent-turquesa" checked={f.precios_publicos === "ocultos"} onChange={() => setF({ ...f, precios_publicos: "ocultos" })} />No mostrar precios</label>
             <label className="flex items-center gap-2"><input type="radio" name="pp" className="accent-turquesa" checked={f.precios_publicos === "desde"} onChange={() => setF({ ...f, precios_publicos: "desde" })} />Mostrar solo «Paquetes desde $X MXN + IVA» (precio del paquete activo más bajo)</label>
-            <p className="text-xs text-slate-500">Nunca se publica el desglose de paquetes ni de adicionales.</p>
+            <label className="flex items-center gap-2"><input type="radio" name="pp" className="accent-turquesa" checked={f.precios_publicos === "completos"} onChange={() => setF({ ...f, precios_publicos: "completos" })} />Publicar todos los precios con carrito en <b>/precios</b>: la persona arma su plan y recibe su cotización al instante para aceptarla y pagarla</label>
+            <p className="text-xs text-slate-500">Con las dos primeras opciones no se publica el desglose de paquetes ni de adicionales. Los descuentos manuales nunca se ofrecen en el carrito.</p>
           </div></section>
       </div>
       <div className="sticky bottom-0 mt-5 flex items-center justify-end gap-3 border-t border-crema-300 bg-crema/90 py-3 backdrop-blur">

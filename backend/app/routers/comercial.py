@@ -157,7 +157,7 @@ def guardar_config(d: ConfigIn, request: Request, a: m.AdminPlataforma = Depends
         raise HTTPException(422, "RFC inválido.")
     if datos["spei_clabe"] and not re.fullmatch(r"\d{18}", datos["spei_clabe"]):
         raise HTTPException(422, "La CLABE debe tener 18 dígitos.")
-    if datos["precios_publicos"] not in ("ocultos", "desde"):
+    if datos["precios_publicos"] not in ("ocultos", "desde", "completos"):
         raise HTTPException(422, "Opción de precios públicos inválida.")
     pers = [p for p in dict.fromkeys(datos["periodicidades"]) if p in cm.PERIODICIDADES]
     if not pers:
