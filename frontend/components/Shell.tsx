@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from "react";
 import { AceptacionLegal, EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { Avatar } from "@/components/ui";
+import { BotonInstalar } from "@/components/AppInstalable";
 import { Sesion, alCambiarSesion, api, guardarSesion, leerSesion } from "@/lib/api";
 
 const ROLES: Record<string, string> = { administrador: "Administrador", analista: "Analista", consulta: "Consulta" };
@@ -235,7 +236,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="truncate text-xs text-white/60">{ROLES[sesion.usuario.rol]}</div>
             </div>
           </Link>
-          <button className="mt-3 w-full rounded-xl border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white" onClick={salir}>Cerrar sesión</button>
+          <BotonInstalar oscuro texto="📱 Instalar la app" className="mt-3 w-full rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15" />
+          <button className="mt-2 w-full rounded-xl border border-white/15 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white" onClick={salir}>Cerrar sesión</button>
         </div>
       </aside>
       <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-[88rem] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">

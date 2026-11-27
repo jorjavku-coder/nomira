@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { BotonInstalar } from "@/components/AppInstalable";
 import { useEffect, useState } from "react";
 import Shell, { Icono, useSesion } from "@/components/Shell";
 import { api } from "@/lib/api";
@@ -73,6 +74,13 @@ export default function Inicio() {
         <Link href={siguiente.href} className="font-semibold text-turquesa-700 underline">Siguiente: {siguiente.texto}</Link>
         <button className="ml-auto text-xs text-slate-500 underline" onClick={ocultarPasos}>Ya no mostrar</button>
       </div>}
+
+      <div className="mt-4 flex items-center gap-3 rounded-2xl border border-crema-300 bg-white px-4 py-3 lg:hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/app/icono-192.png" alt="" className="h-10 w-10 rounded-xl" />
+        <span className="min-w-0 flex-1 text-sm text-marino"><b>Nomira en su celular</b><span className="block text-xs text-slate-500">Con su ícono y en pantalla completa.</span></span>
+        <BotonInstalar texto="Instalar" className="btn-turquesa px-4 py-2 text-sm" />
+      </div>
 
       <Link href="/premios" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-r from-marino to-turquesa-700 px-5 py-3 text-white transition hover:opacity-95">
         <span className="text-xl" aria-hidden>🧠</span><span className="text-sm"><b>Trivia jurídica del día:</b> gane puntos y cámbielos por descuentos o meses gratis.</span>
