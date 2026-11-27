@@ -1366,7 +1366,7 @@ class CmConfig(Base):
     mensaje_presentacion: Mapped[str | None] = mapped_column(Text)
     aceptacion_en_linea: Mapped[bool] = mapped_column(Boolean, default=True)
     registro_prueba: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")  # registro en línea con prueba gratis
-    precios_publicos: Mapped[str] = mapped_column(String(10), default="ocultos")  # ocultos | desde
+    precios_publicos: Mapped[str] = mapped_column(String(10), default="ocultos")  # ocultos | desde | completos (página /precios con carrito)
     pago_tarjeta: Mapped[bool] = mapped_column(Boolean, default=False)  # solo funciona si Stripe está conectado
     spei_habilitado: Mapped[bool] = mapped_column(Boolean, default=False)
     spei_banco: Mapped[str | None] = mapped_column(String(80))

@@ -166,13 +166,13 @@ def publico(db: Session = Depends(get_db)):
     digitos = re.sub(r"\D", "", ajustes().whatsapp_contacto)
     desde = None
     c = db.scalar(select(m.CmConfig))
-    if c and c.precios_publicos == "desde":
+    if c and c.precios_publicos in ("desde", "completos"):
         minimo = db.scalar(select(func.min(m.CmPaquete.precio_mensual)).where(m.CmPaquete.estado == "activo"))
         desde = cm.txt(minimo) if minimo is not None else None
     return {"permitir_registro": rg.registro_abierto(db), "whatsapp": digitos if 10 <= len(digitos) <= 15 else None,
             "precio_desde": desde, "google": bool(ajustes().google_client_id and ajustes().google_client_secret),
             "modulos_prueba": [{"clave": k, "nombre": v["nombre"], "descripcion": v["descripcion"]} for k, v in modulos.MODULOS.items()],
-            "max_modulos_prueba": rg.MAX_MODULOS}
+            "max_modulos_prueba": rg.MAX_MODULOS, "precios": bool(c and c.precios_publicos == "completos")}
 
 
 @router.get("/auth/yo")

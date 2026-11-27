@@ -60,6 +60,9 @@ def _limpiar():
     from app.routers import acceso
     acceso._por_ip._eventos.clear()
     acceso._intentos.clear()
+    from app.routers import tienda_publico
+    tienda_publico._cotizar_ip._eventos.clear()
+    tienda_publico._calculos_ip._eventos.clear()
     from app.routers import crecimiento_publico
     crecimiento_publico._casos_ip._eventos.clear()
     crecimiento_publico._consultas_ip._eventos.clear()

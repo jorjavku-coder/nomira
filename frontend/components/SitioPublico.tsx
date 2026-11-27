@@ -6,7 +6,7 @@ import { EnlacesLegales } from "@/components/legal";
 import Logo from "@/components/Logo";
 import { api, leerSesion, mxn } from "@/lib/api";
 
-const NAV = [["#modulos", "Módulos"], ["#connect", "Connect"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["#preguntas", "Preguntas"]];
+const NAV = [["#modulos", "Módulos"], ["#connect", "Connect"], ["#jurisprudencia", "Jurisprudencia"], ["#empezar", "Cómo empezar"], ["/calculadora-finiquito", "Calculadora"], ["/precios", "Precios"], ["#preguntas", "Preguntas"]];
 
 /** Cuadrícula «bento»: cada módulo con su captura real (datos ficticios). `ancho` = columnas de 6 en escritorio. */
 const BENTO = [
@@ -524,6 +524,7 @@ export default function SitioPublico() {
               {prueba ? <Link href="/login?registro=1" className="btn-turquesa s-brillo px-5 py-3 text-base">Pruebe 2 días gratis →</Link>
                 : <a href="#informes" className="btn-turquesa s-brillo px-5 py-3 text-base">Solicitar informes →</a>}
               {desde && <span className="text-sm text-slate-600">Paquetes desde <b className="text-marino">{mxn(desde).replace(/\.00$/, "")} MXN + IVA</b></span>}
+              <Link href="/precios" className="text-sm font-semibold text-turquesa-700 underline">Ver precios y comprar →</Link>
             </div>
           </div>
         </section>
@@ -625,6 +626,7 @@ export default function SitioPublico() {
             <a href="#empezar" className="hover:text-white">Cómo empezar</a>
             <a href="#seguridad" className="hover:text-white">Seguridad</a>
             <a href="#informes" className="hover:text-white">Informes</a>
+            <Link href="/precios" className="hover:text-white">Precios</Link>
             <Link href="/empleos" className="hover:text-white">Empleos</Link>
             <Link href="/aliados" className="hover:text-white">Aliados</Link>
             <Link href="/calculadora-finiquito" className="hover:text-white">Calculadora de finiquito</Link>
