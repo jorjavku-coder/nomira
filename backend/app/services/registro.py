@@ -98,7 +98,7 @@ def enviar_codigo(db: Session, email: str, nombre: str, codigo: str, para: str) 
 
 def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, hash_contrasena: str, elegidos: list[str],
                  telefono: str | None, via: str, google_sub: str | None = None, ip: str | None = None,
-                 acepta_whatsapp: bool = False) -> m.Usuario:
+                 acepta_whatsapp: bool = False, invitacion: str | None = None) -> m.Usuario:
     """Organización + primer administrador + módulos elegidos + prueba de 2 días + lead en Ventas. No hace commit."""
     if db.scalar(select(m.Usuario.id).where(m.Usuario.email == email)):
         raise HTTPException(409, "Ese correo ya tiene cuenta. Inicie sesión o recupere su contraseña.")
@@ -118,10 +118,13 @@ def crear_cuenta(db: Session, *, organizacion: str, nombre: str, email: str, has
     fin = sus.calcular_fin("prueba", inicio)
     db.add(m.PeriodoSuscripcion(organizacion_id=org.id, plan="prueba", inicio=inicio, fin=fin, pagado=False,
                                 nota=f"Prueba en línea ({'Google' if via == 'google' else 'correo'})"))
+    from .crecimiento import base as crecimiento
+    invitado = crecimiento.registrar_referido(db, org.id, invitacion)
     nombres = [modulos.MODULOS[x]["nombre"] for x in elegidos]
     sol = m.Solicitud(tipo="prueba", nombre=nombre, empresa=organizacion, email=email, telefono=telefono, acepta_whatsapp=bool(telefono and acepta_whatsapp), ip=(ip or "")[:60] or None,
                       mensaje=f"Se registró en línea con prueba gratuita de 2 días ({'con Google' if via == 'google' else 'con su correo'}). "
-                              f"Módulos elegidos: {', '.join(nombres)}. La prueba termina el {fin.isoformat()}.")
+                              f"Módulos elegidos: {', '.join(nombres)}. La prueba termina el {fin.isoformat()}."
+                              + (" Llegó con la invitación de otro despacho." if invitado else ""))
     db.add(sol)
     db.flush()
     ventas.desde_solicitud(db, sol)

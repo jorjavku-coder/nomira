@@ -84,11 +84,16 @@ export default function Login() {
   const [nueva, setNueva] = useState("");
   const [tokenGoogle, setTokenGoogle] = useState<{ token: string; email: string; nombre: string } | null>(null);
   const registro = !!pub?.permitir_registro;
+  const [invitacion, setInvitacion] = useState<{ codigo: string; despacho: string; meses: number } | null>(null);
 
   useEffect(() => {
     api.get("/publico").then(setPub).catch(() => {});
     const q = new URLSearchParams(window.location.search);
     if (q.get("registro")) setModo("registro");
+    try {  // invitación de otro despacho (nomirasoft.com/invita/CODIGO), vigente 30 días
+      const inv = JSON.parse(localStorage.getItem("nomira_invitacion") || "null");
+      if (inv?.codigo && Date.now() - (inv.guardada || 0) < 30 * 864e5) setInvitacion(inv);
+    } catch { /* sin almacenamiento: sin invitación */ }
     const h = window.location.hash.slice(1);
     if (!h) return;
     history.replaceState(null, "", window.location.pathname);
@@ -124,7 +129,7 @@ export default function Login() {
   const registrar = (e: React.FormEvent) => {
     e.preventDefault();
     hacer(async () => {
-      const r = await api.post("/auth/registro", { ...f, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono });
+      const r = await api.post("/auth/registro", { ...f, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono, invitacion: invitacion?.codigo || null });
       setReto(r.reto); setModo("codigo"); setOk(`Le enviamos un código de 6 dígitos a ${r.email}. Revise también su carpeta de spam.`);
     });
   };
@@ -132,7 +137,7 @@ export default function Login() {
   const reenviar = () => hacer(async () => { const r = await api.post("/auth/registro/reenviar", { reto }); setReto(r.reto); setOk("Le enviamos un código nuevo."); });
   const registrarGoogle = (e: React.FormEvent) => {
     e.preventDefault();
-    hacer(async () => listo(await api.post("/auth/registro/google", { token: tokenGoogle!.token, organizacion: f.organizacion, nombre: f.nombre, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono })));
+    hacer(async () => listo(await api.post("/auth/registro/google", { token: tokenGoogle!.token, organizacion: f.organizacion, nombre: f.nombre, telefono: f.telefono || null, modulos: mods, acepto, acepta_whatsapp: aceptaWa && !!f.telefono, invitacion: invitacion?.codigo || null })));
   };
   const pedirRecuperar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,6 +212,7 @@ export default function Login() {
           {modo === "registro" && <form onSubmit={registrar} className="space-y-4">
             <div><h2 className="text-2xl font-bold text-marino">Pruebe Nomira 2 días gratis</h2>
               <p className="mt-1 text-sm text-slate-500">Sin tarjeta. Usted será el administrador de su despacho.</p></div>
+            {invitacion && <p className="rounded-xl bg-turquesa-50 p-3 text-sm text-marino" data-prueba="invitacion">🤝 Le invitó <b>{invitacion.despacho}</b>. Cuando contrate su primer plan, los dos reciben {invitacion.meses} {invitacion.meses === 1 ? "mes" : "meses"} gratis.</p>}
             {pub?.google && <><BotonGoogle modo="registro" texto="Registrarse con Google" /><Separador /></>}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block sm:col-span-2"><span className="etiqueta">Despacho o notaría</span><input className="campo" required minLength={2} value={f.organizacion} onChange={cambiar("organizacion")} /></label>

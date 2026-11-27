@@ -258,3 +258,17 @@ def connect_aviso(despacho: str, nombre: str, asunto_nombre: str | None, titulo:
     texto = (f"Hola, {nombre}.\n\n{titulo}{sobre}.\n" + ("Necesitamos algo de usted para continuar.\n" if accion else "")
              + "\n".join(parrafos) + f"\n\nConsulte el seguimiento completo en su portal seguro: {url}\n")
     return asunto, _base(titulo, contenido, pie=f"Aviso automático de {despacho} enviado con Nomira. Puede dejar de recibirlos desde su portal."), texto
+
+
+def caso_nomira(despacho: str) -> tuple[str, str, str]:
+    """Aviso al despacho de que la calculadora de Nomira le envió un caso. Sin datos de la persona: están en Nomira."""
+    asunto = "Nomira le envió un caso nuevo"
+    url = _url("/leads")
+    contenido = f"""
+<h1 style="margin:0 0 8px;font-family:{TITULAR};font-size:24px;line-height:1.25;color:{MARINO}">Tiene un caso nuevo</h1>
+<p style="margin:0 0 14px">Una persona usó la calculadora de finiquito de Nomira y pidió que un abogado revise su caso. Se lo asignamos a <b>{escape(despacho)}</b>.</p>
+<p style="margin:0 0 14px">Sus datos y su autorización para contactarla están en <b>Prospectos</b>. Le recomendamos responder hoy: quien responde primero suele quedarse con el caso.</p>
+{_boton("Ver el caso en Prospectos", url)}"""
+    texto = ("Tiene un caso nuevo.\n\nUna persona usó la calculadora de finiquito de Nomira y pidió que un abogado revise su caso. "
+             f"Se lo asignamos a {despacho}. Sus datos están en Prospectos: {url}\n")
+    return asunto, _base(asunto, contenido), texto

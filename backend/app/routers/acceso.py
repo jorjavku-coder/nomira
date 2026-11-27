@@ -63,6 +63,7 @@ class RegistroIn(BaseModel):
     modulos: list[str] = Field(default_factory=list, max_length=10)
     acepto: bool = False
     acepta_whatsapp: bool = False  # avisos de su cuenta por WhatsApp (casilla aparte, opcional)
+    invitacion: str | None = Field(None, max_length=12)  # código de otro despacho (nomirasoft.com/invita/…)
 
 
 @router.post("/registro")
@@ -80,7 +81,8 @@ def registro(d: RegistroIn, request: Request, db: Session = Depends(get_db)):
     if tel and not re.fullmatch(r"[\d\s+()\-]{7,40}", tel):
         raise HTTPException(422, "Teléfono inválido.")
     datos = {"org": _texto(d.organizacion, 200), "nombre": _texto(d.nombre, 200), "email": email, "tel": tel,
-             "hc": hash_contrasena(d.contrasena), "mods": elegidos, "wa": bool(tel and d.acepta_whatsapp)}
+             "hc": hash_contrasena(d.contrasena), "mods": elegidos, "wa": bool(tel and d.acepta_whatsapp),
+             "inv": (d.invitacion or "")[:12] or None}
     reto, codigo = rg.reto_con_codigo("registro", datos)
     rg.enviar_codigo(db, email, datos["nombre"], codigo, "registro")
     db.commit()
@@ -107,7 +109,7 @@ def registro_verificar(d: CodigoIn, request: Request, db: Session = Depends(get_
     _intentos.exito(ip, llave)
     u = rg.crear_cuenta(db, organizacion=datos["org"], nombre=datos["nombre"], email=datos["email"], hash_contrasena=datos["hc"],
                         elegidos=rg.validar_modulos(datos["mods"]), telefono=datos.get("tel"), via="correo", ip=ip,
-                        acepta_whatsapp=bool(datos.get("wa")))
+                        acepta_whatsapp=bool(datos.get("wa")), invitacion=datos.get("inv"))
     auditar(db, u, "organizacion_creada", "organizacion", u.organizacion_id, {"via": "registro_correo", "modulos": datos["mods"]}, request)
     db.commit()
     return _sesion(db, u, db.get(m.Organizacion, u.organizacion_id))
@@ -238,6 +240,7 @@ class RegistroGoogleIn(BaseModel):
     modulos: list[str] = Field(default_factory=list, max_length=10)
     acepto: bool = False
     acepta_whatsapp: bool = False
+    invitacion: str | None = Field(None, max_length=12)
 
 
 @router.post("/registro/google", status_code=201)
@@ -256,7 +259,8 @@ def registro_google(d: RegistroGoogleIn, request: Request, db: Session = Depends
         raise HTTPException(409, "Esa cuenta de Google ya tiene acceso. Inicie sesión.")
     u = rg.crear_cuenta(db, organizacion=_texto(d.organizacion, 200), nombre=_texto(d.nombre, 200) or g["nombre"], email=g["email"],
                         hash_contrasena=rg.SIN_CONTRASENA, elegidos=rg.validar_modulos(d.modulos), telefono=tel, via="google",
-                        google_sub=g["sub"], ip=ip, acepta_whatsapp=bool(tel and d.acepta_whatsapp))
+                        google_sub=g["sub"], ip=ip, acepta_whatsapp=bool(tel and d.acepta_whatsapp),
+                        invitacion=d.invitacion)
     auditar(db, u, "organizacion_creada", "organizacion", u.organizacion_id, {"via": "registro_google", "modulos": d.modulos}, request)
     db.commit()
     return _sesion(db, u, db.get(m.Organizacion, u.organizacion_id))

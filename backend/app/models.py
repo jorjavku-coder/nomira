@@ -2709,3 +2709,153 @@ class AlSolicitud(Base):
     nota: Mapped[str | None] = mapped_column(String(2000))
     ip: Mapped[str | None] = mapped_column(String(60))
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+# ---------------------------------------------------------------- Crecimiento: referidos, juegos y casos de Nomira
+
+class CxConfig(Base):
+    """Reglas de crecimiento que define Nomira (una sola fila). La ruleta arranca apagada: es un sorteo
+    y puede requerir permiso de la Secretaría de Gobernación; se enciende desde el panel."""
+    __tablename__ = "cx_config"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    juegos_activos: Mapped[bool] = mapped_column(Boolean, default=True)
+    ruleta_activa: Mapped[bool] = mapped_column(Boolean, default=False)
+    ruleta_permiso: Mapped[str | None] = mapped_column(String(120))  # número de permiso, si se tramitó
+    puntos_por_acierto: Mapped[int] = mapped_column(Integer, default=10)
+    preguntas_por_dia: Mapped[int] = mapped_column(Integer, default=3)
+    tope_puntos_dia_org: Mapped[int] = mapped_column(Integer, default=60)
+    tope_meses_anual: Mapped[int] = mapped_column(Integer, default=6)  # meses de regalo por juegos, por despacho y año
+    referidos_activos: Mapped[bool] = mapped_column(Boolean, default=True)
+    meses_referido: Mapped[int] = mapped_column(Integer, default=1)  # para quien invita y para quien llega
+    tope_referidos_anual: Mapped[int] = mapped_column(Integer, default=12)  # meses por invitar, por despacho y año
+    casos_activos: Mapped[bool] = mapped_column(Boolean, default=True)  # «Quiero que un abogado revise mi caso»
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CxPregunta(Base):
+    """Pregunta de la trivia jurídica. `opciones` es una lista de textos; `correcta`, su índice."""
+    __tablename__ = "cx_preguntas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clave: Mapped[str | None] = mapped_column(String(40), unique=True)  # las de fábrica (para sembrar sin duplicar)
+    materia: Mapped[str] = mapped_column(String(40))
+    texto: Mapped[str] = mapped_column(String(400))
+    opciones: Mapped[list] = mapped_column(JSON)
+    correcta: Mapped[int] = mapped_column(Integer)
+    explicacion: Mapped[str] = mapped_column(String(800))
+    activa: Mapped[bool] = mapped_column(Boolean, default=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CxRespuesta(Base):
+    __tablename__ = "cx_respuestas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    pregunta_id: Mapped[int] = mapped_column(ForeignKey("cx_preguntas.id", ondelete="CASCADE"))
+    elegida: Mapped[int] = mapped_column(Integer)
+    correcta: Mapped[bool] = mapped_column(Boolean)
+    dia: Mapped[date] = mapped_column(Date)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    __table_args__ = (UniqueConstraint("usuario_id", "pregunta_id"),)
+
+
+class CxMovimiento(Base):
+    """Puntos del despacho: lo que ganan en la trivia o la ruleta y lo que cambian en la tienda (negativo)."""
+    __tablename__ = "cx_movimientos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    origen: Mapped[str] = mapped_column(String(12))  # trivia | ruleta | tienda | ajuste
+    puntos: Mapped[int] = mapped_column(Integer)
+    detalle: Mapped[str | None] = mapped_column(String(200))
+    dia: Mapped[date] = mapped_column(Date)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CxPremio(Base):
+    """Casilla de la ruleta (`lugar` = ruleta) o artículo de la tienda de puntos (`lugar` = tienda).
+    tipo: puntos | descuento (porcentaje) | meses (meses de regalo)."""
+    __tablename__ = "cx_premios"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lugar: Mapped[str] = mapped_column(String(8))
+    etiqueta: Mapped[str] = mapped_column(String(60))
+    tipo: Mapped[str] = mapped_column(String(10))
+    valor: Mapped[int] = mapped_column(Integer)
+    peso: Mapped[int] = mapped_column(Integer, default=0)  # ruleta: probabilidad relativa
+    costo: Mapped[int] = mapped_column(Integer, default=0)  # tienda: puntos
+    tope_mensual: Mapped[int | None] = mapped_column(Integer)  # ruleta: cuántas veces puede salir al mes en todo Nomira
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class CxGiro(Base):
+    """Un giro de la ruleta por despacho y por semana."""
+    __tablename__ = "cx_giros"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    semana: Mapped[str] = mapped_column(String(8))  # 2026-W48
+    premio_id: Mapped[int | None] = mapped_column(ForeignKey("cx_premios.id", ondelete="SET NULL"))
+    etiqueta: Mapped[str] = mapped_column(String(60))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)
+    __table_args__ = (UniqueConstraint("organizacion_id", "semana"),)
+
+
+class CxRecompensa(Base):
+    """Premio ganado por el despacho: un descuento (cupón de un solo uso) o meses de regalo. Los meses se
+    agregan como periodo «cortesía» al final de su plan; si el despacho aún no paga, esperan a su primer pago."""
+    __tablename__ = "cx_recompensas"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    origen: Mapped[str] = mapped_column(String(12))  # ruleta | tienda | referido | invitado
+    tipo: Mapped[str] = mapped_column(String(10))  # descuento | meses
+    valor: Mapped[int] = mapped_column(Integer)
+    descripcion: Mapped[str] = mapped_column(String(200))
+    estado: Mapped[str] = mapped_column(String(10), default="pendiente")  # pendiente | aplicada | disponible
+    cupon_id: Mapped[int | None] = mapped_column(ForeignKey("cm_cupones.id", ondelete="SET NULL"))
+    periodo_id: Mapped[int | None] = mapped_column(ForeignKey("periodos_suscripcion.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    aplicada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CxInvitacion(Base):
+    """Código de invitación de cada despacho (nomirasoft.com/invita/CODIGO)."""
+    __tablename__ = "cx_invitaciones"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    codigo: Mapped[str] = mapped_column(String(12), unique=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+
+
+class CxReferido(Base):
+    """Despacho que se registró con la invitación de otro. Ambos ganan cuando el invitado paga su primer plan."""
+    __tablename__ = "cx_referidos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    referidor_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), index=True)
+    referido_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    estado: Mapped[str] = mapped_column(String(10), default="registrado")  # registrado | premiado
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora)
+    premiado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CxRed(Base):
+    """Despacho que acepta recibir casos de la calculadora pública de Nomira, por estado."""
+    __tablename__ = "cx_red"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organizacion_id: Mapped[int] = mapped_column(ForeignKey("organizaciones.id", ondelete="CASCADE"), unique=True)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    estados: Mapped[list] = mapped_column(JSON)  # claves de ESTADOS_MX
+    tope_mensual: Mapped[int | None] = mapped_column(Integer)
+    ultimo_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, onupdate=ahora)
+
+
+class CxCaso(Base):
+    """«Quiero que un abogado revise mi caso» desde la calculadora. Se entrega a UN despacho de la red como
+    prospecto de su módulo de Prospectos; aquí solo queda el registro de a quién se envió (sin contacto)."""
+    __tablename__ = "cx_casos"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    estado_mx: Mapped[str] = mapped_column(String(4))
+    organizacion_id: Mapped[int | None] = mapped_column(ForeignKey("organizaciones.id", ondelete="SET NULL"), index=True)
+    prospecto_id: Mapped[int | None] = mapped_column(ForeignKey("ld_prospectos.id", ondelete="SET NULL"))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=ahora, index=True)

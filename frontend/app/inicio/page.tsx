@@ -74,6 +74,10 @@ export default function Inicio() {
         <button className="ml-auto text-xs text-slate-500 underline" onClick={ocultarPasos}>Ya no mostrar</button>
       </div>}
 
+      <Link href="/premios" className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-r from-marino to-turquesa-700 px-5 py-3 text-white transition hover:opacity-95">
+        <span className="text-xl" aria-hidden>🧠</span><span className="text-sm"><b>Trivia jurídica del día:</b> gane puntos y cámbielos por descuentos o meses gratis.</span>
+        <span className="ml-auto text-sm font-semibold text-turquesa-brillante">Jugar →</span></Link>
+
       {r && r.numeros.length > 0 && <div className={`mt-5 grid gap-3 sm:grid-cols-2 ${r.numeros.length >= 4 ? "lg:grid-cols-4" : r.numeros.length === 3 ? "lg:grid-cols-3" : ""}`}>
         {r.numeros.map((n) => (
           <Link key={n.clave} href={n.href} className="tarjeta p-4 transition hover:border-turquesa hover:shadow-sm">

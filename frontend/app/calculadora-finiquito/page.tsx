@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Avisos, Desglose, Resumen } from "@/components/liquidaciones";
 import Logo from "@/components/Logo";
+import QuieroAbogado from "@/components/QuieroAbogado";
 import { mxn } from "@/lib/api";
 
 const CAUSAS = [["despido_injustificado", "Despido injustificado"], ["renuncia", "Renuncia voluntaria"], ["rescision_trabajador", "Rescisión por causa del patrón"],
@@ -43,7 +44,7 @@ export default function Calculadora() {
       <main className="mx-auto max-w-6xl px-5 py-10">
         <p className="text-xs font-bold uppercase tracking-wider text-turquesa-700">Herramienta gratuita · Ley Federal del Trabajo</p>
         <h1 className="mt-2 font-marca text-3xl font-extrabold text-marino sm:text-4xl">Calculadora de finiquito y liquidación</h1>
-        <p className="mt-2 max-w-3xl text-slate-600">Capture la fecha de ingreso, la fecha de baja y el salario diario. Verá cada concepto con su operación y su artículo. No guardamos lo que capture.</p>
+        <p className="mt-2 max-w-3xl text-slate-600">Capture la fecha de ingreso, la fecha de baja y el salario diario. Verá cada concepto con su operación y su artículo. No guardamos lo que capture, salvo que usted pida que un abogado revise su caso.</p>
         <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <section className="tarjeta h-fit space-y-4 p-6">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -59,8 +60,9 @@ export default function Calculadora() {
               {despido && <label className="block"><span className="etiqueta">Calcular salarios caídos al</span><input type="date" className="campo" value={f.fecha_calculo} onChange={pon("fecha_calculo")} />
                 <span className="mt-0.5 block text-xs text-slate-500">Vacío: hoy.</span></label>}
             </div>
+            <QuieroAbogado calculo={res ? datos : null} />
             <div className="rounded-2xl bg-turquesa-50 p-4 text-sm text-marino">
-              <p className="font-bold">¿Lleva casos laborales?</p>
+              <p className="font-bold">¿Es abogado y lleva casos laborales?</p>
               <p className="mt-1 text-slate-600">En Nomira guarda cada cálculo, lo liga al asunto y al cliente, agrega horas extra con la reforma de 40 horas, prepara la propuesta de convenio y la imprime con su logotipo.</p>
               <Link href="/#informes" className="mt-2 inline-block font-semibold text-turquesa-700 underline">Conozca Nomira para despachos →</Link>
             </div>

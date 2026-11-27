@@ -7,6 +7,7 @@ import { Aviso, Avatar, Modal } from "@/components/ui";
 import { SesionP, alCambiarSesionP, apiP, esEjecutivo, esSuperadmin, guardarSesionP, leerSesionP } from "@/lib/plataforma";
 
 const ICONOS: Record<string, React.ReactNode> = {
+  premios: <><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 3.5M17 6h2.5a2.5 2.5 0 0 1-2.6 3.5" /></>,
   club: <><rect x="3" y="8" width="18" height="13" rx="2" /><path d="M12 8v13M3 12h18M7.5 8a2.5 2.5 0 1 1 4.5-1.5V8M16.5 8A2.5 2.5 0 1 0 12 6.5V8" /></>,
   resumen: <><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" /></>,
   solicitudes: <><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></>,
@@ -71,6 +72,7 @@ export default function ShellPlataforma({ children }: { children: React.ReactNod
     { href: "/plataforma/legal", texto: "Legal", icono: "legal", activo: ruta.startsWith("/plataforma/legal"), n: cont?.arco_pendientes },
     { href: "/plataforma/tesis", texto: "Tesis (SJF)", icono: "legal", activo: ruta.startsWith("/plataforma/tesis") },
     { href: "/plataforma/club", texto: "Club Nomira", icono: "club", activo: ruta.startsWith("/plataforma/club") },
+    { href: "/plataforma/crecimiento", texto: "Juegos y referidos", icono: "premios", activo: ruta.startsWith("/plataforma/crecimiento") },
     ...(esSuperadmin(sesion) ? [{ href: "/plataforma/comercial", texto: "Comercial", icono: "comercial", activo: ruta.startsWith("/plataforma/comercial") },
       { href: "/plataforma/academia", texto: "Academia", icono: "academia", activo: ruta.startsWith("/plataforma/academia") }] : []),
     { href: "/plataforma/admins", texto: "Administradores", icono: "admins", activo: ruta.startsWith("/plataforma/admins") },
@@ -183,8 +185,8 @@ export function EstadoSuscripcion({ s, compacto = false }: { s: any; compacto?: 
   return <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${clase}`}>{texto}</span>;
 }
 
-const NOMBRES_PLAN: Record<string, string> = { prueba: "Prueba gratuita", mensual: "Mensual", semestral: "Semestral", anual: "Anual" };
-const DURACION: Record<string, string> = { prueba: "2 días", mensual: "1 mes", semestral: "6 meses", anual: "12 meses" };
+const NOMBRES_PLAN: Record<string, string> = { prueba: "Prueba gratuita", mensual: "Mensual", semestral: "Semestral", anual: "Anual", cortesia: "Meses de regalo" };
+const DURACION: Record<string, string> = { prueba: "2 días", mensual: "1 mes", semestral: "6 meses", anual: "12 meses", cortesia: "premio o invitación" };
 
 function sumarMeses(iso: string, meses: number): Date {
   const [a, m, d] = iso.split("-").map(Number);

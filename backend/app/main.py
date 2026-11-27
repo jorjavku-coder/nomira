@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import SessionLocal, engine
-from .routers import (acceso, inicio, connect, connect_publico, club, club_publico, plataforma_club, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, rh, rh_portal, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
+from .routers import (acceso, inicio, connect, connect_publico, club, club_publico, plataforma_club, crecimiento as crecimiento_r, crecimiento_publico, plataforma_crecimiento, academia, asistente, academia_medios, afore, agenda, agenda_estrados, agenda_feed, bolsa, bolsa_publico, clientes, cobro, rh, rh_portal, plataforma_tesis, tesis, escrituracion, escrituracion_publico, liquidaciones, liquidaciones_publico, ventas, afore_publico, auth, catalogos, comercial, comercial_publico, cupones, documentos, evidencia,
                       evidencia_publica, expedientes, ia, leads, leads_publico, legal, organizacion, plataforma, plataforma_academia, plataforma_legal,
                       soporte, solicitudes)
 from .services.evidencia.procesamiento import recuperar_interrumpidos as recuperar_evidencia
@@ -42,6 +42,13 @@ async def ciclo(app: FastAPI):
             cursos_nomira.asegurar(db)
     except Exception:
         logging.getLogger("quincena").warning("No se pudieron revisar los cursos de Nomira Academia.")
+    try:
+        from .services.crecimiento import base as crecimiento
+        with SessionLocal() as db:  # preguntas nuevas de la trivia y premios de fábrica (idempotente)
+            crecimiento.sembrar(db)
+            db.commit()
+    except Exception:
+        logging.getLogger("quincena").warning("No se pudieron revisar las preguntas y premios de Nomira.")
     try:
         with SessionLocal() as db:
             asegurar_admin_inicial(db)
@@ -192,6 +199,9 @@ app.include_router(connect.router, dependencies=[Depends(requiere_modulo("connec
 app.include_router(connect_publico.router)
 app.include_router(club.router)  # Club Nomira: beneficios para los usuarios de los despachos (sin módulo: todos)
 app.include_router(club_publico.router)  # verificar credencial, logos de aliados y «Quiero ser aliado»
+app.include_router(crecimiento_r.router)  # Gana con Nomira: trivia, ruleta, tienda, invitaciones y red de casos
+app.include_router(crecimiento_publico.router)  # invitaciones y «quiero que un abogado revise mi caso»
+app.include_router(plataforma_crecimiento.router)
 app.include_router(plataforma_club.router)  # panel de Nomira: aliados, beneficios y métricas  # portal del cliente de Nomira Connect (X-Enlace + código)
 app.include_router(liquidaciones.router, dependencies=[Depends(requiere_modulo("nomina"))])
 app.include_router(asistente.router)  # Asistente IA: incluido en todos los planes, con usos al mes
