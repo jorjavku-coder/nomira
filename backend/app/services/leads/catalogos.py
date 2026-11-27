@@ -4,7 +4,7 @@ CANALES = {
     "whatsapp": "WhatsApp", "correo": "Correo electrónico", "facebook": "Facebook", "instagram": "Instagram",
     "tiktok": "TikTok", "google": "Google (búsqueda o anuncios)", "linkedin": "LinkedIn", "sitio_web": "Sitio web",
     "referido": "Recomendación o referido", "llamada": "Llamada telefónica", "visita": "Visita a la oficina",
-    "evento": "Evento o plática", "otro": "Otro",
+    "evento": "Evento o plática", "nomira": "Nomira (calculadora de finiquito)", "otro": "Otro",
 }
 # Canales que funcionan como campañas en redes sociales (para agrupar en reportes)
 REDES = ("facebook", "instagram", "tiktok", "linkedin")

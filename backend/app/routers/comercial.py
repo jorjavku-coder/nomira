@@ -857,6 +857,9 @@ def convertir(cid: int, d: ConvertirIn, request: Request, a: m.AdminPlataforma =
                                    nota=f"Cotización {c.folio} v{v.numero}" + (" · promocional" if d.promocional else ""), creado_por_id=a.id)
     db.add(periodo)
     db.flush()
+    if periodo.pagado:  # meses de regalo guardados y premio por invitación
+        from ..services.crecimiento import base as crecimiento
+        crecimiento.al_pagar(db, org.id)
     mods = [x["clave"] for x in calc["modulos"]]
     for clave in mods:  # solo AGREGA módulos: nunca desactiva ni oculta los que ya tenía
         modulos.fijar(db, org.id, clave, contratado=True, activo=True)

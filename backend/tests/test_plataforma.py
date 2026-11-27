@@ -50,7 +50,9 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             ("POST", "/api/mi-portal/verificar"), ("POST", "/api/mi-portal/mensajes"),
             ("POST", "/api/mi-portal/preferencias"),
             # Club Nomira: verificar credencial (para comercios), logos de aliados y «Quiero ser aliado»
-            ("GET", "/api/club-publico/verificar/{codigo}"), ("GET", "/api/club-publico/logos/{aid}"), ("POST", "/api/club-publico/aliados")}
+            ("GET", "/api/club-publico/verificar/{codigo}"), ("GET", "/api/club-publico/logos/{aid}"), ("POST", "/api/club-publico/aliados"),
+            # Crecimiento: invitación de un despacho (solo su nombre) y «quiero que un abogado revise mi caso»
+            ("GET", "/api/invitacion/{codigo}"), ("GET", "/api/publico/abogados"), ("POST", "/api/publico/quiero-abogado")}
 
 
 def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):

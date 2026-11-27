@@ -17,6 +17,7 @@ PLANES = {  # clave: (nombre, meses; None = días fijos)
     "mensual": ("Mensual", 1),
     "semestral": ("Semestral", 6),
     "anual": ("Anual", 12),
+    "cortesia": ("Meses de regalo", None),  # premios y referidos (services/crecimiento); nunca se captura a mano
 }
 DIAS_PRUEBA = 2
 AVISO_DIAS = 7  # «por vencer» cuando faltan 7 días o menos

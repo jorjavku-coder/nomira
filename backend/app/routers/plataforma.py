@@ -549,7 +549,7 @@ def cambiar_usuario(cid: int, uid: int, d: UsuarioCambio, request: Request,
 
 def _crear_periodo(db: Session, a: m.AdminPlataforma, o: m.Organizacion, d: PeriodoNuevo,
                    request: Request) -> m.PeriodoSuscripcion:
-    if d.plan not in sus.PLANES:
+    if d.plan not in sus.PLANES or d.plan == "cortesia":
         raise HTTPException(422, "Plan inválido: use prueba, mensual, semestral o anual.")
     existentes = db.scalars(select(m.PeriodoSuscripcion).where(m.PeriodoSuscripcion.organizacion_id == o.id)).all()
     if d.plan == "prueba" and any(p.plan == "prueba" for p in existentes):
@@ -567,6 +567,9 @@ def _crear_periodo(db: Session, a: m.AdminPlataforma, o: m.Organizacion, d: Peri
                              nota=(d.nota or "").strip() or None, creado_por_id=a.id)
     db.add(p)
     db.flush()
+    if p.pagado:  # meses de regalo guardados y premio por invitación
+        from ..services.crecimiento import base as crecimiento
+        crecimiento.al_pagar(db, o.id)
     _registrar(db, a, "suscripcion_registrada", request, organizacion_id=o.id, entidad="periodo", entidad_id=p.id,
                detalle={"plan": d.plan, "inicio": d.inicio.isoformat(), "fin": fin.isoformat()})
     return p
@@ -589,7 +592,7 @@ def _suscripcion(db: Session, cid: int) -> dict:
             "recordatorios": [{"periodo_id": c.periodo_id, "estado": c.estado, "fecha": c.creado_en.isoformat(),
                                "destinatarios": c.destinatarios, "error": c.error} for c in avisos],
             "planes": [{"clave": k, "nombre": v[0], "fin_si_inicia_hoy": sus.calcular_fin(k, ref).isoformat()}
-                       for k, v in sus.PLANES.items()]}
+                       for k, v in sus.PLANES.items() if k != "cortesia"]}
 
 
 @router.get("/clientes/{cid}/suscripcion")
@@ -613,6 +616,9 @@ def cambiar_periodo(pid: int, d: PeriodoCambio, request: Request, a: m.AdminPlat
     cambios = d.model_dump(exclude_unset=True)
     if "pagado" in cambios and p.plan != "prueba":
         p.pagado, p.pagado_en = d.pagado, (sus.hoy() if d.pagado else None)
+        if d.pagado:
+            from ..services.crecimiento import base as crecimiento
+            crecimiento.al_pagar(db, p.organizacion_id)
     if "monto" in cambios:
         p.monto = d.monto
     if "nota" in cambios:

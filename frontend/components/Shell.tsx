@@ -29,6 +29,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   academia: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6" /></>,
   asistente: <><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" /><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8zM5 16l.6 1.4L7 18l-1.4.6L5 20l-.6-1.4L3 18l1.4-.6z" /></>,
   liquidaciones: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3M8 18h4" /></>,
+  premios: <><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 3.5M17 6h2.5a2.5 2.5 0 0 1-2.6 3.5" /></>,
   connect: <><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4 3.5V16h-.5A2.5 2.5 0 0 1 4 13.5z" /><path d="M8 9.5h2.2l1.3 1.6 2-3.1 1.3 1.5H16" /></>,
   escrituracion: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h4" /><circle cx="17" cy="18" r="2.2" /></>,
   agenda: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17h6" /></>,
@@ -177,6 +178,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       { grupo: "Crecer el despacho", href: "/leads", texto: "Prospectos", icono: "leads", activo: deLeads }] : []),
     ...(activos.includes("rh") ? [
       { grupo: "Crecer el despacho", href: "/rh", texto: "Recursos humanos", icono: "rh", activo: ruta.startsWith("/rh"), n: rhN }] : []),
+    { grupo: "Mi despacho", href: "/premios", texto: "Gana con Nomira", icono: "premios", activo: ruta.startsWith("/premios") },
     { grupo: "Mi despacho", href: "/club", texto: "Club Nomira: beneficios", icono: "club", activo: ruta.startsWith("/club") },
     { grupo: "Mi despacho", href: "/soporte", texto: "Soporte", icono: "soporte", activo: ruta.startsWith("/soporte"), n: sinLeer },
     // Lo que se usa menos va dentro de «Más» (se abre solo si la pantalla actual está ahí)
