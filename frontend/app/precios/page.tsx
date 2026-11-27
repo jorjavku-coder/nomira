@@ -27,7 +27,9 @@ export default function Precios() {
   const [errorCupon, setErrorCupon] = useState("");
   const [pagar, setPagar] = useState<string | null>(null);
   useEffect(() => {
-    pedir("").then((c) => { setCat(c); const medio = c.paquetes[Math.min(1, c.paquetes.length - 1)]; setPaq(medio?.id ?? null); setPer(c.periodicidades[0]?.clave || "mensual"); })
+    pedir("").then((c) => {
+      c.paquetes.sort((a: any, b: any) => Number(a.precio_mensual) - Number(b.precio_mensual));  // del más barato al más completo
+      setCat(c); setPaq(c.paquetes[0]?.id ?? null); setPer(c.periodicidades[0]?.clave || "mensual"); })
       .catch((e) => { if (e.status === 404) setOculto(true); else setError(e.message); });
   }, []);
   const paquete = cat?.paquetes.find((p: any) => p.id === paq);
@@ -57,10 +59,9 @@ export default function Precios() {
               className={`rounded-lg px-4 py-2 text-sm font-semibold ${per === p.clave ? "bg-marino text-white" : "text-slate-600"}`}>Pago {p.nombre.toLowerCase()}</button>)}</div>}
 
           <section aria-labelledby="t-paq"><h2 id="t-paq" className="text-lg font-bold text-marino">1. Elija su paquete</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">{cat.paquetes.map((p: any, i: number) => (
+            <div className={`mt-3 grid gap-3 sm:grid-cols-2 ${cat.paquetes.length === 3 ? "xl:grid-cols-3" : ""}`}>{cat.paquetes.map((p: any) => (
               <button key={p.id} onClick={() => setPaq(p.id)} aria-pressed={paq === p.id}
                 className={`tarjeta relative p-5 text-left transition ${paq === p.id ? "ring-2 ring-turquesa" : "hover:-translate-y-0.5"}`}>
-                {i === 1 && <span className="absolute -top-2.5 left-4 rounded-full bg-turquesa px-2 py-0.5 text-[11px] font-bold text-white">Recomendado</span>}
                 <p className="font-bold text-marino">{p.nombre}</p>
                 <p className="mt-1"><span className="font-marca text-3xl font-extrabold text-marino">{entero(p.precio_mensual)}</span><span className="text-sm text-slate-500"> /mes + IVA</span></p>
                 <ul className="mt-3 space-y-1 text-sm text-slate-600">
