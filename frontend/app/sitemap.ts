@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/calculadora-finiquito`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/precios`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE}/descargar`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/conector-claude`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/empleos`, changeFrequency: "daily", priority: 0.8 },
   ];
 }
