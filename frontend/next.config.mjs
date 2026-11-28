@@ -42,7 +42,10 @@ const nextConfig = {
   // Subidas grandes (videos y SCORM de Academia) pasan por este proxy hacia el backend.
   experimental: { proxyTimeout: 15 * 60 * 1000 },
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${destino}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${destino}/api/:path*` },
+      { source: "/mcp", destination: `${destino}/api/mcp` },  // conector de Nomira para Claude (nomirasoft.com/mcp)
+    ];
   },
   async headers() {
     return [

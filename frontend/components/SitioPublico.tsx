@@ -628,6 +628,7 @@ export default function SitioPublico() {
             <a href="#informes" className="hover:text-white">Informes</a>
             <Link href="/precios" className="hover:text-white">Precios</Link>
             <Link href="/descargar" className="hover:text-white">App para celular</Link>
+            <Link href="/conector-claude" className="hover:text-white">Nomira en Claude</Link>
             <Link href="/empleos" className="hover:text-white">Empleos</Link>
             <Link href="/aliados" className="hover:text-white">Aliados</Link>
             <Link href="/calculadora-finiquito" className="hover:text-white">Calculadora de finiquito</Link>

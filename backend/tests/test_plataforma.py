@@ -54,7 +54,9 @@ PUBLICAS = {("POST", "/api/auth/login"), ("POST", "/api/auth/login/codigo"), ("P
             # Crecimiento: invitación de un despacho (solo su nombre) y «quiero que un abogado revise mi caso»
             ("GET", "/api/invitacion/{codigo}"), ("GET", "/api/publico/abogados"), ("POST", "/api/publico/quiero-abogado"),
             # Precios públicos y carrito (solo si Nomira los publica)
-            ("GET", "/api/precios"), ("POST", "/api/precios/calcular"), ("POST", "/api/precios/cotizar")}
+            ("GET", "/api/precios"), ("POST", "/api/precios/calcular"), ("POST", "/api/precios/cotizar"),
+            # Conector MCP para Claude: solo consultas públicas (tesis, finiquito, plazos); sin datos de despachos
+            ("POST", "/api/mcp"), ("GET", "/api/mcp"), ("DELETE", "/api/mcp")}
 
 
 def test_propuesta_sin_enlace_no_da_nada(cliente, plataforma, org):
